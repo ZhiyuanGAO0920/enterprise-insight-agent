@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+venv312/
+.venv/
+
+# Environment secrets
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Non-core files
+非核心文件/
+
+# Pre-packaged models & images (large archives — distributed via Release)
+ollama-models/bge-m3.tar.gz
+eia-v4-images.tar.gz
+
+# Backups
+backups/
+
+# Temporary
+*.log
+/tmp/
+temp_resp.json
+*.db
+verify_result*.json
+analyze_resp.json
+comprehensive_report.md
+body.json
+login_resp.json
+token.txt

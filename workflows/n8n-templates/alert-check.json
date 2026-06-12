@@ -1,0 +1,91 @@
+{
+  "name": "V4 异常检测与预警",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 8
+            }
+          ],
+          "triggerAtMinute": 0
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "每 8 小时检测一次",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:8000/api/v1/alerts/check",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.N8N_WEBHOOK_SECRET}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "http-request",
+      "name": "检测异常指标",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.alerts_created }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "if-check",
+      "name": "有异常？",
+      "type": "n8n-nodes-base.if",
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "schedule-trigger": {
+      "main": [
+        [
+          {
+            "node": "http-request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-request": {
+      "main": [
+        [
+          {
+            "node": "if-check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Shanghai"
+  },
+  "description": "每 8 小时自动检测经营指标异常。检测到异常后通过配置的 webhook（飞书/钉钉/企微）推送通知。需要先在 .env 中配置 N8N_WEBHOOK_SECRET 和对应的 WEBHOOK_URL。"
+}

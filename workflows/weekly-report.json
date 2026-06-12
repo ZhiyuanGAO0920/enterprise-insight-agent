@@ -1,0 +1,89 @@
+{
+  "name": "EIA - 周一经营分析周报",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "cron-weekly",
+      "name": "每周一 09:00 触发",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://eia-app-v4:8002/api/v1/weekly/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer ${N8N_WEBHOOK_SECRET}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "http-weekly",
+      "name": "POST 生成周报",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 解析周报响应\nconst data = $input.first().json;\nconst status = data.status;\nconst preview = data.report_preview || '';\n\nif (status === 'ok') {\n  return {\n    success: true,\n    record_id: data.record_id,\n    week_start: data.week_start,\n    week_end: data.week_end,\n    summary: preview.substring(0, 200)\n  };\n} else {\n  throw new Error(`周报生成失败: ${JSON.stringify(data)}`);\n}"
+      },
+      "id": "code-weekly",
+      "name": "解析响应",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "cron-weekly": {
+      "main": [
+        [
+          {
+            "node": "http-weekly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-weekly": {
+      "main": [
+        [
+          {
+            "node": "code-weekly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Shanghai"
+  }
+}

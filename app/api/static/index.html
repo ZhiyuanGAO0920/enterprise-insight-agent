@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业智能经营分析平台 V4</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/echarts.min.js"></script>
+</head>
+<body>
+
+<!-- ======================================================================
+     V4 欢迎页（Intro Splash Screen）
+     页面加载时首先展示，点击「进入系统」后淡出到登录界面
+     ====================================================================== -->
+<div id="introOverlay" class="intro-overlay">
+  <div class="intro-bg-grid"></div>
+  <div class="intro-glow"></div>
+  <div class="intro-particles" id="introParticles"></div>
+  <div class="intro-content">
+    <div class="intro-badge">AI 经营分析平台</div>
+    <div class="intro-title">Enterprise Insight Agent</div>
+    <div class="intro-subtitle">V4.0 正式发布</div>
+    <div class="intro-stats">
+      <div class="intro-stat">
+        <div class="intro-stat-num">10</div>
+        <div class="intro-stat-label">AI AGENT</div>
+      </div>
+      <div class="intro-stat">
+        <div class="intro-stat-num">5</div>
+        <div class="intro-stat-label">业务域</div>
+      </div>
+      <div class="intro-stat">
+        <div class="intro-stat-num">SQL</div>
+        <div class="intro-stat-label">全链路追溯</div>
+      </div>
+      <div class="intro-stat">
+        <div class="intro-stat-num">60s</div>
+        <div class="intro-stat-label">生成报告</div>
+      </div>
+    </div>
+    <button class="intro-cta" onclick="transitionToLogin()">进入系统</button>
+  </div>
+  <div class="intro-version">REACT 18 · TYPESCRIPT · ANT DESIGN 5 · FASTAPI · LANGGRAPH</div>
+</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <h1><span class="dot"></span>智能经营分析</h1>
+    <p class="status" id="status">● 就绪</p>
+    <button class="btn-new-session" onclick="newSession()">＋ 新建会话</button>
+    <p style="font-size:10px;color:var(--muted);text-align:center">会话 ID：<span id="sessionIdDisplay">未创建</span></p>
+    <div id="roleInfo" style="font-size:11px;color:var(--muted);background:var(--bg);padding:8px 10px;border-radius:6px;display:none">
+      <p>当前角色：<strong id="roleName" style="color:var(--text)">-</strong></p>
+      <p id="roleScope" style="font-size:10px;color:var(--muted)">-</p>
+    </div>
+    <div class="entity-box" id="entityBox">
+      <p style="margin-bottom:4px">已记住的实体：</p>
+      <div id="entityTags"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="logout()" id="logoutBtn" style="font-size:11px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--red);cursor:pointer;display:none">🚪 退出登录</button>
+      <a onclick="showLogin()" style="font-size:11px;color:var(--accent);cursor:pointer;text-decoration:none">切换账户</a>
+    </div>
+    <button onclick="openAdminPanel()" id="adminBtn" style="font-size:11px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--accent);cursor:pointer;margin-top:6px">⚙️ 系统管理</button>
+    <div style="font-size:11px;color:var(--muted)"><p>大模型：DeepSeek</p></div>
+    <hr style="border-color:var(--border)">
+    <p style="font-size:11px;color:var(--muted);margin-bottom:4px">最近提问</p>
+    <div id="history"></div>
+  </aside>
+  <div class="main">
+    <div class="header">
+      <h2>企业智能经营分析平台</h2>
+      <div class="tab-bar" id="tabBar" style="display:none">
+        <button class="tab-btn active" id="tabDashboard" onclick="switchTab('dashboard')">📊 经营看板</button>
+        <button class="tab-btn" id="tabChat" onclick="switchTab('chat')">💬 分析对话</button>
+      </div>
+      <span class="badge">v4.0</span>
+    </div>
+    <!-- 看板视图（在 chat 外部，避免被 newSession 销毁） -->
+    <div class="dashboard-view" id="dashboardView" style="display:none">
+      <div class="dash-kpi-row" id="dashKpiRow"></div>
+      <div class="dash-charts-row">
+        <div class="dash-chart-box" id="dashTrendChart" style="height:320px"></div>
+        <div class="dash-chart-box" id="dashRegionChart" style="height:320px"></div>
+      </div>
+      <div class="dash-store-row">
+        <div class="dash-chart-box" id="dashStoreChart" style="height:340px"></div>
+        <div class="dash-chart-box" id="dashStoreTable" style="height:340px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div class="chat" id="chat">
+      <div class="empty-state" id="emptyState">
+        <div class="greeting" id="greetingText">👋 欢迎</div>
+        <div class="greeting-sub" id="greetingSub">输入经营分析问题开始对话</div>
+        <div class="dashboard-card" id="dashboardCard" style="display:none">
+          <div class="dash-item"><div class="dash-val" id="dashSales">-</div><div class="dash-label">昨日销售额</div></div>
+          <div class="dash-item"><div class="dash-val" id="dashStores">-</div><div class="dash-label">活跃门店</div></div>
+          <div class="dash-item"><div class="dash-val" id="dashRefund">-</div><div class="dash-label">近7天退款率</div></div>
+          <div class="dash-item"><div class="dash-val" id="dashMembers">-</div><div class="dash-label">会员总数</div></div>
+          <div class="dash-item"><div class="dash-val" id="dashOrders">-</div><div class="dash-label">近24h订单</div></div>
+        </div>
+        <div class="quick-grid" id="quickGrid"></div>
+        <p style="font-size:12px;color:var(--muted)">或直接输入问题：</p>
+      </div>
+    </div>
+    <div class="quick-bar" id="quickBar">
+      <button class="quick-chip" onclick="quickAsk('各门店销售额排名')">📊 门店排名</button>
+      <button class="quick-chip" onclick="quickAsk('近30天销售趋势')">📈 销售趋势</button>
+      <button class="quick-chip" onclick="quickAsk('退款率最高的门店')">🔄 退款率</button>
+      <button class="quick-chip" onclick="quickAsk('会员增长与留存情况')">👥 会员分析</button>
+      <button class="quick-chip" onclick="quickAsk('整体经营分析报告')">📋 整体分析</button>
+      <button class="quick-chip" onclick="quickAsk('各区域经营对比')">🌍 区域对比</button>
+    </div>
+    <div class="input-area">
+      <form id="form" onsubmit="return ask(event)">
+        <input id="question" type="text" placeholder="输入经营问题，例如：分析华东区最近一周的销售趋势..." autofocus autocomplete="off">
+        <button type="button" class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="语音输入">🎤</button>
+        <button type="submit" id="btn">提问</button>
+      </form>
+      <div class="voice-toast" id="voiceToast"><span class="dot-red"></span>正在聆听...</div>
+    </div>
+  </div>
+</div>
+
+<div id="loginOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.95);display:none;align-items:center;justify-content:center;z-index:9999">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:400px;max-width:90%">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:40px;margin-bottom:8px">📊</div>
+      <h2 style="font-size:18px;margin-bottom:4px">企业智能经营分析平台</h2>
+      <p style="font-size:12px;color:var(--muted)">v4.0 · 登录后开始分析</p>
+    </div>
+    <form id="loginForm" onsubmit="return doLogin(event)">
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">用户名</label>
+        <input id="loginUser" type="text" class="login-input" placeholder="请输入用户名" autocomplete="username" style="padding-left:36px" oninput="document.getElementById('loginError').style.display='none'">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">密码</label>
+        <div class="login-pw-wrap">
+          <input id="loginPass" type="password" class="login-input" placeholder="请输入密码" autocomplete="current-password" style="padding-left:36px;padding-right:36px" oninput="document.getElementById('loginError').style.display='none'">
+          <button type="button" class="pw-toggle" onclick="togglePassword()" title="显示/隐藏密码">👁</button>
+        </div>
+      </div>
+      <button type="submit" style="width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">登 录</button>
+    </form>
+    <div id="loginError" style="color:var(--red);font-size:12px;margin-top:10px;text-align:center;display:none"></div>
+    <hr style="border-color:var(--border);margin:16px 0 12px 0">
+    <div class="login-quick">测试账户：
+      <a onclick="fillUser('admin')">admin</a> ·
+      <a onclick="fillUser('zhangsan')">zhangsan</a> ·
+      <a onclick="fillUser('lisi')">lisi</a>
+    </div>
+    <div class="login-quick" style="margin-top:4px">密码均为 admin123</div>
+  </div>
+</div>
+
+<div id="feedbackModal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3 id="feedbackTitle">反馈</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">请告诉我们更多细节，帮助我们改进分析质量。</p>
+    <textarea id="feedbackReason" placeholder="可选：描述具体问题（如数据不准确、分析遗漏了重要维度等）"></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeFeedbackModal()">取消</button>
+      <button class="btn-submit" onclick="submitFeedback()">提交</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- 系统管理面板 -->
+<div class="ap-backdrop" id="apBackdrop" onclick="closeAdminPanel()"></div>
+<div class="admin-panel" id="adminPanel">
+  <div class="ap-header">
+    <h2>⚙️ 系统管理</h2>
+    <button class="ap-close" onclick="closeAdminPanel()">✕</button>
+  </div>
+  <div class="ap-body">
+    <div class="ap-toolbar">
+      <input class="ap-search" id="apSearch" placeholder="搜索用户..." oninput="renderUserList()">
+      <select class="ap-btn" id="apRoleFilter" onchange="renderUserList()" style="font-size:12px">
+        <option value="">全部角色</option>
+        <option value="admin">管理员</option>
+        <option value="regional_director">大区总监</option>
+        <option value="regional_manager">区域经理</option>
+        <option value="store_manager">店长</option>
+      </select>
+      <button class="ap-btn" onclick="loadErrorLog()">📋 日志</button>
+      <button class="ap-btn primary" onclick="showAddUserForm()">＋ 新增用户</button>
+    </div>
+    <div id="apContent">
+      <table class="ap-table"><thead><tr><th>ID</th><th>用户名</th><th>显示名</th><th>角色</th><th>门店范围</th><th>操作</th></tr></thead><tbody id="apUserList"></tbody></table>
+    </div>
+    <div id="apForm" style="display:none"></div>
+  </div>
+</div>
+
+<!-- 编辑/新增用户弹窗 -->
+<div id="userEditModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;align-items:center;justify-content:center">
+  <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.85)" onclick="closeUserEditModal()"></div>
+  <div style="position:relative;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 32px;width:520px;max-width:95%;max-height:90vh;overflow-y:auto;z-index:1">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h3 style="font-size:17px" id="userEditTitle">编辑用户</h3>
+      <button onclick="closeUserEditModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px 8px">&times;</button>
+    </div>
+    <div id="userEditBody"></div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

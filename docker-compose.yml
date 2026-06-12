@@ -1,0 +1,92 @@
+# =============================================================================
+# Enterprise Insight Agent V4 — Development deployment
+# =============================================================================
+# Uses V4-specific container names and volumes to avoid conflict with V2/V3.
+# App runs on port 8002 (V2:8000, V3:8001).
+#
+# CREDENTIALS: All passwords are injected via environment variables.
+#   cp .env.example .env  →  edit .env with real values before starting.
+#   For production, use docker-compose.prod.yml which expects Docker Secrets.
+#
+# SHARED MODE: When V2/V3 is already running (postgres:5432/5433, redis:6379/6380),
+# comment out postgres/redis/n8n services below. V4's app will connect to
+# localhost:5434/6381 via the .env DATABASE_URL / REDIS_URL.
+# =============================================================================
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      target: development
+    container_name: eia-app-v4
+    ports:
+      - "${SERVER_PORT:-8002}:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-dev_password}@postgres-v4:5432/${POSTGRES_DB:-enterprise_db}
+      - DATABASE_URL_SYNC=postgresql+psycopg2://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-dev_password}@postgres-v4:5432/${POSTGRES_DB:-enterprise_db}
+      - REDIS_URL=redis://redis-v4:6379/0
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    env_file:
+      - .env
+    depends_on:
+      postgres-v4:
+        condition: service_healthy
+      redis-v4:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- Infrastructure (V4-specific instances — different ports than V2/V3) ---
+  postgres-v4:
+    image: pgvector/pgvector:pg16
+    container_name: eia-postgres-v4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-enterprise_db}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"    # V4 uses 5434 to avoid conflict with V2's 5432 / V3's 5433
+    volumes:
+      - postgres_data_v4:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-enterprise_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-v4:
+    image: redis:7-alpine
+    container_name: eia-redis-v4
+    ports:
+      - "${REDIS_PORT:-6381}:6379"       # V4 uses 6381 to avoid conflict with V2's 6379 / V3's 6380
+    volumes:
+      - redis_data_v4:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  n8n-v4:
+    image: n8nio/n8n:latest
+    container_name: eia-n8n-v4
+    ports:
+      - "${N8N_PORT:-5680}:5678"         # V4 uses 5680 to avoid conflict with V2's 5678 / V3's 5679
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:${N8N_PORT:-5680}/
+      - GENERIC_TIMEZONE=Asia/Shanghai
+    volumes:
+      - n8n_data_v4:/home/node/.n8n
+    depends_on:
+      - postgres-v4
+      - redis-v4
+
+volumes:
+  postgres_data_v4:
+  redis_data_v4:
+  n8n_data_v4:

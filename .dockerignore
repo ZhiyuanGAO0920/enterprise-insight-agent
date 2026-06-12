@@ -1,0 +1,67 @@
+# Environment & secrets
+.env
+.env.local
+.env.production
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.so
+
+# Virtual environments
+venv/
+venv312/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Tests & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+*.db
+
+# CI/CD
+.github/
+
+# Docs (not needed in image)
+docs/
+*.md
+!README.md
+
+# Temp files
+/tmp/
+*.log
+*.json
+!customer_schema.yaml
+
+# Workflows (n8n imports, not runtime)
+workflows/
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore

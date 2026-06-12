@@ -1,0 +1,234 @@
+# =============================================================================
+# Enterprise Insight Agent V4 — Production deployment
+# =============================================================================
+# DO NOT commit real secrets here. Inject via environment or Docker Secrets.
+#
+# Usage:
+#   export DEEPSEEK_API_KEY="sk-..."
+#   export JWT_SECRET_KEY="<random-64-char>"
+#   export POSTGRES_PASSWORD="<strong-password>"
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Offline / air-gapped deployment:
+#   Run scripts/export-images.sh on a machine with internet, copy the
+#   eia-v4-images.tar.gz to the target server, then run scripts/import-images.sh.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Application
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      target: production
+    container_name: eia-app-v4-prod
+    ports:
+      - "${SERVER_PORT:-8002}:8000"
+    environment:
+      - SERVER_PORT=8000
+      - POSTGRES_USER=${POSTGRES_USER:?err}
+      - POSTGRES_DB=${POSTGRES_DB:-enterprise_db}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:?err}:${POSTGRES_PASSWORD:?err}@postgres-v4:5432/${POSTGRES_DB:-enterprise_db}
+      - DATABASE_URL_SYNC=postgresql+psycopg2://${POSTGRES_USER:?err}:${POSTGRES_PASSWORD:?err}@postgres-v4:5432/${POSTGRES_DB:-enterprise_db}
+      - REDIS_URL=redis://redis-v4:6379/0
+      - OLLAMA_BASE_URL=http://ollama-v4:11434
+      - EMBEDDING_PROVIDER=ollama
+      - LOG_LEVEL=${LOG_LEVEL:-WARNING}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    env_file:
+      - .env
+    secrets:
+      - postgres_password
+      - jwt_secret_key
+      - deepseek_api_key
+    depends_on:
+      postgres-v4:
+        condition: service_healthy
+      redis-v4:
+        condition: service_healthy
+    networks:
+      - eia-v4-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 + pgvector
+  # ---------------------------------------------------------------------------
+  postgres-v4:
+    image: pgvector/pgvector:pg16
+    container_name: eia-postgres-v4-prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?err}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB: ${POSTGRES_DB:-enterprise_db}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - postgres_data_v4_prod:/var/lib/postgresql/data   # MUST backup
+    secrets:
+      - postgres_password
+    networks:
+      - eia-v4-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?err} -d ${POSTGRES_DB:-enterprise_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
+  redis-v4:
+    image: redis:7-alpine
+    container_name: eia-redis-v4-prod
+    ports:
+      - "${REDIS_PORT:-6381}:6379"
+    volumes:
+      - redis_data_v4_prod:/data                            # cache only, no backup needed
+    networks:
+      - eia-v4-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Ollama + pre-packaged BGE-M3 embedding model
+  # ---------------------------------------------------------------------------
+  ollama-v4:
+    image: ollama/ollama:latest
+    container_name: eia-ollama-v4-prod
+    ports:
+      - "${OLLAMA_PORT:-11435}:11434"
+    volumes:
+      - ollama_data_v4_prod:/root/.ollama                   # model data, can rebuild from tar.gz
+      - ./ollama-models:/models:ro                          # pre-packaged model archive
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - eia-v4-net
+    # Extract pre-packaged model on first run, then start Ollama serve
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ -f /models/bge-m3.tar.gz ] && [ ! -f /root/.ollama/.seeded ]; then
+          echo "[ollama] Extracting pre-packaged BGE-M3 model..."
+          tar -xzf /models/bge-m3.tar.gz -C /root/.ollama/
+          touch /root/.ollama/.seeded
+          echo "[ollama] Model ready"
+        else
+          echo "[ollama] Model already seeded, starting..."
+        fi
+        exec ollama serve
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+          cpus: '1'
+
+  # ---------------------------------------------------------------------------
+  # n8n — workflow automation (weekly reports, alert checks)
+  # ---------------------------------------------------------------------------
+  n8n-v4:
+    image: n8nio/n8n:latest
+    container_name: eia-n8n-v4-prod
+    ports:
+      - "${N8N_PORT:-5680}:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:${N8N_PORT:-5680}/
+      - GENERIC_TIMEZONE=Asia/Shanghai
+    volumes:
+      - n8n_data_v4_prod:/home/node/.n8n                     # workflow configs, recommend backup
+    networks:
+      - eia-v4-net
+    depends_on:
+      - postgres-v4
+      - redis-v4
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "3"
+    restart: unless-stopped
+
+# =============================================================================
+# Persistent storage
+# =============================================================================
+volumes:
+  postgres_data_v4_prod:    # MUST backup — stores all user data, analysis history, audit logs
+  redis_data_v4_prod:       # ephemeral — cache, sessions, rate-limit counters. OK to lose.
+  ollama_data_v4_prod:      # rebuildable from ollama-models/bge-m3.tar.gz
+  n8n_data_v4_prod:         # recommend backup — workflow configurations
+
+# =============================================================================
+# Docker Secrets (values injected from environment variables)
+# =============================================================================
+secrets:
+  postgres_password:
+    environment: POSTGRES_PASSWORD
+  jwt_secret_key:
+    environment: JWT_SECRET_KEY
+  deepseek_api_key:
+    environment: DEEPSEEK_API_KEY
+
+# =============================================================================
+# Explicit network — avoids subnet conflicts with customer infrastructure
+# =============================================================================
+networks:
+  eia-v4-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.99.0.0/16

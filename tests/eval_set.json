@@ -1,0 +1,225 @@
+{
+  "name": "V3 Agent 评估集",
+  "version": "1.0",
+  "description": "20 条标准测试问题，用于在修改 Prompt 后量化评估 Agent 分析质量。每次跑完之后对比改前/改后的数据，数据化判断是否有提升。",
+  "questions": [
+    {
+      "id": "Q01",
+      "type": "lookup",
+      "category": "sales",
+      "question": "各门店销售额排名",
+      "expected_agents": ["sales"],
+      "expected_dimensions": ["排名", "门店名称", "销售额", "订单数"],
+      "min_result_rows": 10,
+      "max_result_rows": 100
+    },
+    {
+      "id": "Q02",
+      "type": "lookup",
+      "category": "sales",
+      "question": "华东区近30天销售额最高的门店是哪个",
+      "expected_agents": ["sales"],
+      "expected_dimensions": ["门店名称", "销售额"],
+      "min_result_rows": 1,
+      "max_result_rows": 1
+    },
+    {
+      "id": "Q03",
+      "type": "lookup",
+      "category": "crm",
+      "question": "会员总数是多少",
+      "expected_agents": ["crm"],
+      "expected_dimensions": ["会员总数"],
+      "min_result_rows": 1,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q04",
+      "type": "lookup",
+      "category": "crm",
+      "question": "各等级会员人数分布",
+      "expected_agents": ["crm"],
+      "expected_dimensions": ["会员等级", "人数", "占比"],
+      "min_result_rows": 3,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q05",
+      "type": "lookup",
+      "category": "finance",
+      "question": "退款率最高的5家门店",
+      "expected_agents": ["finance"],
+      "expected_dimensions": ["门店名称", "退款率"],
+      "min_result_rows": 5,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q06",
+      "type": "lookup",
+      "category": "sales",
+      "question": "各区域销售额占比",
+      "expected_agents": ["sales"],
+      "expected_dimensions": ["区域", "销售额", "占比"],
+      "min_result_rows": 5,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q07",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "哪些商品有缺货风险",
+      "expected_agents": ["inventory"],
+      "expected_dimensions": ["商品名称", "库存", "安全库存", "门店"],
+      "min_result_rows": 1,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q08",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "供应商准时交货率排名",
+      "expected_agents": ["supply_chain"],
+      "expected_dimensions": ["供应商名称", "准时率", "质量评分"],
+      "min_result_rows": 3,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q09",
+      "type": "lookup",
+      "category": "finance",
+      "question": "近30天退款金额超过1000元的门店有哪些",
+      "expected_agents": ["finance"],
+      "expected_dimensions": ["门店名称", "退款金额"],
+      "min_result_rows": 1,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q10",
+      "type": "lookup",
+      "category": "sales",
+      "question": "各区域订单数对比",
+      "expected_agents": ["sales"],
+      "expected_dimensions": ["区域", "订单数"],
+      "min_result_rows": 5,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q11",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "分析华东区最近销售情况",
+      "expected_agents": ["sales"],
+      "expected_dimensions": ["销售额", "趋势", "门店排名"],
+      "min_result_rows": 5,
+      "max_result_rows": 100
+    },
+    {
+      "id": "Q12",
+      "type": "analysis",
+      "category": "crm",
+      "question": "分析会员流失情况",
+      "expected_agents": ["crm"],
+      "expected_dimensions": ["会员总数", "活跃数", "流失数", "流失率"],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q13",
+      "type": "analysis",
+      "category": "finance",
+      "question": "分析近期退款率变化趋势并给出改进建议",
+      "expected_agents": ["finance"],
+      "expected_dimensions": ["退款率", "趋势", "退款原因分析", "改进建议"],
+      "min_result_rows": 5,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q14",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "整体经营分析报告",
+      "expected_agents": ["sales", "crm", "finance"],
+      "expected_dimensions": ["销售", "会员", "财务", "建议"],
+      "min_result_rows": 10,
+      "max_result_rows": 200
+    },
+    {
+      "id": "Q15",
+      "type": "analysis",
+      "category": "inventory",
+      "question": "分析各品类的库存健康度",
+      "expected_agents": ["inventory"],
+      "expected_dimensions": ["品类", "库存量", "安全库存", "健康度"],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q16",
+      "type": "analysis",
+      "category": "supply_chain",
+      "question": "分析各供应商采购成本趋势",
+      "expected_agents": ["supply_chain"],
+      "expected_dimensions": ["供应商", "采购成本", "趋势", "对比"],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q17",
+      "type": "analysis",
+      "category": "sales",
+      "question": "对比华东和华北两个区域的销售表现",
+      "expected_agents": ["sales"],
+      "expected_dimensions": ["华东", "华北", "销售额", "订单数", "对比"],
+      "min_result_rows": 5,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q18",
+      "type": "analysis",
+      "category": "crm",
+      "question": "会员复购率分析及提升建议",
+      "expected_agents": ["crm"],
+      "expected_dimensions": ["复购率", "复购人数", "总人数", "提升建议"],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q19",
+      "type": "edge",
+      "category": "edge",
+      "question": "帮我看看最近一周的情况",
+      "expected_agents": ["sales", "crm", "finance"],
+      "expected_dimensions": [],
+      "min_result_rows": 1,
+      "max_result_rows": 100
+    },
+    {
+      "id": "Q20",
+      "type": "edge",
+      "category": "edge",
+      "question": "退款最多的那个门店的会员情况",
+      "expected_agents": ["finance", "crm"],
+      "expected_dimensions": ["退款最多门店", "会员"],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    }
+  ],
+  "metrics": {
+    "sql_accuracy": {
+      "description": "生成的 SQL 是否语法正确、查询了正确的表、使用了正确的聚合方式",
+      "scale": "pass/fail per question"
+    },
+    "dimension_coverage": {
+      "description": "报告是否覆盖了 expected_dimensions 中的所有维度",
+      "scale": "0.0-1.0 per question"
+    },
+    "row_count_in_range": {
+      "description": "结果行数是否在 min_result_rows 和 max_result_rows 之间",
+      "scale": "pass/fail per question"
+    },
+    "no_hallucination": {
+      "description": "报告中是否没有编造数据（所有数字都来自 SQL 查询结果）",
+      "scale": "pass/fail per question"
+    }
+  }
+}

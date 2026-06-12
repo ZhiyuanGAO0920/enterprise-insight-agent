@@ -1,0 +1,65 @@
+{
+  "name": "V4 周报自动生成",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ],
+          "triggerAtHour": 9,
+          "triggerAtMinute": 0,
+          "triggerAtDay": 1
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "每周一早 9:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:8000/api/v1/weekly/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.N8N_WEBHOOK_SECRET}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "http-request",
+      "name": "生成周报",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "schedule-trigger": {
+      "main": [
+        [
+          {
+            "node": "http-request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Shanghai"
+  },
+  "description": "每周一早 9:00 自动生成上周经营分析周报。需要先在 .env 中配置 N8N_WEBHOOK_SECRET。"
+}

@@ -1,0 +1,119 @@
+{
+  "name": "EIA - 每日经营预警检查",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-daily",
+      "name": "每日 08:00 触发",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://eia-app-v4:8002/api/v1/alerts/check",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer ${N8N_WEBHOOK_SECRET}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "http-check",
+      "name": "POST 检查预警",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 解析预警结果\nconst data = $input.first().json;\nconst alertsCreated = data.alerts_created || 0;\nconst alerts = data.alerts || [];\n\n// 如果没有预警，正常结束\nif (alertsCreated === 0) {\n  return { triggered: false, message: '今日无预警', checked_at: new Date().toISOString() };\n}\n\n// 有预警 — 展开详情\nreturn alerts.map(alert => ({\n  triggered: true,\n  metric: alert.metric,\n  actual_value: alert.actual_value,\n  threshold: alert.threshold,\n  direction: alert.direction,\n  detail: alert.detail,\n  checked_at: new Date().toISOString()\n}));"
+      },
+      "id": "code-daily",
+      "name": "解析预警结果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "condition": {
+          "rules": [
+            {
+              "fieldName": "triggered",
+              "operation": "equals",
+              "value": true
+            }
+          ]
+        }
+      },
+      "id": "if-alert",
+      "name": "有预警？",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    }
+  ],
+  "connections": {
+    "cron-daily": {
+      "main": [
+        [
+          {
+            "node": "http-check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-check": {
+      "main": [
+        [
+          {
+            "node": "code-daily",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-daily": {
+      "main": [
+        [
+          {
+            "node": "if-alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Shanghai",
+    "saveManualExecutions": true
+  }
+}

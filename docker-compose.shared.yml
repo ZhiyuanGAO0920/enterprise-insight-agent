@@ -1,0 +1,34 @@
+# =============================================================================
+# Enterprise Insight Agent V4 — Shared Infrastructure Mode
+# =============================================================================
+# Use this file when V2/V3 is already running its own postgres/redis/n8n.
+# V4's app container shares existing infrastructure — no duplicates.
+#
+# Start:  docker-compose -f docker-compose.shared.yml up -d
+# Stop:   docker-compose -f docker-compose.shared.yml down
+#
+# V2 runs on :8000 — V3 runs on :8001 — V4 runs on :8002.
+#
+# CREDENTIALS: Injected via environment variables or .env file.
+#   export POSTGRES_USER=admin POSTGRES_PASSWORD=yourpassword
+# =============================================================================
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      target: development
+    container_name: eia-app-v4
+    ports:
+      - "${SERVER_PORT:-8002}:8000"
+    environment:
+      # Connect to V2's infrastructure on localhost — credentials from env
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-dev_password}@host.docker.internal:5432/${POSTGRES_DB:-enterprise_db}
+      - DATABASE_URL_SYNC=postgresql+psycopg2://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-dev_password}@host.docker.internal:5432/${POSTGRES_DB:-enterprise_db}
+      - REDIS_URL=redis://host.docker.internal:6379/0
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    env_file:
+      - .env
+    restart: unless-stopped

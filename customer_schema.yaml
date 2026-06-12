@@ -1,0 +1,214 @@
+# =============================================================================
+# 客户 Schema 映射配置
+# =============================================================================
+# 每接入一个新客户，复制此文件并根据其实际数据库结构修改。
+# 填写完成后，启动服务时加载，所有 Agent Prompt 自动适配。
+#
+# 字段说明：
+#   physical_name  — 客户数据库中的实际表名/列名
+#   description    — 对这张表的业务说明（可选）
+#   type           — 列的数据类型（可选，用于 Schema 文档展示）
+#   note           — 特殊说明，如值转换规则（可选）
+#   custom_join    — 自定义 JOIN 条件（可选，覆盖默认外键）
+#   null           — 标记此表在客户数据库中不存在，对应 Agent 自动禁用
+# =============================================================================
+
+# === 客户基本信息 ===
+customer:
+  name: "永辉超市（示例）"
+  database_type: postgresql      # postgresql / mysql / sqlite
+  database_url: ""               # 留空则使用 .env 中的 DATABASE_URL
+
+# === 语义映射 ===
+tables:
+  # -----------------------------------------------
+  # orders — 订单表
+  # -----------------------------------------------
+  orders:
+    physical_name: "orders"      # 客户实际表名
+    description: "订单记录表"
+    columns:
+      order_id:
+        physical: "order_id"
+        type: "INT"
+      store_id:
+        physical: "store_id"
+        type: "INT"
+      member_id:
+        physical: "member_id"
+        type: "INT"
+      amount:
+        physical: "amount"
+        type: "DECIMAL(10,2)"
+      refund_amount:
+        physical: "refund_amount"
+        type: "DECIMAL(10,2)"
+      create_time:
+        physical: "create_time"
+        type: "TIMESTAMP"
+
+  # -----------------------------------------------
+  # store — 门店表
+  # -----------------------------------------------
+  store:
+    physical_name: "store"
+    description: "门店信息表"
+    columns:
+      id:
+        physical: "id"
+        type: "INT"
+      store_name:
+        physical: "store_name"
+        type: "VARCHAR"
+      region:
+        physical: "region"
+        type: "VARCHAR"
+      manager:
+        physical: "manager"
+        type: "VARCHAR"
+      status:
+        physical: "status"
+        type: "VARCHAR"
+
+  # -----------------------------------------------
+  # member — 会员表
+  # -----------------------------------------------
+  member:
+    physical_name: "member"
+    description: "会员信息表"
+    columns:
+      member_id:
+        physical: "member_id"
+        type: "INT"
+      name:
+        physical: "name"
+        type: "VARCHAR"
+      level:
+        physical: "level"
+        type: "VARCHAR"
+      total_amount:
+        physical: "total_amount"
+        type: "DECIMAL(12,2)"
+      last_consume_date:
+        physical: "last_consume_date"
+        type: "TIMESTAMP"
+
+  # -----------------------------------------------
+  # product — 商品表
+  # -----------------------------------------------
+  product:
+    physical_name: "product"
+    description: "商品信息表"
+    columns:
+      id:
+        physical: "id"
+        type: "INT"
+      product_name:
+        physical: "product_name"
+        type: "VARCHAR"
+      category:
+        physical: "category"
+        type: "VARCHAR"
+      unit_price:
+        physical: "unit_price"
+        type: "DECIMAL(10,2)"
+      supplier_id:
+        physical: "supplier_id"
+        type: "INT"
+
+  # -----------------------------------------------
+  # supplier — 供应商表
+  # -----------------------------------------------
+  supplier:
+    physical_name: "supplier"
+    description: "供应商信息表"
+    columns:
+      id:
+        physical: "id"
+        type: "INT"
+      supplier_name:
+        physical: "supplier_name"
+        type: "VARCHAR"
+      category:
+        physical: "category"
+        type: "VARCHAR"
+      on_time_rate:
+        physical: "on_time_rate"
+        type: "DECIMAL(5,2)"
+      quality_score:
+        physical: "quality_score"
+        type: "DECIMAL(3,1)"
+      status:
+        physical: "status"
+        type: "VARCHAR"
+
+  # -----------------------------------------------
+  # inventory — 库存表
+  # -----------------------------------------------
+  inventory:
+    physical_name: "inventory"
+    description: "库存记录表"
+    columns:
+      id:
+        physical: "id"
+        type: "INT"
+      product_id:
+        physical: "product_id"
+        type: "INT"
+      store_id:
+        physical: "store_id"
+        type: "INT"
+      quantity:
+        physical: "quantity"
+        type: "INT"
+      safety_stock:
+        physical: "safety_stock"
+        type: "INT"
+      last_restock_date:
+        physical: "last_restock_date"
+        type: "TIMESTAMP"
+
+  # -----------------------------------------------
+  # purchase_order — 采购单表
+  # -----------------------------------------------
+  purchase_order:
+    physical_name: "purchase_order"
+    description: "采购单记录表"
+    columns:
+      id:
+        physical: "id"
+        type: "INT"
+      supplier_id:
+        physical: "supplier_id"
+        type: "INT"
+      product_id:
+        physical: "product_id"
+        type: "INT"
+      quantity:
+        physical: "quantity"
+        type: "INT"
+      total_cost:
+        physical: "total_cost"
+        type: "DECIMAL(12,2)"
+      order_date:
+        physical: "order_date"
+        type: "TIMESTAMP"
+      received_date:
+        physical: "received_date"
+        type: "TIMESTAMP"
+      status:
+        physical: "status"
+        type: "VARCHAR"
+
+  # -----------------------------------------------
+  # employee_performance — 员工绩效（如果客户没有此表可设为 null）
+  # -----------------------------------------------
+  employee_performance:
+    physical_name: "employee_performance"
+
+# === 数据库特性配置 ===
+database_features:
+  supports_window_functions: true
+  date_function: "NOW()"
+  interval_syntax: "INTERVAL '30 days'"
+  quote_char: '"'
