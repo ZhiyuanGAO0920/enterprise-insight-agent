@@ -50,3 +50,6 @@ comprehensive_report.md
 body.json
 login_resp.json
 token.txt
+.workbuddy/
+demo_scripts/
+demo_output/

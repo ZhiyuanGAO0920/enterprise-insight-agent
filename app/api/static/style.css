@@ -104,6 +104,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .dashboard-card .dash-val{font-size:18px}
 .quick-bar{display:flex;padding:6px 14px}
 .chat .empty-state .quick-grid{grid-template-columns:repeat(2,1fr)}
+/* V4 mobile dashboard fixes */
+.tab-bar{gap:4px}
+.tab-btn{font-size:11px;padding:5px 10px}
+.dash-charts-row,.dash-store-row{grid-template-columns:1fr}
+.dash-chart-box{height:260px!important;padding:10px}
+}
+@media(max-width:480px){
+.app{flex-direction:column}
+.sidebar{width:100%;max-height:140px;padding:8px 10px}
+.sidebar h1{font-size:12px}
+.sidebar .btn-new-session{font-size:10px;padding:4px 8px}
+.header h2{font-size:12px}
+.header .badge{font-size:10px;padding:2px 6px}
+.tab-bar{gap:2px}
+.tab-btn{font-size:10px;padding:4px 8px}
+.dash-kpi-row{grid-template-columns:repeat(2,1fr);gap:8px}
+.dash-kpi{padding:12px 10px}
+.dash-kpi .kpi-val{font-size:20px}
+.dash-kpi .kpi-label{font-size:10px}
+.dash-kpi .kpi-sub{font-size:10px}
+.login-quick a{display:inline-block;margin:2px 4px}
 }
 .login-input{width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;transition:border-color .2s}
 .login-input:focus{border-color:var(--accent)}

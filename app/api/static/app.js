@@ -12,10 +12,10 @@ function _copyReport(){ if(_lastReportText) copyToClipboard(_lastReportText); }
 function _shareReport(){ if(_lastReportText) shareReport(_lastReportText, _lastQuestionText); }
 
 var STEPS = [
-  'supervisor','sales_agent','crm_agent','finance_agent',
+  'supervisor','sales_agent','crm_agent','finance_agent','inventory_agent','supply_chain_agent',
   'aggregator','chart_advisor','report_agent','reflection_agent','save_memory'
 ];
-var LABELS = ['规划中','销售分析','CRM分析','财务分析','整合结果','图表推荐','生成报告','质量审核','保存记录'];
+var LABELS = ['规划中','销售分析','CRM分析','财务分析','库存分析','供应链分析','整合结果','图表推荐','生成报告','质量审核','保存记录'];
 
 var QUICK_QUESTIONS = {
   admin:[

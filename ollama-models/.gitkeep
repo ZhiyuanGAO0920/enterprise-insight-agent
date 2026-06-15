@@ -1,0 +1,6 @@
+# Placeholder — the pre-packaged BGE-M3 model archive goes here.
+# Download from the V4 Release page or build locally:
+#   docker run --rm -v ollama_temp:/root/.ollama ollama/ollama pull bge-m3:latest
+#   docker run --rm -v ollama_temp:/root/.ollama -v $(pwd):/out alpine \
+#     tar -czf /out/bge-m3.tar.gz -C /root/.ollama .
+#   docker volume rm ollama_temp
