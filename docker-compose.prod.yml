@@ -144,9 +144,14 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        if [ -f /models/bge-m3.tar.gz ] && [ ! -f /root/.ollama/.seeded ]; then
-          echo "[ollama] Extracting pre-packaged BGE-M3 model..."
-          tar -xzf /models/bge-m3.tar.gz -C /root/.ollama/
+        if [ ! -f /root/.ollama/.seeded ]; then
+          if [ -f /models/bge-m3.tar.gz ]; then
+            echo "[ollama] Extracting pre-packaged BGE-M3 model..."
+            tar -xzf /models/bge-m3.tar.gz -C /root/.ollama/
+          else
+            echo "[ollama] No pre-packaged model found, pulling bge-m3:latest..."
+            ollama pull bge-m3:latest
+          fi
           touch /root/.ollama/.seeded
           echo "[ollama] Model ready"
         else

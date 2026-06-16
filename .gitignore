@@ -53,3 +53,7 @@ token.txt
 .workbuddy/
 demo_scripts/
 demo_output/
+web/node_modules/
+
+# Personal info — do not sync
+docs/个人简历-*.md

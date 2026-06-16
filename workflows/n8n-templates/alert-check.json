@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://app:8000/api/v1/alerts/check",
+        "url": "http://localhost:8002/api/v1/alerts/check",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -29,7 +29,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer {{$env.N8N_WEBHOOK_SECRET}}"
+              "value": "Bearer your-webhook-secret-here"
             }
           ]
         },
