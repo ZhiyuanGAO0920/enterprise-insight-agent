@@ -385,10 +385,11 @@ async def record_demo(page, port: int):
         await show_annotation(page, "V2 (2024)：3 Agent · 无看板 · 无流式 · 无图表 · pip install", "#94a3b8", 3000)
         await asyncio.sleep(1)
         await screenshot(page, "v2_home.png")
-        # Try login
+        # V2 login: click account card → password pre-filled → submit
         try:
-            await page.fill("#loginUser", "admin")
-            await page.fill("#loginPass", "admin123")
+            # V2 用选账号卡片登录，不是输入框
+            await page.click("#loginAccounts > div:first-child")  # 点 admin 卡片
+            await asyncio.sleep(0.3)
             await page.click("#loginForm button[type='submit']")
             await asyncio.sleep(3)
             await screenshot(page, "v2_chat.png")

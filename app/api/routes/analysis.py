@@ -321,13 +321,22 @@ async def _stream_graph(
     # 整个分析链路。各 Agent 节点通过 get_stream_writer() 发射 progress + token 事件，
     # 前端通过 "custom" 事件实时接收进度和流式文本。
     # 不再手动复制 report→reflection→retry→save_memory 编排。
+    import time as _time
     final_state: dict = {}
-    # 跟踪哪些节点已经开始（用于去重 phase 事件）
+    # 跟踪哪些节点已经开始（用于去重 phase 事件）以及开始时间（保证最短展示时间）
     _started_nodes: set[str] = set()
+    _phase_start_times: dict[str, float] = {}
+    _MIN_PHASE_DISPLAY_SEC = 0.6  # 每个步骤至少亮 0.6 秒，快完成的 Agent 也不一闪而过
     combined_stream = graph.astream(initial_state, stream_mode=["updates", "custom", "values"])
     async for mode, chunk in combined_stream:
         if mode == "updates":
             for node_name, node_output in chunk.items():
+                # 确保 phase 至少展示了 MIN_PHASE_DISPLAY_SEC 才发 step
+                started = _phase_start_times.get(node_name)
+                if started:
+                    elapsed = _time.monotonic() - started
+                    if elapsed < _MIN_PHASE_DISPLAY_SEC:
+                        await asyncio.sleep(_MIN_PHASE_DISPLAY_SEC - elapsed)
                 label = NODE_LABELS.get(node_name, node_name)
                 yield f"data: {json.dumps({'type': 'step', 'node': node_name, 'status': 'done', 'label': label})}\n\n"
         elif mode == "custom":
@@ -347,6 +356,7 @@ async def _stream_graph(
                     # 首次收到某节点的 progress 时，同时发送 phase（start）事件
                     if node and node not in _started_nodes:
                         _started_nodes.add(node)
+                        _phase_start_times[node] = _time.monotonic()
                         label = NODE_LABELS.get(node, node)
                         progress_msg = NODE_PROGRESS_MESSAGES.get(node, custom_data.get("message", ""))
                         yield f"data: {json.dumps({'type': 'phase', 'node': node, 'status': 'start', 'label': label, 'message': progress_msg}, ensure_ascii=False)}\n\n"
