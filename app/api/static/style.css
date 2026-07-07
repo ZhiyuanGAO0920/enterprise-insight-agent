@@ -1,10 +1,10 @@
 /* Enterprise Insight Agent V4 — Styles */
-:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#f1f5f9;--muted:#94a3b8;--accent:#6366f1;--accent-hover:#818cf8;--green:#22c55e;--red:#ef4444;--amber:#f59e0b}
+:root{--bg:#0f172a;--card:#233044;--border:#334155;--text:#f1f5f9;--muted:#94a3b8;--accent:#6366f1;--accent-hover:#818cf8;--green:#22c55e;--red:#ef4444;--amber:#f59e0b}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .app{display:flex;height:100vh}
 .sidebar{width:260px;background:var(--card);border-right:1px solid var(--border);padding:20px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex-shrink:0}
-.sidebar h1{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.sidebar h1{font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px}
 .sidebar h1 .dot{width:8px;height:8px;background:var(--green);border-radius:50%}
 .sidebar .status{font-size:12px;color:var(--muted)}
 .entity-box{font-size:11px;color:var(--muted);background:var(--bg);padding:8px 10px;border-radius:6px;display:none}
@@ -16,21 +16,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .history-item .q{color:var(--muted);font-size:11px;padding-right:22px}
 .history-item .t{color:var(--text);font-size:11px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-right:22px}
 .history-dismiss{position:absolute;top:6px;right:6px;width:18px;height:18px;line-height:18px;text-align:center;border-radius:50%;font-size:12px;color:var(--muted);cursor:pointer;opacity:0;transition:opacity .15s}
-.history-item:hover .history-dismiss{opacity:1}
-.history-dismiss:hover{background:var(--red);color:#fff}
-.history-label{font-size:12px;color:var(--accent);margin-bottom:6px;padding:4px 0;border-bottom:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center}
+.history-delete{position:absolute;top:6px;right:26px;width:18px;height:18px;line-height:18px;text-align:center;border-radius:50%;font-size:11px;color:var(--muted);cursor:pointer;opacity:0;transition:opacity .15s}
+.history-item:hover .history-dismiss,.history-item:hover .history-delete{opacity:1}
+.history-dismiss:hover{background:var(--accent);color:#fff}
+.history-delete:hover{background:var(--red);color:#fff}
+.history-label{font-size:12px;color:var(--accent);margin-bottom:6px;padding:8px 0 4px;border-top:1px solid var(--border);border-bottom:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center}
 .history-label .close-detail{font-size:18px;cursor:pointer;color:var(--muted);line-height:1;padding:0 4px}
 .history-label .close-detail:hover{color:var(--red)}
 .btn-new-session{font-size:11px;padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;width:100%}
 .btn-new-session:hover{background:var(--accent-hover)}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .header{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.header h2{font-size:17px;font-weight:600}
+.header h2{font-size:20px;font-weight:600}
 .header .badge{font-size:10px;padding:3px 8px;border-radius:10px;background:var(--accent);color:#fff}
 .chat{flex:1;overflow-y:auto;padding:24px 28px;display:flex;flex-direction:column;gap:18px}
 .msg{max-width:860px;width:100%}
 .msg.user .bubble{background:var(--accent);color:#fff;padding:10px 16px;border-radius:16px 16px 4px 16px;font-size:14px;display:inline-block;max-width:80%}
-.msg.assistant .bubble{background:var(--card);border:1px solid var(--border);padding:20px 24px;border-radius:4px 16px 16px 16px;font-size:14px;line-height:1.8}
+.msg.assistant .bubble{background:var(--card);border:1px solid var(--border);padding:20px 24px;border-radius:4px 16px 16px 16px;font-size:14px;line-height:1.8;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .msg.assistant .bubble h2,.msg.assistant .bubble h3{margin:14px 0 6px;color:var(--accent-hover)}
 .msg.assistant .bubble ul,.msg.assistant .bubble ol{padding-left:20px;margin:6px 0}
 .msg.assistant .bubble table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
@@ -83,13 +85,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 @media(max-width:768px){
 .app{flex-direction:column}
 .sidebar{width:100%;max-height:180px;padding:10px 14px;gap:6px}
-.sidebar h1{font-size:13px}
+.sidebar h1{font-size:14px}
 .chat{padding:10px 14px}
 .msg{max-width:100%}
 .msg.assistant .bubble{padding:12px 14px;font-size:13px;line-height:1.6}
 .msg.assistant .bubble table{font-size:10px;display:block;overflow-x:auto}
 .header{padding:10px 14px}
-.header h2{font-size:14px}
+.header h2{font-size:16px}
 .input-area{padding:10px 14px}
 .input-area input{font-size:13px;padding:10px 12px}
 .input-area button{padding:10px 14px;font-size:13px}
@@ -135,7 +137,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .login-quick a{color:var(--accent);cursor:pointer;text-decoration:none;margin:0 3px}
 .login-quick a:hover{text-decoration:underline}
 /* V3 Mobile (P1-1): Dashboard, quick questions, voice, share, frozen table */
-.dashboard-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;gap:20px;flex-wrap:wrap}
+.dashboard-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;gap:20px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .dashboard-card .dash-item{flex:1;min-width:100px;text-align:center}
 .dashboard-card .dash-val{font-size:22px;font-weight:700;color:var(--accent-hover)}
 .dashboard-card .dash-label{font-size:11px;color:var(--muted);margin-top:2px}
@@ -153,16 +155,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .tab-btn{font-size:12px;padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
 .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .tab-btn:hover:not(.active){border-color:var(--accent);color:var(--accent-hover)}
-.dashboard-view{padding:8px 0}
+.dashboard-view{padding:16px 0}
 .dash-kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
-.dash-kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 14px;text-align:center}
+.dash-kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:box-shadow .2s,transform .2s}
+.dash-kpi:hover{box-shadow:0 4px 16px rgba(0,0,0,.25);transform:translateY(-2px)}
 .dash-kpi .kpi-label{font-size:11px;color:var(--muted);margin-bottom:6px}
 .dash-kpi .kpi-val{font-size:24px;font-weight:700;color:var(--text)}
 .dash-kpi .kpi-sub{font-size:11px;margin-top:4px}
 .dash-kpi .kpi-up{color:var(--green)}
 .dash-kpi .kpi-down{color:var(--red)}
 .dash-charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-.dash-chart-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.dash-chart-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .dash-store-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 .dash-store-table{width:100%;border-collapse:collapse;font-size:12px}
 .dash-store-table th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--border);color:var(--muted);font-weight:500;font-size:11px}

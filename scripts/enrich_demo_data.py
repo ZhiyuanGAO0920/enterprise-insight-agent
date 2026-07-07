@@ -81,20 +81,30 @@ async def enrich():
         await conn.execute("UPDATE inventory SET quantity=$1 WHERE id=$2", random.randint(0, 5), item["id"])
     print(f"Low stock alerts: {len(low)} items set to 0-5 units")
 
-    # ---- 5. 填充今天和最近几天订单 ----
+    # ---- 5. 填充最近 30 天 + 明天订单（覆盖看板数据，避免零值） ----
     members = await conn.fetch("SELECT member_id AS id FROM member")
     products_all = await conn.fetch("SELECT id, unit_price FROM product")
     mids = [m["id"] for m in members]
 
-    for days_ago in range(4, -1, -1):
-        day = TODAY - timedelta(days=days_ago)
+    # 生成 30 天前到今天的数据，再额外多生成一天（明天）确保看板不出现零值
+    all_days = list(range(30, -1, -1)) + [-1]  # -1 表示明天
+    for days_ago in all_days:
+        day = TODAY - timedelta(days=days_ago) if days_ago >= 0 else TODAY + timedelta(days=1)
         cnt = await conn.fetchval(
             "SELECT COUNT(*) FROM orders WHERE create_time >= $1 AND create_time < $2",
             day, day + timedelta(days=1),
         )
         if cnt > 100:
             continue
-        num = random.randint(150, 300) if days_ago > 0 else random.randint(100, 180)
+        # 每天生成 120-250 笔订单，近期的多一些，远期少一些
+        if days_ago >= 30:
+            num = random.randint(80, 150)
+        elif days_ago >= 14:
+            num = random.randint(120, 200)
+        elif days_ago >= 0:
+            num = random.randint(150, 250)
+        else:
+            num = random.randint(120, 200)  # 明天
         batch = []
         for _ in range(num):
             sid = random.choice(sids)
@@ -105,7 +115,7 @@ async def enrich():
             ts = day + timedelta(hours=random.randint(8, 22), minutes=random.randint(0, 59))
             batch.append((sid, mid, amt, refund, ts))
         await conn.copy_records_to_table("orders", columns=["store_id", "member_id", "amount", "refund_amount", "create_time"], records=batch)
-        print(f"  {day.strftime('%m/%d')}: {num} orders")
+        print(f"  {day.strftime('%m/%d')}: {num} orders ({cnt} existed)")
 
     # ---- 6. 制造高退款门店 ----
     high_sids = random.sample(sids, 5)

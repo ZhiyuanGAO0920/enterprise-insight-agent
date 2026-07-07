@@ -194,7 +194,7 @@ uvicorn app.api.main:app --host 0.0.0.0 --port 8002
 | **前端** | React 18 + TypeScript + Ant Design 5 + Vite | SPA 管理界面 + 分析对话 UI |
 | **后端框架** | FastAPI 0.115 | 异步 API + 自动 OpenAPI 文档 |
 | **Agent 引擎** | LangGraph 0.2+ | 10 节点有状态图编排 + 并行扇出 |
-| **LLM** | DeepSeek-Chat | 路由决策 / SQL 生成 / 报告撰写 / 质检 |
+| **LLM** | DeepSeek-V4 | 路由决策 / SQL 生成 / 报告撰写 / 质检 |
 | **Embedding** | Ollama + BGE-M3（1024 维） | 本地部署，向量语义搜索 |
 | **数据库** | PostgreSQL 16 + pgvector | 主存储 + 向量索引 |
 | **缓存** | Redis 7 | 会话 / 分析结果缓存 / 速率限制 |

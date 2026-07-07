@@ -65,7 +65,10 @@
     <button onclick="openAdminPanel()" id="adminBtn" style="font-size:11px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--accent);cursor:pointer;margin-top:6px">⚙️ 系统管理</button>
     <div style="font-size:11px;color:var(--muted)"><p>大模型：DeepSeek</p></div>
     <hr style="border-color:var(--border)">
-    <p style="font-size:11px;color:var(--muted);margin-bottom:4px">最近提问</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <p style="font-size:11px;color:var(--muted);margin:0">最近提问</p>
+      <a onclick="clearAllHistory()" style="font-size:10px;color:var(--red);cursor:pointer;text-decoration:none" title="一键清除全部历史记录">清除</a>
+    </div>
     <div id="history"></div>
   </aside>
   <div class="main">

@@ -55,10 +55,13 @@ async def is_token_blacklisted(jti: str) -> bool:
         jti: 待检查的 JWT ID。
 
     Returns:
-        如果令牌已被撤销返回 True。
+        如果令牌已被撤销返回 True。Redis 不可用时返回 False 降级放行。
     """
-    r = get_redis()
-    return await r.exists(f"{BLACKLIST_PREFIX}{jti}") > 0
+    try:
+        r = get_redis()
+        return await r.exists(f"{BLACKLIST_PREFIX}{jti}") > 0
+    except Exception:
+        return False  # Redis 不可用时降级放行
 
 
 # ---------------------------------------------------------------------------

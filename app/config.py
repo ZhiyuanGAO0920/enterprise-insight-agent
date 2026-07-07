@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # --- DeepSeek (LLM only) ---
     deepseek_api_key: str
-    deepseek_model_name: str = "deepseek-chat"  # 非思考模式，支持 tool_choice
+    deepseek_model_name: str = "DeepSeek-V4"  # 非思考模式，支持 tool_choice
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     llm_temperature: float = 0.0
     llm_max_tokens: int = 8192  # 必须大于推理 tokens；100 行表格需要约 5K tokens

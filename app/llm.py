@@ -32,7 +32,7 @@ settings = get_settings()
 cost_logger = logging.getLogger("eia.llm.cost")
 
 # DeepSeek 定价（¥/百万 tokens）
-# deepseek-chat: 输入 ¥1/MTok, 输出 ¥2/MTok
+# DeepSeek-V4: 输入 ¥1/MTok, 输出 ¥2/MTok
 DEEPSEEK_INPUT_PRICE = 1.0
 DEEPSEEK_OUTPUT_PRICE = 2.0
 

@@ -4,7 +4,8 @@ var token = '';
 var sessionId = null;
 var lastRecordId = null;
 var pendingFeedback = null;
-var dismissedIds = new Set();
+var dismissedIds = (function(){try{return new Set(JSON.parse(localStorage.getItem('eia_dismissed')||'[]'))}catch(e){return new Set()}})();
+var hiddenIds = new Set();  // 仅当前会话隐藏，刷新恢复
 var _lastReportText = '';
 var _lastQuestionText = '';
 
@@ -626,13 +627,32 @@ async function ask(e){
 }
 
 // History
-function dismissHistory(id, e){
+// 隐藏（仅当前会话，刷新恢复）
+function hideHistory(id, e){
   e.stopPropagation();
-  dismissedIds.add(id);
+  hiddenIds.add(id);
   var item=document.querySelector('.history-item[data-id="'+id+'"]');
   if(item)item.remove();
   var detail=document.getElementById('history-detail-'+id);
-  if(detail)detail.remove()
+  if(detail)detail.remove();
+  loadHistory();
+}
+// 删除（持久化到 localStorage，刷新不恢复）
+function dismissHistory(id, e){
+  e.stopPropagation();
+  dismissedIds.add(id);
+  localStorage.setItem('eia_dismissed',JSON.stringify(Array.from(dismissedIds)));
+  var item=document.querySelector('.history-item[data-id="'+id+'"]');
+  if(item)item.remove();
+  var detail=document.getElementById('history-detail-'+id);
+  if(detail)detail.remove();
+  loadHistory();
+}
+function clearAllHistory(){
+  var items=document.querySelectorAll('.history-item');
+  items.forEach(function(el){dismissedIds.add(parseInt(el.getAttribute('data-id')))});
+  localStorage.setItem('eia_dismissed',JSON.stringify(Array.from(dismissedIds)));
+  document.getElementById('history').innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px">暂无历史记录</div>';
 }
 
 function closeHistoryDetail(id){
@@ -650,10 +670,11 @@ async function loadHistory(){
     var hasItems=false;
     for(var i=0;i<d.records.length;i++){
       (function(h){
-        if(dismissedIds.has(h.id))return;
+        if(dismissedIds.has(h.id)||hiddenIds.has(h.id))return;
         hasItems=true;
         html+='<div class="history-item" data-id="'+h.id+'" onclick="viewHistoryDetail('+h.id+')">'+
-          '<span class="history-dismiss" title="从列表移除" onclick="dismissHistory('+h.id+',event)">&times;</span>'+
+          '<span class="history-dismiss" title="隐藏（刷新恢复）" onclick="hideHistory('+h.id+',event)">◌</span>'+
+          '<span class="history-delete" title="删除（不再显示）" onclick="dismissHistory('+h.id+',event)">✕</span>'+
           '<div class="q">'+escapeHtml(h.question.substring(0,55))+'</div>'+
           '<div class="t">'+escapeHtml((h.summary||'').substring(0,70))+'</div></div>'
       })(d.records[i])
@@ -664,6 +685,7 @@ async function loadHistory(){
 }
 
 async function viewHistoryDetail(id){
+  if(_currentTab==='dashboard')switchTab('chat');
   var items=document.querySelectorAll('.history-item');
   for(var i=0;i<items.length;i++){
     items[i].classList.remove('active');
@@ -691,10 +713,15 @@ async function viewHistoryDetail(id){
       html+='<p style="color:var(--muted)">该记录暂无报告内容</p>'
     }
     html+='</div></div>';
+    // 设置全局变量，让分享/PDF/打印按钮能拿到报告内容
+    if(detail.report){_lastReportText=detail.report;_lastQuestionText=detail.question}
     html+='<div class="export-bar" style="display:flex;gap:8px;margin-top:4px;padding-top:4px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center">'+
       '<span style="font-size:11px;color:var(--muted)">🕐 '+escapeHtml(detail.create_time||'')+'</span>'+
       (detail.reflection_passed?'<span style="color:var(--green);font-size:11px">✅ 质量审核通过</span>':'')+
-      (detail.report?'<button class="export-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer" onclick="copyToClipboard(`'+detail.report.replace(/`/g,'\\`').replace(/\$/g,'\\$')+'`)">📋 复制</button>':'')+
+      (detail.report?'<button class="export-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer" onclick="_copyReport()">📋 复制</button>':'')+
+      (detail.report?'<button class="share-btn" onclick="_shareReport()">📤 分享</button>':'')+
+      (detail.report?'<button class="export-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer" onclick="exportPDF()">📄 PDF</button>':'')+
+      (detail.report?'<button class="print-btn" onclick="window.print()">🖨️ 打印</button>':'')+
       '</div>';
     if(detail.sales_result||detail.crm_result||detail.finance_result){
       html+='<details class="trace-panel" style="margin-top:8px"><summary>🔍 查看各 Agent 分析详情</summary>';

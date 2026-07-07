@@ -51,6 +51,7 @@ body.json
 login_resp.json
 token.txt
 .workbuddy/
+.claude/
 demo_scripts/
 demo_output/
 web/node_modules/
@@ -58,3 +59,5 @@ web/node_modules/
 # Personal info — do not sync
 docs/个人简历-*.md
 docs/作品集-*.md
+docs/*面试*.md
+docs/*模拟对答*.md

@@ -64,8 +64,9 @@ async def today_summary(
     username = user.get("username", user.get("sub", ""))
 
     # 按用户 + 门店范围生成缓存键
+    store_key = 'all' if store_ids is None else (','.join(sorted(store_ids)) if store_ids else 'none')
     scope_key = hashlib.md5(
-        f"{user['user_id']}:{','.join(sorted(store_ids))}".encode()
+        f"{user['user_id']}:{store_key}".encode()
     ).hexdigest()[:12]
     cache_key = f"dashboard:today:{scope_key}"
 
