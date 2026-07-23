@@ -193,6 +193,196 @@ footer {
       </div>
     </div>
   </section>
+
+  <!-- ====== 第二节：AI 产品经理视角评估 ====== -->
+  <section id="pm-view" class="section">
+    <h2 class="section-title"><span class="num">2</span> AI 产品经理视角评估</h2>
+
+    <!-- 2.1 决策逻辑链审视 -->
+    <h3 class="sub-title">2.1 决策逻辑链审视</h3>
+    <div class="card">
+      <p>以下对 13 条关键决策记录逐条审查，评估逻辑自洽性、数据支撑度和面试讲述力。高风险项标注。</p>
+    </div>
+
+    <div class="card" style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr><th style="width:28px;">#</th><th>决策主题</th><th>AI 建议（被否决）</th><th>逻辑自洽</th><th>数据支撑</th><th>讲述力</th><th>风险</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td><td>Agent 编排框架</td>
+            <td>LangChain AgentExecutor</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-success">有</span>（45s→15s）</td>
+            <td><span class="tag tag-success">⭐ 高</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+          <tr>
+            <td>2</td><td>LLM 选型</td>
+            <td>GPT-4o</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-warning">估算</span>（成本 1/50）</td>
+            <td><span class="tag tag-success">⭐ 高</span></td>
+            <td><span class="tag tag-warning">中</span></td>
+          </tr>
+          <tr>
+            <td>3</td><td>Reflection 重试次数</td>
+            <td>重试 3 次</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-warning">估算</span>（修复率 60%）</td>
+            <td><span class="tag tag-success">⭐ 高</span></td>
+            <td><span class="tag tag-warning">中</span></td>
+          </tr>
+          <tr>
+            <td>4</td><td>移动端方案</td>
+            <td>微信小程序</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-info">逻辑推理</span></td>
+            <td><span class="tag tag-success">中</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+          <tr>
+            <td>5</td><td>Embedding 模型</td>
+            <td>OpenAI text-embedding-3-small</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-success">有</span>（召回率 ~79%）</td>
+            <td><span class="tag tag-success">⭐ 高</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+          <tr>
+            <td>6</td><td>V1→V2 推倒重建</td>
+            <td>渐进改进</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-info">逻辑推理</span></td>
+            <td><span class="tag tag-success">⭐ 高</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+          <tr>
+            <td>7</td><td>输出格式</td>
+            <td>统一完整报告</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-success">有</span>（查询型响应缩短 40%）</td>
+            <td><span class="tag tag-success">中</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+          <tr>
+            <td>8</td><td>反馈机制</td>
+            <td>5 星评分</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-info">产品直觉</span></td>
+            <td><span class="tag tag-success">中</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+          <tr>
+            <td>9</td><td>Feature Flag 默认值</td>
+            <td>直接上线</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-success">有</span>（137 测试后改默认）</td>
+            <td><span class="tag tag-success">中</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+          <tr>
+            <td>10</td><td>库存/供应链表</td>
+            <td>复用现有表推断</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-success">有</span>（178 条种子数据）</td>
+            <td><span class="tag tag-success">中</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+          <tr>
+            <td>11</td><td>V4 前端技术</td>
+            <td>Next.js</td>
+            <td><span class="tag tag-warning">一般</span></td>
+            <td><span class="tag tag-info">无</span></td>
+            <td><span class="tag tag-danger">低</span></td>
+            <td><span class="tag tag-danger">高</span></td>
+          </tr>
+          <tr>
+            <td>12</td><td>V4 LLM 续用</td>
+            <td>—</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-success">有</span>（年差 ¥8500）</td>
+            <td><span class="tag tag-success">中</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+          <tr>
+            <td>13</td><td>一键 Docker 部署</td>
+            <td>—</td>
+            <td><span class="tag tag-success">强</span></td>
+            <td><span class="tag tag-success">有</span>（部署 2h→5min）</td>
+            <td><span class="tag tag-success">中</span></td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card risk-card">
+      <div class="card-header"><span class="tag tag-danger">高风险决策：面试官可能追问</span></div>
+      <p><strong>决策 #2（DeepSeek vs GPT-4o）：</strong>声称"成本 1/50"但需确认是输入还是输出 token 价格对比。DeepSeek 价格 ¥1/Mtok 输入 vs GPT-4o ¥30/Mtok 输入，确实约 1/30—1/50。但面试官可能追问："中文术语更准"有量化证据吗？建议准备 1-2 个具体案例。</p>
+      <p style="margin-top:8px;"><strong>决策 #3（Reflection 重试 1 次）：</strong>"修复率 60%"和"一次通过率 85%→95%"是估算还是实测？如果面试官追问测量方法，建议坦诚说明是在开发过程中通过观察 20-30 次运行结果得出的经验值。</p>
+      <p style="margin-top:8px;"><strong>决策 #11（V4 前端技术）：</strong>决策记录称选了 React 18 + TS + Ant Design 5 + Vite，但实际生产前端是 <strong>原生 HTML/CSS/JS</strong>（<code>app/api/static/app.js</code> 1453 行）。这个不一致面试官翻源码就能发现，是最容易被攻击的点。</p>
+    </div>
+
+    <!-- 2.2 AI 能力边界定义 -->
+    <h3 class="sub-title">2.2 AI 能力边界定义</h3>
+    <div class="card">
+      <table>
+        <thead><tr><th>机制</th><th>评价</th><th>面试中的风险</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Reflection 质检</strong></td>
+            <td>4 维度（一致性/逻辑/可操作/完整）设计合理，覆盖了 AI 输出常见的幻觉和逻辑断裂问题。1 次重试是一次性投入 3000-5000 token 换取 60% 修复率，性价比合理。</td>
+            <td>面试官可能问"4 维度怎么选出来的？为什么不是 6 个或 2 个？"——建议回答：从实际 BadCase 中归纳，而非理论推导。</td>
+          </tr>
+          <tr>
+            <td><strong>双模式输出</strong></td>
+            <td>查询型→表格、分析型→报告，基于 question 中是否含具体数据指标（排名/金额/数量）判断。响应缩短 40% 是真实的产品改进。</td>
+            <td>低风险。面试官通常认可这种"不为了 AI 而 AI"的设计思路。</td>
+          </tr>
+          <tr>
+            <td><strong>数据诚实</strong></td>
+            <td>Prompt 明确要求 Agent 必须 <code>run_sql</code> 查真实数据，禁止编造。sql_runner 是到达数据库的唯一路径，从架构上杜绝了幻觉数据进入报告。</td>
+            <td>低风险。这是加分项，展示了"AI 产品经理知道 AI 会犯错"的专业素养。</td>
+          </tr>
+          <tr>
+            <td><strong>AI Kill Switch</strong></td>
+            <td>9 个 Feature Flag + 默认关闭策略 + 一键回退。灰度开关设计成熟。</td>
+            <td>低风险。面试官可能问"如果 AI 全部不可用，系统还能做什么？"——回答：经营看板（纯 SQL 查询）和缓存结果仍可正常使用。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 2.3 用户场景覆盖度 -->
+    <h3 class="sub-title">2.3 用户场景覆盖度</h3>
+    <div class="card">
+      <p><strong>5 个领域 Agent</strong>（销售/CRM/财务/库存/供应链）覆盖了连锁零售的核心经营链路：收入端（销售）、客户端（CRM）、利润端（财务）、货品端（库存）、供应端（供应链）。加上 Supervisor 路由和 Aggregator 聚合，形成了完整的"问→查→诊→报"闭环。</p>
+      <p style="margin-top:8px;"><strong>102 条评估集</strong>（50 lookup + 38 analysis + 14 edge）的问题分布较为合理。lookup 型（"昨天销售额多少"）占比最高，符合零售经营者的实际提问习惯。14 条 edge case（如"上个月没有销售的品类"）体现了对边界场景的思考。</p>
+      <p style="margin-top:8px;"><strong>经营看板作为首页：</strong>解决了"冷启动焦虑"——用户不需要知道该问什么，打开就能看到关键指标。这是典型的 B 端产品设计思维。</p>
+      <p style="margin-top:8px;"><strong>多轮对话/FOLLOWUP：</strong>ContextManager 注入历史上下文，会话所有权验证（防跨用户读取），FOLLOWUP 提供追问建议。但 session 级别的上下文管理策略（保留最近几轮？只保留关键实体？）在文档中不够明确。</p>
+    </div>
+
+    <!-- 2.4 产品方法论成熟度 -->
+    <h3 class="sub-title">2.4 产品方法论成熟度</h3>
+    <div class="card">
+      <p>7 条 AI 产品设计原则（来源：<code>docs/AI产品设计原则.md</code>）的实践深度评估：</p>
+      <table>
+        <thead><tr><th>原则</th><th>实践深度</th><th>评价</th></tr></thead>
+        <tbody>
+          <tr><td>够好就行</td><td><span class="tag tag-success">深入</span></td><td>Reflection 1 次 vs 3 次、BGE-M3 召回率 ~79% 接受、DeepSeek 成本优先，都是理性权衡。</td></tr>
+          <tr><td>灰度开关</td><td><span class="tag tag-success">深入</span></td><td>9 个 Feature Flag 分 P0/P1/P2 三级，默认关闭策略，137 测试后改默认开启。</td></tr>
+          <tr><td>输出自适应</td><td><span class="tag tag-success">扎实</span></td><td>双模式实际落地，查询型响应缩短 40%。</td></tr>
+          <tr><td>数据诚实</td><td><span class="tag tag-success">深入</span></td><td>架构级保障（sql_runner 唯一路径），非仅 Prompt 约束。</td></tr>
+          <tr><td>Reflection 质检</td><td><span class="tag tag-success">扎实</span></td><td>4 维度 + 1 次重试，从 BadCase 归纳。但维度选择缺乏理论对比。</td></tr>
+          <tr><td>流式优先</td><td><span class="tag tag-success">扎实</span></td><td>SSE 流式 + 缓存（5 分钟 TTL），95%+ 新问题不缓存。</td></tr>
+          <tr><td>Schema 三层适配</td><td><span class="tag tag-success">深入</span></td><td>自动发现→YAML 映射→Prompt 生成，是"零驻场部署"产品价值的核心实现。</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;">与业界 AI PM 方法论对比：Google PAIR 强调"以人为本的 AI 设计"，Microsoft Responsible AI 强调"公平/可靠/安全/隐私/包容/透明/问责"。EIA V4 在可靠性（Reflection + 数据诚实）和安全性（RLS + RBAC）上对齐较好，在公平性、包容性、透明度上未涉及——对于 B 端经营分析工具是合理的取舍。</p>
+    </div>
+  </section>
 </div>
 
 <footer>
