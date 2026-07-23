@@ -152,6 +152,8 @@ footer {
   <a href="#roadmap">改进路线</a>
 </nav>
 
+<div id="progress-bar" style="position:fixed;top:56px;left:0;height:3px;background:var(--accent);z-index:1001;width:0%;transition:width 0.1s;"></div>
+
 <div class="container">
   <!-- ====== 第一节：执行摘要 ====== -->
   <section id="summary" class="section">
@@ -644,6 +646,68 @@ footer {
       </div>
     </div>
   </section>
+
+  <!-- ====== 第五节：改进路线图 ====== -->
+  <section id="roadmap" class="section">
+    <h2 class="section-title"><span class="num">5</span> 改进路线图</h2>
+    <p style="margin-bottom: 16px; color: var(--text-secondary);">按优先级分为三级：面试前必须修（P0）、面试前建议修（P1）、长期优化（P2）。</p>
+
+    <!-- P0 -->
+    <h3 class="sub-title"><span class="tag tag-danger">P0</span> 面试前必须修复（1-2 天可完成）</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 8px;">面试官翻 GitHub 源码就能看到、且容易被打上"不严谨"标签的问题。</p>
+    <div class="card priority-p0">
+      <table>
+        <thead><tr><th style="width:28px;">#</th><th>问题</th><th>文件</th><th>修复方式</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>1</td><td><code>llm.py</code> docstring 与实现矛盾</td><td><code>app/llm.py</code></td><td>修正 docstring 以匹配实际实现（threading.Lock），或重构为 ContextVar</td>
+          </tr>
+          <tr>
+            <td>2</td><td>AGENTS.md 模型数 17→16</td><td><code>AGENTS.md</code></td><td>更新为实际 ORM 类数（16），并说明 4 张供应链表无 ORM 的原因</td>
+          </tr>
+          <tr>
+            <td>3</td><td>AGENTS.md 迁移数 8→10</td><td><code>AGENTS.md</code></td><td>更新为实际迁移版本数（001-010）</td>
+          </tr>
+          <tr>
+            <td>4</td><td>前端 footer 标注"REACT 18"</td><td><code>app/api/static/index.html</code></td><td>改为实际技术栈（原生 HTML/CSS/JS + ECharts 5）或删除技术栈标注</td>
+          </tr>
+          <tr>
+            <td>5</td><td><code>/analyze-stream</code> 缺 rate_limit</td><td><code>app/api/routes/analysis.py</code></td><td>添加 rate_limit 依赖，与 <code>/analyze</code> 保持一致</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- P1 -->
+    <h3 class="sub-title"><span class="tag tag-warning">P1</span> 面试前建议修复（3-5 天可完成）</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 8px;">不影响面试通过但能提升"工程严谨度"印象。</p>
+    <div class="card priority-p1">
+      <table>
+        <thead><tr><th style="width:28px;">#</th><th>问题</th><th>修复方式</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>魔法数字散落</td><td>将 MAX_SUMMARY_CHARS、MAX_REPORT_CHARS、_MIN_PHASE_DISPLAY_SEC、CHART_MAX_CHARS 等集中到 <code>config.py</code></td></tr>
+          <tr><td>2</td><td>Aggregator 无单测</td><td>补充纯 Python 聚合逻辑的单元测试（头尾截断、字符上限、空输入等边界 case）</td></tr>
+          <tr><td>3</td><td>日志系统混用</td><td>统一为 structlog，约 10 行改动</td></tr>
+          <tr><td>4</td><td>裸 except 静默吞错</td><td>关键位置（CostTracker、RAG、缓存）添加 <code>logger.debug</code></td></tr>
+          <tr><td>5</td><td><code>.env.example</code> 测试数注释过时</td><td>更新为 155</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- P2 -->
+    <h3 class="sub-title"><span class="tag tag-info">P2</span> 长期优化（面试后持续改进）</h3>
+    <div class="card priority-p2">
+      <ul style="padding-left: 20px; line-height: 2.2;">
+        <li>补充单个 Agent 的单元测试（mock LLM 响应，覆盖 supervisor 路由、各领域 Agent 的 SQL 生成逻辑）</li>
+        <li>将 CostTracker 重构为真正的 ContextVar 实现，保证 per-task 隔离</li>
+        <li>前端现代化（当前 1453 行原生 JS 维护成本高，可考虑迁移到 React 18 + TS + Vite，与决策记录 #11 对齐）</li>
+        <li>补充 API 文档（FastAPI 自带 OpenAPI/Swagger，当前未启用）</li>
+        <li>建立 CI/CD pipeline（GitHub Actions: lint + test + build）</li>
+        <li><code>on_event("startup")</code> 迁移到 lifespan context manager</li>
+        <li>解决 <code>web/</code> 目录 React 版与 <code>app/api/static/</code> 原生版的双版本问题（统一为一个前端的真实来源）</li>
+      </ul>
+    </div>
+  </section>
 </div>
 
 <footer>
@@ -660,6 +724,12 @@ window.addEventListener('scroll', () => {
   let current = '';
   sections.forEach(s => { if (s && s.offsetTop <= scrollY) current = s.id; });
   navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+
+  // 滚动进度条
+  var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+  var scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+  document.getElementById('progress-bar').style.width = progress + '%';
 });
 </script>
 
