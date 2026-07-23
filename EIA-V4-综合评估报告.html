@@ -383,6 +383,158 @@ footer {
       <p style="margin-top:12px;">与业界 AI PM 方法论对比：Google PAIR 强调"以人为本的 AI 设计"，Microsoft Responsible AI 强调"公平/可靠/安全/隐私/包容/透明/问责"。EIA V4 在可靠性（Reflection + 数据诚实）和安全性（RLS + RBAC）上对齐较好，在公平性、包容性、透明度上未涉及——对于 B 端经营分析工具是合理的取舍。</p>
     </div>
   </section>
+
+  <!-- ====== 第三节：资深开发师视角评估 ====== -->
+  <section id="dev-view" class="section">
+    <h2 class="section-title"><span class="num">3</span> 资深开发师视角评估</h2>
+
+    <!-- 3.1 架构合理性 -->
+    <h3 class="sub-title">3.1 架构合理性</h3>
+    <div class="card">
+      <table>
+        <thead><tr><th>评估项</th><th>评价</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>11 节点 StateGraph 拓扑</strong></td>
+            <td>supervisor →(Send 并行扇出)→ 5 领域 Agent →(扇入)→ aggregator → chart_advisor → report ⇄ reflection → save_memory。拓扑设计合理，扇出正确使用 <code>langgraph.types.Send</code> 而非顺序执行，扇入用 <code>add</code> 归约器合并并行分支结果。全 Agent 失败时优雅降级到 chart_advisor → report 生成错误报告，而非静默跳 END。</td>
+          </tr>
+          <tr>
+            <td><strong>Aggregator 纯 Python 聚合</strong></td>
+            <td>不耗 Token 是亮点。头尾保留截断策略（前 70% + 后 30%，上限 15000 字符）有合理性——前 70% 保留大部分内容，后 30% 保留最终结论。但极端情况下（Agent 输出刚好在 70% 边界处有重要数据），可能丢失关键信息。建议在报告中标注这是一个已知的 trade-off。</td>
+          </tr>
+          <tr>
+            <td><strong>优雅降级链路</strong></td>
+            <td>Agent 全失败→Python 错误报告、Redis 不可用→放行、RAG 失败→跳过、图表生成失败→不阻断。降级设计颗粒度合理，既不过度防御（没有为每个 Agent 单独写降级逻辑），也不裸奔。但 56 处裸 <code>except Exception</code> 中部分完全静默，可能掩盖真实问题。</td>
+          </tr>
+          <tr>
+            <td><strong>模块级实例化</strong></td>
+            <td><code>llm = create_llm()</code> 和 <code>graph = build_graph().compile()</code> 在模块导入时执行。影响：LLM 配置变更需重启服务（Prompt 可热重载但 LLM 不行）、测试隔离性差（难以 mock 不同 LLM 配置）。在面试中可解释为"独立项目不需要频繁换 LLM 配置"的务实选择。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 3.2 代码质量审计 -->
+    <h3 class="sub-title">3.2 代码质量审计</h3>
+    <div class="card">
+      <p>以下为代码级发现，附具体文件路径和面试中如何解释的建议：</p>
+    </div>
+
+    <div class="card risk-card">
+      <div class="card-header"><span class="tag tag-danger">🔴 严重：llm.py 文档与实现矛盾</span></div>
+      <div class="code-ref">
+<span class="file">// app/llm.py — CostTracker 类</span>
+<span class="issue">// 顶部 docstring 声称：</span>
+<span class="note">"CostTracker 使用 ContextVar 做 per-task 累计，无需加锁"</span>
+<span class="issue">// 实际实现：</span>
+<span class="note">_token_lock = threading.Lock()  // 全局锁</span>
+<span class="note">_token_input = 0                // 全局变量</span>
+<span class="note">_token_output = 0               // 全局变量</span>
+<span class="issue">// 类 docstring 又说：</span>
+<span class="note">"用线程锁保护"</span>
+      </div>
+      <p style="margin-top: 8px;"><strong>面试防守建议：</strong>坦诚承认这是迭代过程中的遗漏——最初设计用 ContextVar，后来发现当前并发场景下线程锁更简单可靠，但忘记更新 docstring。展示工程诚实度比完美代码更重要。同时准备讲解 ContextVar 和 threading.Lock 的区别，证明你懂这个技术。</p>
+    </div>
+
+    <div class="card risk-card">
+      <div class="card-header"><span class="tag tag-warning">🟡 中风险：56 处裸 except Exception</span></div>
+      <p>分布在 27 个文件中，部分 catch 后直接 <code>pass</code> 完全静默：</p>
+      <div class="code-ref">
+<span class="file">// app/llm.py — CostTracker 回调</span>
+<span class="note">except Exception:</span>
+<span class="note">    pass  // 静默吞错，无法追踪成本统计失败</span>
+<span class="note">    </span>
+<span class="file">// app/agents/sales_agent.py — RAG 检索</span>
+<span class="note">except Exception:</span>
+<span class="note">    pass  // 静默跳过 RAG，无法感知检索失败原因</span>
+      </div>
+      <p style="margin-top: 8px;"><strong>面试防守建议：</strong>解释为"功能优先、降级兜底"策略——在 Demo 阶段优先保证主流程不崩溃，后续迭代补日志。建议面试前至少给关键位置（CostTracker、RAG、缓存）加 <code>logger.debug</code>。</p>
+    </div>
+
+    <div class="card risk-card">
+      <div class="card-header"><span class="tag tag-warning">🟡 中风险：日志系统混用</span></div>
+      <p>部分文件用 structlog <code>get_logger()</code>（supervisor/analysis/graph/audit/tenant），部分用标准库 <code>logging.getLogger()</code>（report/reflection/sales/memory/chart_advisor）。structlog 的 <code>bind_context()</code> 注入的 trace_id 对标准库 logger 不生效，导致 <strong>一半 Agent 的日志缺失全链路追踪上下文</strong>。</p>
+      <p style="margin-top: 8px;"><strong>面试防守建议：</strong>这是典型的功能迭代中"先跑通再统一"的遗留问题。面试前可快速统一为 structlog（改动量小，约 10 行）。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="tag tag-info">其他发现</span></div>
+      <table>
+        <thead><tr><th>问题</th><th>影响</th><th>面试风险</th></tr></thead>
+        <tbody>
+          <tr><td>魔法数字散落（MAX_SUMMARY_CHARS=15000 等）</td><td>维护性</td><td><span class="tag tag-info">低</span></td></tr>
+          <tr><td>encode_chart_markers 手动状态机解析</td><td>可维护性</td><td><span class="tag tag-info">低</span></td></tr>
+          <tr><td>函数内 import（analysis.py 多处）</td><td>可读性</td><td><span class="tag tag-info">低</span></td></tr>
+          <tr><td>on_event("startup") 已弃用</td><td>技术债</td><td><span class="tag tag-info">低</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 3.3 安全设计评估 -->
+    <h3 class="sub-title">3.3 安全设计评估</h3>
+    <div class="card">
+      <table>
+        <thead><tr><th>安全层</th><th>评价</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>RLS 行级安全</strong></td>
+            <td><span class="tag tag-success">优秀</span> — 括号深度追踪算法（找到最外层 WHERE，跳过子查询内 WHERE）+ 列名自动检测（store 表用 id，member/supplier/product 不注入，其他用 store_id）+ 空权限 <code>WHERE 1=0</code>（三情况覆盖：已有 WHERE / 有 GROUP BY / 简单查询）。这是项目中技术含量最高的模块之一，面试中值得深度讲解。</td>
+          </tr>
+          <tr>
+            <td><strong>SQL 安全检查</strong></td>
+            <td><span class="tag tag-success">扎实</span> — FORBIDDEN 模式（硬拦截 DROP/TRUNCATE/DELETE/UPDATE/INSERT/ALTER/CREATE/EXEC）+ RISKY 模式（CROSS JOIN、LIMIT>10000）。字符串字面量剥离防误报（避免 <code>WHERE name LIKE '%DROP%'</code> 被误判）。</td>
+          </tr>
+          <tr>
+            <td><strong>四层安全体系</strong></td>
+            <td>JWT（HS256 + 480 分钟过期）+ RBAC（User↔Role↔Permission 多对多）+ 多租户（tenant_id 隔离，支持三种模式）+ 审计日志（HTTP 方法/资源/IP/UserAgent/状态码/耗时）。<strong>安全隐患：</strong><code>/analyze-stream</code> 缺少 rate_limit 依赖（<code>/analyze</code> 有）。Redis 不可用时令牌黑名单降级放行。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 3.4 测试覆盖盲区 -->
+    <h3 class="sub-title">3.4 测试覆盖盲区</h3>
+    <div class="card">
+      <p><strong>155 条测试的分层策略：</strong>无依赖 SQLite（test_acceptance/test_v3_features）+ @db 真实 PG（phase1/phase6）+ @e2e 真实 LLM（test_e2e）+ 离线评估（run_eval.py）。测试环境优雅降级（<code>_is_postgres_available()</code> 动态探测，不可用时自动 skip @db 测试）。</p>
+      <p style="margin-top: 8px;"><strong>覆盖盲区：</strong></p>
+      <ul style="padding-left: 20px; line-height: 2;">
+        <li>无独立 Agent 单元测试（<code>test_workflow.py</code>/<code>test_agents.py</code> 不存在），单个 Agent 的 LLM 行为主要靠 E2E 覆盖。</li>
+        <li>Aggregator（纯 Python 聚合逻辑）无专门单测，虽然逻辑简单但也有头尾截断、字符上限等边界 case。</li>
+        <li>102 条评估集分布合理（50 lookup + 38 analysis + 14 edge），但缺乏 baseline 对比（如 vs 单 Agent、vs 不质检）。</li>
+      </ul>
+      <p style="margin-top: 8px;"><strong>面试防守建议：</strong>155 条测试在个人项目中已经属于上游水平，坦诚说明覆盖盲区是"Demo 阶段优先保证核心链路"的务实选择，展示对测试金字塔的理解（知道应该补什么，只是优先级问题）。</p>
+    </div>
+
+    <!-- 3.5 数据层与文档一致性 -->
+    <h3 class="sub-title">3.5 数据层与文档一致性</h3>
+    <div class="card">
+      <table>
+        <thead><tr><th>不一致</th><th>详情</th><th>面试风险</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>模型数 17→16</strong></td>
+            <td>AGENTS.md 称"17 ORM 模型"，实际 <code>models.py</code> 中 16 个类。<code>supplier/product/inventory/purchase_order</code> 4 张表只在 alembic 003 用原始 SQL 建表，无 ORM 类——Agent 通过 <code>sql_runner</code> 原生 SQL 访问。这可能是适配异构客户库的有意设计，但应在文档中明确说明。</td>
+            <td><span class="tag tag-danger">高</span></td>
+          </tr>
+          <tr>
+            <td><strong>迁移数 8→10</strong></td>
+            <td>AGENTS.md 称"8 版 Alembic 迁移"，实际 10 个版本（001-010）。009（llm_cost 列）和 010（reflection_issues 列）为 2026-07-16 新增，文档未同步更新。</td>
+            <td><span class="tag tag-warning">中</span></td>
+          </tr>
+          <tr>
+            <td><strong>前端技术栈标注</strong></td>
+            <td><code>index.html</code> footer 标注"REACT 18 · TYPESCRIPT · ANT DESIGN 5"，但实际生产前端是 <strong>原生 HTML/CSS/JS</strong>（<code>app/api/static/app.js</code> 1453 行）。<code>web/</code> 目录下有 React 版依赖（Vite/React/Antd），但未启用。决策记录 #11 也选了 React。</td>
+            <td><span class="tag tag-danger">高</span></td>
+          </tr>
+          <tr>
+            <td><strong>测试数注释过时</strong></td>
+            <td><code>.env.example</code> 注释称"validated by 137 tests"，AGENTS.md 称 155 条。测试数随版本增长，文档注释滞后。</td>
+            <td><span class="tag tag-info">低</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 
 <footer>
