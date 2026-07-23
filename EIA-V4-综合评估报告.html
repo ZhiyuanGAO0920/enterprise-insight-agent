@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EIA V4 项目综合评估报告</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+/* ---- CSS 变量 ---- */
+:root {
+  --primary: #1a3a5c;
+  --primary-light: #2d5f8a;
+  --accent: #e8a838;
+  --bg: #f8f9fb;
+  --card: #ffffff;
+  --text: #2c3e50;
+  --text-secondary: #5a6d7e;
+  --border: #e0e5ec;
+  --success: #27ae60;
+  --warning: #f39c12;
+  --danger: #e74c3c;
+  --info: #3498db;
+  --font: 'Noto Sans CJK SC', 'WenQuanYi Micro Hei', 'Microsoft YaHei', sans-serif;
+  --radius: 8px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --transition: 0.2s ease;
+}
+
+/* ---- Reset & Base ---- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.75;
+}
+
+/* ---- Nav ---- */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  background: rgba(26,58,92,0.95); backdrop-filter: blur(10px);
+  padding: 0 24px; height: 56px; display: flex; align-items: center;
+  gap: 0; box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+}
+nav a {
+  color: rgba(255,255,255,0.75); text-decoration: none;
+  font-size: 0.85rem; padding: 8px 16px; border-radius: 6px;
+  transition: var(--transition); white-space: nowrap;
+}
+nav a:hover, nav a.active { color: #fff; background: rgba(255,255,255,0.12); }
+nav .brand { font-weight: 700; font-size: 1rem; color: #fff; margin-right: 16px; }
+
+/* ---- Layout ---- */
+.container { max-width: 1100px; margin: 0 auto; padding: 80px 24px 48px; }
+.section { margin-bottom: 48px; }
+.section-title {
+  font-size: 1.6rem; font-weight: 700; color: var(--primary);
+  padding-bottom: 12px; border-bottom: 3px solid var(--accent);
+  margin-bottom: 24px; display: flex; align-items: center; gap: 10px;
+}
+.section-title .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--primary); color: #fff; font-size: 1rem; font-weight: 700;
+  flex-shrink: 0;
+}
+.sub-title { font-size: 1.2rem; font-weight: 600; color: var(--primary-light); margin: 24px 0 12px; }
+
+/* ---- Card ---- */
+.card {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 24px; margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+.card-header { font-size: 1.05rem; font-weight: 600; color: var(--primary); margin-bottom: 12px; }
+
+/* ---- Radar Chart ---- */
+.radar-container { width: 100%; height: 420px; margin: 16px 0; }
+
+/* ---- Highlights & Risks ---- */
+.highlight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.highlight-card { border-left: 4px solid var(--success); }
+.risk-card { border-left: 4px solid var(--danger); }
+.tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+.tag-success { background: #e8f5e9; color: var(--success); }
+.tag-warning { background: #fff3e0; color: var(--warning); }
+.tag-danger { background: #fdecea; color: var(--danger); }
+.tag-info { background: #e3f2fd; color: var(--info); }
+
+/* ---- Table ---- */
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 12px 0; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: #f0f3f7; font-weight: 600; color: var(--primary); white-space: nowrap; }
+tr:hover { background: #f8f9fb; }
+
+/* ---- Code Block ---- */
+.code-ref {
+  background: #1e293b; color: #e2e8f0; border-radius: var(--radius);
+  padding: 16px 20px; font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.82rem; line-height: 1.6; overflow-x: auto; margin: 8px 0;
+}
+.code-ref .file { color: var(--accent); }
+.code-ref .issue { color: var(--danger); }
+.code-ref .note { color: #94a3b8; }
+
+/* ---- Defense Cards ---- */
+.defense-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.defense-card { border-top: 4px solid var(--primary-light); }
+.defense-card .question { color: var(--danger); font-weight: 600; margin-bottom: 8px; }
+.defense-card .strategy { background: #f0f7ff; padding: 12px; border-radius: 6px; margin-top: 8px; }
+
+/* ---- Roadmap ---- */
+.priority-p0 { border-left: 4px solid var(--danger); }
+.priority-p1 { border-left: 4px solid var(--warning); }
+.priority-p2 { border-left: 4px solid var(--info); }
+
+/* ---- Footer ---- */
+footer {
+  text-align: center; padding: 32px; color: var(--text-secondary);
+  font-size: 0.85rem; border-top: 1px solid var(--border);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .highlight-grid, .defense-grid { grid-template-columns: 1fr; }
+  nav { overflow-x: auto; padding: 0 12px; }
+  nav a { font-size: 0.78rem; padding: 6px 10px; }
+  .container { padding: 64px 16px 32px; }
+  .section-title { font-size: 1.3rem; }
+  .radar-container { height: 320px; }
+}
+
+/* ---- Print ---- */
+@media print {
+  nav { position: static; background: #fff; box-shadow: none; }
+  nav a { color: var(--text); }
+  .container { padding: 0 16px; }
+  .card { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+}
+</style>
+</head>
+<body>
+
+<!-- 导航栏 -->
+<nav>
+  <span class="brand">EIA V4 评估报告</span>
+  <a href="#summary">执行摘要</a>
+  <a href="#pm-view">PM 视角</a>
+  <a href="#dev-view">开发师视角</a>
+  <a href="#defense">面试攻防</a>
+  <a href="#roadmap">改进路线</a>
+</nav>
+
+<div class="container">
+  <!-- 报告内容将在此处逐步填充 -->
+</div>
+
+<footer>
+  <p>EIA V4 项目综合评估报告 · 2026-07-23 · 高志远</p>
+  <p style="margin-top:4px;">基于代码架构、文档体系、测试与数据层的三轮深度探索生成</p>
+</footer>
+
+<script>
+// 导航高亮
+const navLinks = document.querySelectorAll('nav a[href^="#"]');
+const sections = [...navLinks].map(a => document.querySelector(a.getAttribute('href')));
+window.addEventListener('scroll', () => {
+  const scrollY = window.scrollY + 80;
+  let current = '';
+  sections.forEach(s => { if (s && s.offsetTop <= scrollY) current = s.id; });
+  navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+});
+</script>
+</body>
+</html>
