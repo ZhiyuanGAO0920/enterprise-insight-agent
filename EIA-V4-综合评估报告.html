@@ -535,6 +535,115 @@ footer {
       </table>
     </div>
   </section>
+
+  <!-- ====== 第四节：面试攻防手册 ====== -->
+  <section id="defense" class="section">
+    <h2 class="section-title"><span class="num">4</span> 面试攻防手册</h2>
+    <p style="margin-bottom: 16px; color: var(--text-secondary);">每个维度按「高频追问 → 当前薄弱点 → 防守策略 → 证据支撑」四段式组织。</p>
+
+    <!-- 4.1 代码原创性质疑 -->
+    <h3 class="sub-title">4.1 代码原创性质疑</h3>
+    <div class="defense-grid">
+      <div class="card defense-card">
+        <div class="card-header">🎯 高频追问</div>
+        <p class="question">"这个项目是你自己写的还是 AI 生成的？"</p>
+        <p class="question">"你能解释 graph.py 里 Send 并行扇出的实现原理吗？"</p>
+        <p class="question">"为什么 llm.py 的 docstring 说用 ContextVar 但实际用了 threading.Lock？"</p>
+        <p class="question">"sql_runner 的 RLS 注入是怎么实现的？"</p>
+      </div>
+      <div class="card defense-card">
+        <div class="card-header">⚠️ 当前薄弱点</div>
+        <p><code>llm.py</code> 文档与实现的矛盾是最大风险——面试官会认为"如果是自己写的不会出现这种不一致"。AGENTS.md 数字过时（17→16、8→10）也是"不严谨"的信号。</p>
+        <div class="strategy">
+          <strong>🛡️ 防守策略：</strong>
+          <ol style="padding-left: 20px; line-height: 2;">
+            <li><strong>准备 3 个深度技术细节讲解：</strong>RLS 括号深度追踪算法（找到最外层 WHERE，跳过子查询内 WHERE）、FOLLOWUP 括号计数法（处理嵌套 <code>]]</code>，字符串感知跳过 JSON 内 <code>[]</code>）、头尾保留截断策略（前 70%+后 30%，上限 15000 字符）。</li>
+            <li><strong>坦诚承认 llm.py 的文档滞后：</strong>"最初设计用 ContextVar，后来发现当前并发场景下线程锁更简单可靠，但忘记更新 docstring。这是迭代过程中的遗漏，展示工程诚实度。"</li>
+            <li><strong>用 CHANGELOG.md 的 60 项修复记录证明迭代深度：</strong>严重 6/高 12/中 24/低 12/测试 8/迁移 3/前端 9——"这是一个真实迭代了 4 个版本的项目，不是一次 AI 生成的。"</li>
+          </ol>
+        </div>
+        <p style="margin-top: 8px;"><strong>📎 证据支撑：</strong>CHANGELOG.md 60 项修复 + Prompt 迭代日志 + V1→V4 四版对比</p>
+      </div>
+    </div>
+
+    <!-- 4.2 技术选型追问 -->
+    <h3 class="sub-title">4.2 技术选型追问</h3>
+    <div class="defense-grid">
+      <div class="card defense-card">
+        <div class="card-header">🎯 高频追问</div>
+        <p class="question">"为什么不用 RAG？Multi-Agent 的上下文竞争问题有量化数据吗？"</p>
+        <p class="question">"为什么选 DeepSeek 而不是 GPT-4o？有评测对比吗？"</p>
+        <p class="question">"LangGraph vs LangChain AgentExecutor，你的选择依据是什么？"</p>
+        <p class="question">"BGE-M3 召回率 ~79%，这个数字怎么测的？"</p>
+        <p class="question">"Reflection 重试 1 次的修复率 60%，怎么得出的？"</p>
+      </div>
+      <div class="card defense-card">
+        <div class="card-header">⚠️ 当前薄弱点</div>
+        <p>部分决策的"数据支撑"是估算而非实测（如"上下文竞争 3000 token Schema"），面试官可能追问具体测量方法。</p>
+        <div class="strategy">
+          <strong>🛡️ 防守策略：</strong>
+          <ol style="padding-left: 20px; line-height: 2;">
+            <li><strong>统一框架化为"成本-质量-延迟三角"：</strong>每个技术选型都归入这个框架——DeepSeek（成本优先）、BGE-M3（成本+延迟优先）、Multi-Agent（质量优先，通过并行弥补延迟）。</li>
+            <li><strong>对于估算数据坦诚说明：</strong>"修复率 60% 是在开发过程中通过观察 20-30 次运行结果得出的经验值，不是严格的 A/B 测试。我理解在真实产品中需要更严谨的评估。"</li>
+            <li><strong>准备"如果重来会怎么做"的反思：</strong>展示成长性——"如果现在重新做，我会在 V1 就埋点收集 Reflection 的修复率数据，而不是凭经验判断。"</li>
+          </ol>
+        </div>
+        <p style="margin-top: 8px;"><strong>📎 证据支撑：</strong>13 条决策记录 + CostTracker 成本数据（¥0.04/次）+ V1→V4 演进对比 + DeepSeek ¥1/Mtok vs GPT-4o ¥30/Mtok</p>
+      </div>
+    </div>
+
+    <!-- 4.3 项目真实性质疑 -->
+    <h3 class="sub-title">4.3 项目真实性质疑</h3>
+    <div class="defense-grid">
+      <div class="card defense-card">
+        <div class="card-header">🎯 高频追问</div>
+        <p class="question">"100 门店 / 50,925 订单的数据是造的，怎么能证明系统在真实场景下可用？"</p>
+        <p class="question">"有没有真实用户用过？用户反馈是什么？"</p>
+        <p class="question">"从 Demo 到真实落地，还差什么？"</p>
+        <p class="question">"schema 三层适配器真的在真实客户上验证过吗？"</p>
+      </div>
+      <div class="card defense-card">
+        <div class="card-header">⚠️ 当前薄弱点</div>
+        <p>项目目前是 Demo 驱动，没有真实用户数据和线上运行记录。</p>
+        <div class="strategy">
+          <strong>🛡️ 防守策略：</strong>
+          <ol style="padding-left: 20px; line-height: 2;">
+            <li><strong>正确定位：</strong>"这是一个产品原型 + 技术验证项目，不是已上线产品。它的价值在于验证了 Multi-Agent 架构在经营分析场景下的可行性，以及沉淀了一套可复用的产品方法论。"</li>
+            <li><strong>准备落地路径：</strong>"如果拿到真实客户，第一步是 Schema 三层适配器对接客户数据库——这是我在架构设计时就预留的接口，不需要改代码。第二步是收集 30-50 条真实问题，微调 Prompt 和评估集。第三步是观察 2 周，找到 AI 最常犯错的场景，针对性优化。"</li>
+            <li><strong>强调生产就绪度：</strong>n8n 定时调度 + 飞书/钉钉/企微通知 + Docker 5 容器生产部署 + 数据备份 + 升级回滚流程。</li>
+          </ol>
+        </div>
+        <p style="margin-top: 8px;"><strong>📎 证据支撑：</strong>customer_schema.yaml 机制 + eval_set.json（102 条）+ n8n 工作流模板 + Docker 生产部署配置</p>
+      </div>
+    </div>
+
+    <!-- 4.4 商业化能力追问 -->
+    <h3 class="sub-title">4.4 商业化能力追问</h3>
+    <div class="defense-grid">
+      <div class="card defense-card">
+        <div class="card-header">🎯 高频追问</div>
+        <p class="question">"这个产品的目标市场有多大？TAM/SAM/SOM 是多少？"</p>
+        <p class="question">"跟现有 BI 工具（如帆软、Tableau）比，差异化在哪？"</p>
+        <p class="question">"盈利模式是什么？客户愿意为这个付多少钱？"</p>
+        <p class="question">"为什么连锁零售会选你而不是直接用 ChatGPT？"</p>
+        <p class="question">"获客成本是多少？怎么触达目标客户？"</p>
+      </div>
+      <div class="card defense-card">
+        <div class="card-header">⚠️ 当前薄弱点</div>
+        <p>商业思考文档（<code>docs/商业思考.md</code>、<code>docs/竞品分析.md</code>）偏理论，缺乏市场验证。</p>
+        <div class="strategy">
+          <strong>🛡️ 防守策略：</strong>
+          <ol style="padding-left: 20px; line-height: 2;">
+            <li><strong>核心差异化叙事：</strong>"AI 降低了分析门槛"——BI 工具需要懂 SQL、会拖拽，EIA V4 用自然语言。目标用户不是数据分析师，而是门店管理者/区域经理等非技术角色。</li>
+            <li><strong>3 种客户画像 + 定价：</strong>中小连锁（50-100 门店，¥2000/月，自助部署）→ 区域连锁（100-500 门店，¥8000/月，定制 Schema）→ 大型连锁（500+ 门店，¥50000/月，私有化部署 + SLA）。</li>
+            <li><strong>成本优势讲商业可行性：</strong>DeepSeek ¥0.04/次 vs GPT-4o ¥1.2/次，意味着即使月分析 1000 次，成本也仅 ¥40/月。Schema 三层适配器降低交付成本（从 2 周驻场→1 天远程配置）。</li>
+            <li><strong>vs ChatGPT 的差异化：</strong>ChatGPT 不知道你的数据库结构，不能直接查 SQL，没有行级安全隔离，不能嵌入飞书/钉钉/企微的工作流。EIA V4 是"ChatGPT + BI + 工作流"的垂直整合。</li>
+          </ol>
+        </div>
+        <p style="margin-top: 8px;"><strong>📎 证据支撑：</strong>docs/商业思考.md + docs/竞品分析.md + CostTracker 成本数据 + 多租户 + RBAC + n8n 集成</p>
+      </div>
+    </div>
+  </section>
 </div>
 
 <footer>
