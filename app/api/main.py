@@ -15,7 +15,7 @@ from app.config import get_settings
 from app.errors.user_friendly import to_user_message
 from app.logging_config import get_logger
 from app.middleware.audit import audit_middleware
-from app.middleware.tenant import TenantMiddleware
+from app.middleware.tenant import tenant_middleware
 
 settings = get_settings()
 logger = get_logger("eia.api")
@@ -56,7 +56,7 @@ app.add_middleware(
 app.middleware("http")(audit_middleware)
 
 # V4: 多租户中间件（从 JWT 提取 tenant_id，注入请求上下文）
-app.add_middleware(TenantMiddleware)
+app.middleware("http")(tenant_middleware)
 
 # ---------------------------------------------------------------------------
 # 全局异常处理器 — 将技术错误转换为用户友好消息
@@ -80,9 +80,16 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    """HTTPException 也经过友好错误映射，统一输出格式。"""
+    """HTTPException 也经过友好错误映射，统一输出格式。
+
+    50x 类错误（服务端错误）直接透传 detail，不经过友好映射，
+    避免 weasyprint 未安装等已知信息被通用的 fallback 消息覆盖。
+    """
     detail_str = str(exc.detail) if not isinstance(exc.detail, str) else exc.detail
-    friendly = to_user_message(detail_str)
+    if exc.status_code >= 500:
+        friendly = {"user_message": detail_str, "icon": "⚠️", "action": "none"}
+    else:
+        friendly = to_user_message(detail_str)
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -123,29 +130,27 @@ async def add_api_version_header(request: Request, call_next):
 
 
 # --- 向后兼容：/api/xxx → /api/v1/xxx 重定向 ---
+# 使用中间件而非 catch-all 路由，避免与 v1_router 路由匹配冲突
 # 在 v4 或 v5 中移除
-@app.api_route("/api/{rest_of_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def redirect_api_v1(rest_of_path: str, request: Request):
-    """将旧版 /api/* 请求 308 永久重定向到 /api/v1/*。"""
-    # 防止对 /api/v1/* 的未知路径产生双写 v1 前缀
-    if rest_of_path.startswith("v1/"):
-        return JSONResponse(status_code=404, content={"detail": "Not found"})
-    new_url = f"/api/v1/{rest_of_path}"
-    if request.url.query:
-        new_url += f"?{request.url.query}"
-    logger.warning("旧版 API 路径重定向: %s → %s", request.url.path, new_url)
-    return RedirectResponse(
-        url=new_url,
-        status_code=308,
-        headers={
-            "X-API-Version": "v1",
-            "X-Deprecation-Notice": "/api/* is deprecated. Use /api/v1/* instead.",
-        },
-    )
+@app.middleware("http")
+async def redirect_old_api(request: Request, call_next):
+    """将旧版 /api/* 请求 308 重定向到 /api/v1/*。"""
+    path = request.url.path
+    if path.startswith("/api/") and not path.startswith("/api/v1/"):
+        new_url = f"/api/v1/{path[5:]}"
+        if request.url.query:
+            new_url += f"?{request.url.query}"
+        logger.warning("旧版 API 路径重定向: %s → %s", path, new_url)
+        return RedirectResponse(
+            url=new_url,
+            status_code=308,
+            headers={
+                "X-API-Version": "v1",
+                "X-Deprecation-Notice": "/api/* is deprecated. Use /api/v1/* instead.",
+            },
+        )
+    return await call_next(request)
 
-
-# 注册 API 路由 — 已移至上方 v1_router
-# （保留空注释块以避免误读）
 
 # 静态文件（Web 界面）
 _static_dir = Path(__file__).parent / "static"
@@ -209,3 +214,24 @@ async def startup_event():
 
     setup_logging()
     logger.info("EIA V4 服务启动 — 日志系统已初始化")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """服务关闭时清理资源（httpx 连接池等）。"""
+    try:
+        from app.llm import _http_client, _http_async_client
+        _http_client.close()
+        await _http_async_client.aclose()
+    except Exception:
+        pass
+    try:
+        from app.tools.embedding import _shutdown_http
+        await _shutdown_http()
+    except Exception:
+        pass
+    try:
+        from app.middleware.audit import drain_audit_tasks
+        await drain_audit_tasks()
+    except Exception:
+        pass

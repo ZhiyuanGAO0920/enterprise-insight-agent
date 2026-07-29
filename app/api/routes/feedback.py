@@ -37,6 +37,7 @@ async def submit_feedback(
     - 需要先通过 /api/analysis/analyze 获得 record_id
     - 每条分析记录仅需提交一次反馈
     - 反馈数据用于分析质量评估和 Prompt 持续优化
+    V4.5: 返回汇总统计，让用户看到反馈的整体影响。
     """
     settings = get_settings()
     if not settings.feature_feedback:
@@ -65,9 +66,82 @@ async def submit_feedback(
                 "issues": json.dumps(req.agent_issues) if req.agent_issues else "{}",
             },
         )
+
+        # V4.5: 提交后查询整体好评率，返回给前端展示
+        stats = await session.execute(text("""
+            SELECT
+                COUNT(*) as total,
+                COUNT(CASE WHEN rating = 'helpful' THEN 1 END) as helpful
+            FROM user_feedback
+        """))
+        s = stats.fetchone()
+        total_fb = s[0] or 0
+        helpful_count = s[1] or 0
+        helpful_rate = round(helpful_count * 100.0 / total_fb, 1) if total_fb > 0 else 0.0
+
         await session.commit()
 
-    return {"status": "ok", "message": "反馈已提交，感谢您的参与！"}
+    return {
+        "status": "ok",
+        "message": "反馈已提交，感谢您的参与！",
+        "stats": {
+            "total_feedback": total_fb,
+            "helpful_rate": helpful_rate,
+            "text": f"平台好评率 {helpful_rate}%（共 {total_fb} 条反馈），您的反馈帮助我们持续改进！" if total_fb > 1 else "您的反馈是我们改进的动力！",
+        },
+    }
+
+
+@router.get("/history", summary="获取我的反馈历史")
+async def get_my_feedback(
+    limit: int = 20,
+    user: dict = Depends(get_current_user),
+):
+    """返回当前用户的历史反馈记录，包含对应的分析问题和好评率。"""
+    settings = get_settings()
+    if not settings.feature_feedback:
+        return {"enabled": False, "entries": []}
+
+    async with get_session() as session:
+        # 整体统计
+        stats = await session.execute(text("""
+            SELECT
+                COUNT(*) as total,
+                COUNT(CASE WHEN rating = 'helpful' THEN 1 END) as helpful
+            FROM user_feedback WHERE user_id = :uid
+        """), {"uid": user["user_id"]})
+        s = stats.fetchone()
+        my_total = s[0] or 0
+        my_helpful = s[1] or 0
+
+        # 我的反馈列表
+        rows = await session.execute(text("""
+            SELECT f.id, f.rating, f.reason, f.created_at,
+                   a.question, a.id as analysis_id
+            FROM user_feedback f
+            LEFT JOIN analysis_history a ON f.analysis_history_id = a.id
+            WHERE f.user_id = :uid
+            ORDER BY f.created_at DESC
+            LIMIT :lim
+        """), {"uid": user["user_id"], "lim": limit})
+        entries = [
+            {
+                "id": row.id,
+                "rating": row.rating,
+                "reason": row.reason or "",
+                "created_at": row.created_at.isoformat() if row.created_at else "",
+                "question": row.question[:200] if row.question else "",
+                "analysis_id": row.analysis_id,
+            }
+            for row in rows.fetchall()
+        ]
+
+        return {
+            "enabled": True,
+            "total": my_total,
+            "helpful_rate": round(my_helpful * 100.0 / my_total, 1) if my_total > 0 else 0.0,
+            "entries": entries,
+        }
 
 
 @router.get("/stats", response_model=FeedbackStatsResponse, summary="获取反馈统计")

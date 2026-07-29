@@ -1,0 +1,591 @@
+/* Enterprise Insight Agent V4 — Frontend */
+var _currentTab='dashboard',_lastUser='',_dashCharts={};(window._dashCharts=_dashCharts);
+var _monitorDays=30,_monitorPreset='30',_monitorStartDate='',_monitorEndDate='';
+var _allUsers=[],_allStores=[],_allRegions=[];
+var sessionId=null,lastRecordId=null,pendingFeedback=null,_lastReportText='',_lastQuestionText='';
+var dismissedIds=(function(){try{return new Set(JSON.parse(localStorage.getItem('eia_dismissed')||'[]'));}catch(e){return new Set();}})();
+var hiddenIds=new Set(),_isAnalyzing=false,_abortController=null;
+var voiceListening=false,voiceRecognition=null;
+var STEPS='supervisor,sales_agent,crm_agent,finance_agent,inventory_agent,supply_chain_agent,aggregator,chart_advisor,report_agent,reflection_agent,save_memory'.split(',');
+var LABELS='规划中,销售分析,CRM分析,财务分析,库存分析,供应链分析,整合结果,图表推荐,生成报告,质量审核,保存记录'.split(',');
+var SEMOJIS={supervisor:'🧠',sales_agent:'📊',crm_agent:'👥',finance_agent:'💰',inventory_agent:'📦',supply_chain_agent:'🚚',aggregator:'📊',chart_advisor:'📈',report_agent:'📝',reflection_agent:'✅',save_memory:'📥'};
+var QUICK_QUESTIONS={admin:[{icon:'📋',text:'整体经营分析报告'},{icon:'🌍',text:'各区域经营对比'},{icon:'🚚',text:'供应商准时交货率排名'},{icon:'📊',text:'各门店销售额排名'},{icon:'🔄',text:'退款率异常分析'},{icon:'👥',text:'会员增长趋势'}],regional_manager:[{icon:'📋',text:'我负责区域的销售趋势'},{icon:'📊',text:'区域内门店排名'},{icon:'👥',text:'区域会员活跃度分析'},{icon:'🔄',text:'区域退款率分析'},{icon:'📦',text:'区域库存预警'},{icon:'📈',text:'近30天区域销售对比'}],store_manager:[{icon:'📋',text:'我们店昨日经营概况'},{icon:'📈',text:'本周销售趋势'},{icon:'👥',text:'本店会员消费排行'},{icon:'📦',text:'本店滞销商品预警'},{icon:'🔄',text:'本店退款订单分析'},{icon:'💰',text:'本店客单价分析'}],default:[{icon:'📊',text:'各门店销售额排名'},{icon:'📈',text:'近30天销售趋势'},{icon:'🔄',text:'退款率最高的门店'},{icon:'👥',text:'会员增长与留存情况'},{icon:'📋',text:'整体经营分析报告'},{icon:'🌍',text:'各区域经营对比'}]};
+
+function updateNavActive(t){document.querySelectorAll('.sidebar-nav .nav-item').forEach(function(e){e.classList.toggle('active',e.getAttribute('data-tab')===t);});}
+
+function switchTab(tab){
+  updateNavActive(tab);
+  ['dashboardView','monitorView','historyView','chat','inputArea','quickBar'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(id==='dashboardView')el.style.display=tab==='dashboard'?'block':'none';
+    else if(id==='monitorView')el.style.display=tab==='monitor'?'flex':'none';
+    else if(id==='historyView')el.style.display=tab==='history'?'block':'none';
+    else if(id==='chat')el.style.display=tab==='analysis'?'flex':'none';
+    else if(id==='inputArea')el.style.display=tab==='analysis'?'block':'none';
+    else if(id==='quickBar')el.style.display=tab==='analysis'?'flex':'none';
+  });
+  var es=document.getElementById('emptyState');
+  if(es)es.style.display=(tab==='analysis'&&!document.getElementById('chat').querySelector('.msg'))?'block':'none';
+  _currentTab=tab;
+  if(tab==='dashboard')loadDashboard();
+  if(tab==='monitor')loadMonitorOverview();
+  if(tab==='history')loadHistoryView();
+}
+
+function initIntroParticles(){
+  var c=document.getElementById('introParticles');
+  if(!c)return;
+  for(var i=0;i<20;i++){
+    var p=document.createElement('div');
+    p.style.cssText='position:absolute;width:'+(2+Math.random()*3)+'px;height:'+(2+Math.random()*3)+'px;background:rgba(99,102,241,'+(.2+Math.random()*.3)+');border-radius:50%;left:'+Math.random()*100+'%;top:'+Math.random()*100+'%;animation:floatUp '+(6+Math.random()*8)+'s linear infinite;animation-delay:'+Math.random()*5+'s';
+    c.appendChild(p);
+  }
+}
+function transitionToLogin(){
+  var o=document.getElementById('introOverlay'),l=document.getElementById('loginOverlay');
+  if(o)o.style.opacity='0';
+  setTimeout(function(){if(o)o.style.display='none';if(l)l.style.display='flex';},500);
+}
+function showLogin(){document.getElementById('introOverlay').style.display='none';document.getElementById('loginOverlay').style.display='flex';}
+function togglePassword(){var p=document.getElementById('loginPass');p.type=p.type==='password'?'text':'password';}
+function fillUser(u){var m={'admin':'admin123','zhangsan':'123456','lisi':'123456'};document.getElementById('loginUser').value=u;document.getElementById('loginPass').value=m[u]||'';}
+
+async function doLogin(e){
+  e.preventDefault();
+  var u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value;
+  if(!u||!p){toast('请输入用户名和密码');return;}
+  var btn=document.getElementById('loginBtn');btn.disabled=true;btn.textContent='登录中...';
+  try{
+    var r=await fetch(BASE+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    var d=await r.json();
+    if(d.access_token){
+      token=d.access_token;localStorage.setItem('eia_token',token);localStorage.setItem('eia_user',u);
+      document.getElementById('loginOverlay').style.display='none';await restoreSession(u);checkAdmin();
+    }else toast('用户名或密码错误');
+  }catch(e){toast('网络错误');}
+  finally{btn.disabled=false;btn.textContent='登录';}
+}
+
+async function restoreSession(username){
+  var saved=localStorage.getItem('eia_token');
+  if(!saved){showLogin();return;}
+  token=saved;var u=username||localStorage.getItem('eia_user')||'admin';
+  document.getElementById('introOverlay').style.display='none';
+  document.getElementById('loginOverlay').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('sidebarNav').style.display='flex';
+  document.getElementById('userMenu').style.display='block';
+  document.getElementById('userMenuName').textContent=u;
+  document.getElementById('userAvatar').textContent=u.charAt(0).toLowerCase();
+  try{
+    var _r=await fetch(BASE+'/admin/users',{headers:{'Authorization':'Bearer '+token}});
+    if(_r.ok){
+      var _d=await _r.json(),_me=_d.users&&_d.users.find(function(x){return x.username===u;});
+      if(_me){
+        document.getElementById('dropdownRole').textContent=_me.role==='admin'?'管理员':_me.role==='regional_manager'?'区域经理':'店长';
+        document.getElementById('dropdownScope').textContent=_me.scope_type==='all'?'全部门店':_me.region||_me.store_ids?(_me.store_ids||[]).length+'家门店':'—';
+      }
+    }
+  }catch(e){}
+  document.getElementById('dashUser').textContent=u;_lastUser=u;
+  try{renderQuickGrid();switchTab('dashboard');loadSessionInfo();}catch(e){console.warn(e);}
+}
+
+async function logout(){
+  if(token)try{await fetch(BASE+'/auth/logout',{method:'POST',headers:{'Authorization':'Bearer '+token}});}catch(e){}
+  token='';localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');
+  document.getElementById('app').style.display='none';
+  document.getElementById('sidebarNav').style.display='none';
+  document.getElementById('userMenu').style.display='none';
+  document.getElementById('adminNavBtn').style.display='none';
+  document.getElementById('userMenuDropdown').classList.remove('show');
+  showLogin();
+}
+
+async function checkAdmin(){
+  var btn=document.getElementById('adminNavBtn');
+  if(!btn)return;
+  if(!token){btn.style.display='none';return;}
+  try{var r=await fetch(BASE+'/admin/users',{headers:{'Authorization':'Bearer '+token}});btn.style.display=r.ok?'':'none';}catch(e){btn.style.display='none';}
+}
+
+function toggleUserMenu(){document.getElementById('userMenuDropdown').classList.toggle('show');}
+document.addEventListener('click',function(e){
+  var m=document.getElementById('userMenu'),d=document.getElementById('userMenuDropdown');
+  if(m&&!m.contains(e.target))d.classList.remove('show');
+});
+
+/* Dashboard */
+async function loadDashboard(){
+  if(!token)return;
+  try{
+    var r=await fetch(BASE+'/dashboard/overview',{headers:{'Authorization':'Bearer '+token}});
+    if(!r.ok)return;
+    var d=await r.json();
+    document.getElementById('dashGreeting').textContent=d.greeting||'';
+    document.getElementById('dashUser').textContent=localStorage.getItem('eia_user')||'';
+    var tS=d.today_sales||0,yS=d.yesterday_sales||0;
+    var sc=yS>0?((tS-yS)/yS*100).toFixed(1):0,up=sc>=0;
+    document.getElementById('dashKpis').innerHTML=
+      '<div class="dash-kpi"><div class="kpi-label">今日销售额</div><div class="kpi-val" id="kT">—</div><div class="kpi-sub '+(up?'kpi-up':'kpi-down')+'">'+(up?'↑':'↓')+' '+Math.abs(sc)+'% vs 昨日</div></div>'+
+      '<div class="dash-kpi"><div class="kpi-label">昨日销售额</div><div class="kpi-val" id="kY">—</div><div class="kpi-sub" style="color:var(--muted)">基线对比</div></div>'+
+      '<div class="dash-kpi"><div class="kpi-label">退款率（近7天）</div><div class="kpi-val" id="kR">—</div><div class="kpi-sub '+(d.week_refund_rate>5?'kpi-down':'kpi-up')+'">'+(d.week_refund_rate>5?'⚠️ 偏高':'✅ 正常')+'</div></div>'+
+      '<div class="dash-kpi"><div class="kpi-label">活跃门店</div><div class="kpi-val" id="kA">—</div><div class="kpi-sub" style="color:var(--muted)">近7天有订单</div></div>'+
+      '<div class="dash-kpi"><div class="kpi-label">会员总数</div><div class="kpi-val" id="kM">—</div><div class="kpi-sub" style="color:var(--muted)">累计注册</div></div>'+
+      '<div class="dash-kpi"><div class="kpi-label">近24小时订单</div><div class="kpi-val" id="kO">—</div><div class="kpi-sub" style="color:var(--muted)">笔</div></div>';
+    setTimeout(function(){
+      var s=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+      s('kT',formatCurrency(tS));s('kY',formatCurrency(yS));s('kR',formatPercent(d.week_refund_rate));
+      s('kA',d.active_stores);s('kM',d.total_members.toLocaleString());s('kO',d.recent_orders_24h||'—');
+    },100);
+    var th=echartsTheme();
+    if(_dashCharts.t)_dashCharts.t.dispose();
+    _dashCharts.t=echarts.init(document.getElementById('dashTrendChart'));
+    _dashCharts.t.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis'},
+      grid:{left:50,right:20,bottom:30,top:10},
+      xAxis:{type:'category',data:d.trend_dates,axisLabel:{color:'#94a3b8',fontSize:9,rotate:35},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
+      yAxis:{type:'value',axisLabel:{color:'#94a3b8',fontSize:9,formatter:function(v){return v>=10000?(v/10000).toFixed(0)+'万':v}},splitLine:{lineStyle:{color:'rgba(51,65,85,0.5)'}}},
+      series:[{type:'line',data:d.trend_values,smooth:true,symbol:'circle',symbolSize:4,lineStyle:{width:2,color:th.color[0]},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:th.color[0]+'4d'},{offset:1,color:th.color[0]+'00'}]}}}]});
+    if(_dashCharts.s)_dashCharts.s.dispose();
+    _dashCharts.s=echarts.init(document.getElementById('dashStoreChart'));
+    _dashCharts.s.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis'},
+      grid:{left:80,right:20,bottom:20,top:10},
+      xAxis:{type:'value',axisLabel:{color:'#94a3b8',fontSize:9,formatter:function(v){return v>=10000?(v/10000).toFixed(0)+'万':v}},splitLine:{lineStyle:{color:'rgba(51,65,85,0.5)'}}},
+      yAxis:{type:'category',data:(d.top_stores||[]).slice().reverse(),axisLabel:{color:'#f1f5f9',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
+      series:[{type:'bar',data:(d.top_store_values||[]).slice().reverse(),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'rgba(99,102,241,0.6)'},{offset:1,color:th.color[0]}])},barMaxWidth:20}]});
+    var regs=(d.regions||[]).map(function(n,i){return{name:n,value:(d.region_values||[])[i]||0};}),regSel={};
+    regs.forEach(function(r){regSel[r.name]=true;});
+    var rc=document.getElementById('dashRegionChart');
+    function dr(){
+      var f=regs.filter(function(r){return regSel[r.name];});
+      if(_dashCharts.r)_dashCharts.r.dispose();
+      _dashCharts.r=echarts.init(rc);
+      _dashCharts.r.setOption({backgroundColor:'transparent',tooltip:{trigger:'item'},series:[{type:'pie',radius:['35%','60%'],data:f,label:{color:'#f1f5f9',fontSize:11,formatter:'{b}: {d}%'},itemStyle:{borderColor:'transparent',borderWidth:2},color:th.color}]});
+    }
+    var fb=rc.parentNode.querySelector('.rf');
+    if(!fb){
+      fb=document.createElement('div');fb.className='rf';fb.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px';
+      regs.forEach(function(r){
+        var b=document.createElement('button');b.textContent=r.name;
+        b.style.cssText='padding:3px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:11px;cursor:pointer';
+        b.onclick=function(){regSel[r.name]=!regSel[r.name];dr();fb.querySelectorAll('button').forEach(function(x){x.style.opacity=regSel[x.textContent]?'1':'0.35';});};
+        fb.appendChild(b);
+      });
+      rc.parentNode.insertBefore(fb,rc);
+    }
+    dr();
+    if(d.top_stores&&d.top_stores.length){
+      var rows='';
+      d.top_stores.forEach(function(n,i){
+        var rc2=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+        rows+='<tr><td><span class="rank-num '+rc2+'">'+(i+1)+'</span></td><td>'+esc(n)+'</td><td>'+formatCurrency(d.top_store_values[i]||0)+'</td></tr>';
+      });
+      document.getElementById('dashStoreTable').innerHTML='<table class="dash-store-table"><thead><tr><th>排名</th><th>门店</th><th>销售额</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    }
+  }catch(e){toast('看板加载失败');console.warn(e);}
+}
+
+/* Admin */
+async function openAdminPanel(){
+  document.getElementById('adminPanel').classList.add('show');
+  document.getElementById('apBackdrop').classList.add('show');
+  await loadAdminData();
+}
+function closeAdminPanel(){
+  document.getElementById('adminPanel').classList.remove('show');
+  document.getElementById('apBackdrop').classList.remove('show');
+}
+async function loadAdminData(){
+  try{
+    var [uR,sR]=await Promise.all([
+      fetch(BASE+'/admin/users',{headers:{'Authorization':'Bearer '+token}}),
+      fetch(BASE+'/admin/stores',{headers:{'Authorization':'Bearer '+token}})
+    ]);
+    if(!uR.ok)return;
+    _allUsers=(await uR.json()).users;
+    if(sR.ok){var d=await sR.json();_allStores=d.stores||d;_allRegions=d.regions||[];}
+    renderUserList();
+  }catch(e){console.warn(e);}
+}
+function renderUserList(){
+  var s=(document.getElementById('apSearch')||{}).value||'',rf=(document.getElementById('apRoleFilter')||{}).value||'';
+  var f=_allUsers.filter(function(u){if(rf&&u.role!==rf)return false;return!s||u.username.indexOf(s)>-1||(u.role||'').indexOf(s)>-1||(u.scope_type||'').indexOf(s)>-1;});
+  var sm={};(_allStores||[]).forEach(function(s){sm[String(s.id)]=s.name||s.store_name||'';});
+  function sn(ids){if(!ids||!ids.length)return '';return ids.map(function(id){return sm[String(id)]||'#'+id;}).filter(Boolean).join('、');}
+  var html=f.map(function(u){
+    var sids=u.store_ids||u.stores||[],st=u.scope_type==='all'?'全部门店':u.scope_type==='region'?u.region||'区域':sids.length>3?sids.length+'家门店':(sn(sids)||'—');
+    return '<tr><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+(u.role==='admin'?'<span class="badge admin-badge">管理员</span>':u.role==='regional_manager'?'<span class="badge region-badge">区域经理</span>':'<span class="badge store-badge">店长</span>')+'</td><td>'+st+'</td><td>'+(u.is_active===false?'<span class="badge inactive">禁用</span>':'<span class="badge admin-badge">启用</span>')+'</td><td><a class="action-link" onclick="showEditUser('+u.id+')">编辑</a><a class="action-link danger" onclick="deleteUser('+u.id+',\''+jsEscape(u.username)+'\')">删除</a><a class="action-link" onclick="resetPassword('+u.id+')">重置密码</a></td></tr>';
+  }).join('');
+  document.getElementById('apUserList').innerHTML=html;
+}
+function showAddUserForm(){
+  var h='<div class="admin-form"><label>用户名<input id="nU" class="login-input"></label><label>密码<input id="nP" class="login-input" type="password"></label><label>角色<select id="nR" onchange="ts()"><option value="store_manager">店长</option><option value="regional_manager">区域经理</option><option value="admin">管理员</option></select></label><div id="sf" style="display:none"><div id="ss"><label>门店</label><div id="sc" style="max-height:200px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px"></div></div><div id="rs" style="display:none"><label>区域</label><select id="nRg" class="login-input"></select></div></div></div>';
+  om('添加用户',h,'doAddUser');ts();
+}
+function ts(){
+  var r=document.getElementById('nR').value,sf=document.getElementById('sf');
+  if(!sf)return;
+  sf.style.display=(r==='store_manager'||r==='regional_manager')?'block':'none';
+  var ss=document.getElementById('ss');if(ss)ss.style.display=r==='store_manager'?'block':'none';
+  var rs2=document.getElementById('rs');if(rs2)rs2.style.display=r==='regional_manager'?'block':'none';
+  if(r==='store_manager'){
+    var sc=document.getElementById('sc');
+    if(sc)sc.innerHTML=(_allStores||[]).map(function(s){return '<label style="display:block;padding:3px 4px;font-size:12px;cursor:pointer"><input type="checkbox" value="'+s.id+'" class="cb"> '+esc(s.name||'门店'+s.id)+'</label>';}).join('');
+  }
+  if(r==='regional_manager'&&rs2){var sel=rs2.querySelector('select');if(sel&&!sel.options.length)(_allRegions||[]).sort().forEach(function(r){sel.innerHTML+='<option value="'+esc(r)+'">'+esc(r)+'</option>';});}
+}
+function om(title,body,onSave){
+  document.getElementById('userEditModal').style.display='flex';
+  document.getElementById('userEditBody').innerHTML=body;
+  document.getElementById('userEditTitle').textContent=title;
+  document.getElementById('userEditSaveBtn').onclick=function(){closeUserEditModal();window[onSave]();};
+}
+function closeUserEditModal(){document.getElementById('userEditModal').style.display='none';}
+async function doAddUser(){
+  var u=document.getElementById('nU').value.trim(),p=document.getElementById('nP').value,r=document.getElementById('nR').value;
+  if(!u||!p){toast('用户名和密码不能为空');return;}
+  var b={username:u,password:p,role:r};
+  if(r==='store_manager'){var ids=Array.from(document.querySelectorAll('.cb:checked')).map(function(c){return parseInt(c.value);});if(ids.length)b.store_ids=ids;}
+  if(r==='regional_manager'){var rg=document.getElementById('nRg');if(rg)b.region=rg.value;}
+  try{
+    var res=await fetch(BASE+'/admin/users',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(b)});
+    if(res.ok){closeUserEditModal();await loadAdminData();}else{var e=await res.json();toast(e.detail||'创建失败');}
+  }catch(e){toast('网络错误');}
+}
+function showEditUser(uid){
+  var u=_allUsers.find(function(x){return x.id===uid;});if(!u)return;
+  window._editUid=uid;
+  var h='<div class="admin-form"><label>用户名 <strong>'+esc(u.username)+'</strong></label><label>角色<select id="eR"><option value="store_manager"'+(u.role==='store_manager'?' selected':'')+'>店长</option><option value="regional_manager"'+(u.role==='regional_manager'?' selected':'')+'>区域经理</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>管理员</option></select></label><label>状态<select id="eA"><option value="1"'+(u.is_active!==false?' selected':'')+'>启用</option><option value="0"'+(u.is_active===false?' selected':'')+'>禁用</option></select></label></div>';
+  om('编辑用户 - '+u.username,h,'doEditUser');
+}
+async function doEditUser(uid){
+  uid=uid||window._editUid;if(!uid)return;
+  try{
+    var r=await fetch(BASE+'/admin/users/'+uid,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({role:document.getElementById('eR').value,is_active:document.getElementById('eA').value==='1'})});
+    if(r.ok){closeUserEditModal();await loadAdminData();}else{var e=await r.json();toast(e.detail||'保存失败');}
+  }catch(e){toast('网络错误');}
+}
+function _bMU(d,s,e){var u=BASE+'/monitor/overview?days='+Math.min(d,90);if(s)u+='&start_date='+s;if(e)u+='&end_date='+e;return u;}
+function loadMonitorOverview(){
+  document.getElementById('monitorView').innerHTML='<div class="mq-loading"><div class="mq-loading-inner"><div class="spinner" style="margin:0 auto 14px"></div>加载中...</div></div>';
+  !async function(){
+    try{
+      var [oR,eR]=await Promise.all([
+        fetch(_bMU(_monitorDays,_monitorStartDate,_monitorEndDate),{headers:{'Authorization':'Bearer '+token}}),
+        fetch(BASE+'/monitor/errors?days='+_monitorDays+'&limit=50',{headers:{'Authorization':'Bearer '+token}})
+      ]);
+      if(!oR.ok||!eR.ok)throw Error('');
+      _rM(await oR.json(),await eR.json());
+    }catch(e){document.getElementById('monitorView').innerHTML='<div class="mq-error-state">❌ 加载失败</div>';}
+  }();
+}
+function setMonitorPreset(p){
+  if(p==='custom'){
+    document.getElementById('monitorView').innerHTML='<div class="mq-loading"><div class="mq-loading-inner" style="background:var(--card);padding:28px 36px;border-radius:14px;border:1px solid var(--border);max-width:420px"><div style="margin-bottom:16px;font-size:15px;font-weight:600;color:var(--text)">📅 选择日期范围</div><div style="display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap"><input type="date" id="cSD" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><span style="color:var(--muted);font-size:13px">至</span><input type="date" id="cED" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"></div><div style="margin-top:16px;display:flex;gap:8px;justify-content:center"><button onclick="acD()" style="padding:9px 28px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500">确认</button><button onclick="loadMonitorOverview()" style="padding:9px 28px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:13px">取消</button></div></div></div>';
+    return;
+  }
+  _monitorDays=_calcDateRange(p);_monitorPreset=p;var n=new Date();
+  _monitorStartDate=p==='prevMonth'?new Date(n.getFullYear(),n.getMonth()-1,1).toISOString().slice(0,10):p==='month'?new Date(n.getFullYear(),n.getMonth(),1).toISOString().slice(0,10):'';
+  _monitorEndDate=p==='prevMonth'?new Date(n.getFullYear(),n.getMonth(),0).toISOString().slice(0,10):'';
+  loadMonitorOverview();
+}
+function acD(){
+  var s=document.getElementById('cSD').value,e=document.getElementById('cED').value;
+  if(!s){alert('请选择开始日期');return;}
+  _monitorDays=Math.max(1,Math.round((e?new Date(e):new Date())-new Date(s))/86400000);_monitorStartDate=s;_monitorEndDate=e;_monitorPreset='custom';loadMonitorOverview();
+}
+
+function _rM(ov,er){
+  var lm={sales:'销售',crm:'CRM',finance:'财务',inventory:'库存',supply_chain:'供应链',supervisor:'规划',aggregator:'聚合',chart_advisor:'图表',report:'报告',reflection:'质检'};
+  var pr=ov.reflection_pass_rate||0,p50=ov.latency_p50_ms||0,p95=ov.latency_p95_ms||0,fbr=ov.feedback_helpful_rate||0;
+  var dc=_monitorDays||1,da=ov.total_analyses?Math.round(ov.total_analyses/dc):0;
+  var rr=ov.retry_rate||0,fr=ov.fix_rate||0,dur=ov.p50_duration_ms||0,p90d=ov.p90_duration_ms||0;
+  var dcost=ov.estimated_daily_cost||0,mcost=ov.estimated_monthly_cost||0;
+  var per=_monitorPreset==='prevMonth'?'上月':_monitorPreset==='month'?'本月':_monitorPreset==='7'?'近7天':_monitorPreset==='30'?'近30天':'近'+_monitorDays+'天';
+  var pills='';[['7','7天'],['30','30天'],['month','本月'],['prevMonth','上月'],['custom','自定义']].forEach(function(p){pills+='<button class="mq-pill'+(p[0]===_monitorPreset?' active':'')+'" onclick="setMonitorPreset(\''+p[0]+'\')">'+p[1]+'</button>';});
+  var ah='';(ov.agents||[]).forEach(function(a){var c=a.error_rate>5?'err':a.error_rate>2?'warn':'ok',bp=Math.min(a.error_rate*10,100);ah+='<tr><td><div class="mq-agent-cell"><span class="mq-agent-dot '+c+'"></span>'+esc(lm[a.agent]||a.agent)+'</div></td><td>'+a.total_runs+'</td><td>'+a.error_count+'</td><td><div class="mq-bar-wrap"><div class="mq-bar"><div class="mq-bar-fill '+c+'" style="width:'+bp+'%"></div></div><span class="mq-pct '+c+'">'+a.error_rate+'%</span></div></td><td>'+a.avg_ms+'</td><td>'+a.max_ms+'</td></tr>';});
+  if(!ah)ah='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">暂无数据</td></tr>';
+  var ei='';
+  if(er.errors&&er.errors.length)er.errors.forEach(function(e){
+    var icon=e.error&&e.error.match(/timeout|超时|time.?out/i)?'⏱️':e.error&&e.error.match(/SQL|sql|语法|column|table|relation/i)?'🗃️':'⚠️';
+    ei+='<div class="mq-error-item"><span class="mq-error-icon">'+icon+'</span><div class="mq-error-body"><span class="mq-error-time">'+((e.time||'').slice(5,16)||'')+'</span><span class="mq-error-agent-tag">'+esc(lm[e.agent]||e.agent)+'</span><span class="mq-error-msg">'+esc(e.error||'').substring(0,200)+'</span><span class="mq-error-dur">'+(e.elapsed_ms||0)+'ms</span></div></div>';
+  });else ei='<div class="mq-error-empty">✅ 无错误记录</div>';
+  var ch='';
+  if(ov.token_trend&&ov.token_trend.length){
+    var show=ov.token_trend.slice(-14),dates=[],inS=[],outS=[],costS=[],ti=0,to2=0,tc2=0;
+    show.forEach(function(t){dates.push((t.date||'').slice(5));inS.push(t.input_tokens);outS.push(t.output_tokens);costS.push(t.cost?+(t.cost*10000).toFixed(2):0);ti+=t.input_tokens;to2+=t.output_tokens;tc2+=t.cost;});
+    ch='<div class="mq-chart-box"><div class="mq-chart" id="mTC" style="height:260px"></div><div class="mq-chart-summary"><div class="mq-chart-stat"><span class="mq-chart-stat-label">累计 Input</span><span class="mq-chart-stat-value">'+(ti>=1000000?(ti/1000000).toFixed(1)+'M':ti>=1000?(ti/1000).toFixed(1)+'K':ti)+'</span></div><div class="mq-chart-stat"><span class="mq-chart-stat-label">累计 Output</span><span class="mq-chart-stat-value">'+(to2>=1000000?(to2/1000000).toFixed(1)+'M':to2>=1000?(to2/1000).toFixed(1)+'K':to2)+'</span></div><div class="mq-chart-stat"><span class="mq-chart-stat-label">总成本</span><span class="mq-chart-stat-value">¥'+tc2.toFixed(4)+'</span></div></div></div>';
+    setTimeout(function(){
+      var el=document.getElementById('mTC');if(!el)return;
+      var c=echarts.init(el);
+      c.setOption({tooltip:{trigger:'axis',backgroundColor:'rgba(30,35,55,0.95)',borderColor:'#334155',textStyle:{color:'#e2e8f0',fontSize:12}},
+        legend:{data:['Input','Output','Cost(x¥1e4)'],textStyle:{color:'#94a3b8',fontSize:11},top:0,right:0,icon:'circle',itemWidth:8,itemHeight:8},
+        grid:{left:50,right:20,top:40,bottom:30},
+        xAxis:{type:'category',data:dates,axisLabel:{color:'#94a3b8',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
+        yAxis:[{type:'value',name:'Tokens',nameTextStyle:{color:'#94a3b8',fontSize:10},axisLabel:{color:'#94a3b8',fontSize:10,formatter:function(v){return v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(1)+'K':v;}},splitLine:{lineStyle:{color:'#1e293b'}}},{type:'value',name:'Cost',nameTextStyle:{color:'#94a3b8',fontSize:10},axisLabel:{color:'#94a3b8',fontSize:10,formatter:function(v){return '¥'+(v/10000).toFixed(4);}},splitLine:{show:false}}],
+        series:[{name:'Input',type:'line',data:inS,smooth:true,symbol:'circle',symbolSize:6,lineStyle:{width:2,color:'#6366f1'},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(99,102,241,0.25)'},{offset:1,color:'rgba(99,102,241,0)'}]}}},{name:'Output',type:'line',data:outS,smooth:true,symbol:'circle',symbolSize:6,lineStyle:{width:2,color:'#22c55e'},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(34,197,94,0.2)'},{offset:1,color:'rgba(34,197,94,0)'}]}}},{name:'Cost(x¥1e4)',type:'bar',yAxisIndex:1,data:costS,itemStyle:{color:'rgba(245,158,11,0.5)',borderColor:'#f59e0b',borderWidth:1,borderRadius:[2,2,0,0]}}]});
+      window.addEventListener('resize',function(){c.resize();});
+    },100);
+  }
+  document.getElementById('monitorView').innerHTML=
+    '<div class="mq-header"><div class="mq-header-left"><h2>AI 质量监控</h2><span class="mq-header-period">'+per+'</span></div><div class="mq-pills">'+pills+'</div></div>'+
+    '<div class="mq-hero"><div class="mq-hero-card accent"><div class="mq-hero-top"><div class="mq-hero-icon">📊</div><span class="mq-hero-status good">日均 '+da+' 次</span></div><div class="mq-hero-value">'+da+'</div><div class="mq-hero-label">分析总量</div></div>'+
+    '<div class="mq-hero-card success"><div class="mq-hero-top"><div class="mq-hero-icon">✅</div><span class="mq-hero-status '+(pr>=90?'good':pr>=75?'warn':'bad')+'">'+(pr>=90?'优秀':pr>=75?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+pr+'%</div><div class="mq-hero-label">Reflection 通过率</div><div class="mq-hero-sub">用户好评率 '+fbr+'%</div></div>'+
+    '<div class="mq-hero-card warning"><div class="mq-hero-top"><div class="mq-hero-icon">⚡</div><span class="mq-hero-status '+(p50<500?'good':p50<1000?'warn':'bad')+'">'+(p50<500?'优秀':p50<1000?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+p50+'ms</div><div class="mq-hero-label">P50 响应延迟</div><div class="mq-hero-sub">P95 '+p95+'ms · 完整分析 '+Math.round(dur/1000)+'s</div></div></div>'+
+    '<div class="mq-groups"><div class="mq-group"><div class="mq-group-title">🔬 质量指标</div><div class="mq-group-cards">'+
+    '<div class="mq-sm-card '+(rr>10?'red':rr>5?'amber':'green')+'"><div class="mq-sm-card-label">重试率</div><div class="mq-sm-card-value">'+rr+'%</div><div class="mq-sm-sub">修复率 '+fr+'%</div></div>'+
+    '<div class="mq-sm-card '+(fr>=70?'green':fr>=50?'amber':'red')+'"><div class="mq-sm-card-label">修复率</div><div class="mq-sm-card-value">'+fr+'%</div><div class="mq-sm-sub">重试后通过比例</div></div>'+
+    '<div class="mq-sm-card '+(fbr>=85?'green':fbr>=70?'amber':'red')+'"><div class="mq-sm-card-label">用户好评率</div><div class="mq-sm-card-value">'+fbr+'%</div><div class="mq-sm-sub">反馈有帮助比例</div></div>'+
+    '<div class="mq-sm-card '+(dur<30000?'green':'amber')+'"><div class="mq-sm-card-label">完整分析 P90</div><div class="mq-sm-card-value">'+Math.round(p90d/1000)+'s</div><div class="mq-sm-sub">90% 在此时间内完成</div></div></div></div>'+
+    '<div class="mq-group"><div class="mq-group-title">💰 成本指标</div><div class="mq-group-cards">'+
+    '<div class="mq-sm-card '+(dcost>0.05?'amber':'green')+'"><div class="mq-sm-card-label">日均成本</div><div class="mq-sm-card-value">¥'+(ov.total_analyses?dcost.toFixed(4):'—')+'</div><div class="mq-sm-sub">每日 LLM 调用费用</div></div>'+
+    '<div class="mq-sm-card '+(mcost>1?'amber':'green')+'"><div class="mq-sm-card-label">月均成本</div><div class="mq-sm-card-value">¥'+(ov.total_analyses?mcost.toFixed(4):'—')+'</div><div class="mq-sm-sub">累计 Token 消耗</div></div></div></div></div>'+
+    '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🤖 Agent 健康度</div><div class="mq-section-subtitle">错误率排行 · 性能指标</div></div><div class="mq-table-wrap"><table class="mq-table"><thead><tr><th>Agent</th><th>运行</th><th>错误</th><th>错误率</th><th>平均(ms)</th><th>最大(ms)</th></tr></thead><tbody>'+ah+'</tbody></table></div></div>'+
+    '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">❌ 最近错误</div><div class="mq-section-subtitle">按时间倒序</div></div>'+ei+'</div>'+
+    (ch?'<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">📊 Token 消耗趋势</div><div class="mq-section-subtitle">近 '+show.length+' 天 · 含 Input/Output/Cost</div></div>'+ch+'</div>':'');
+}
+
+
+/* Sessions & History */
+async function newSession(){
+  if(!token){toast('请先登录');return;}
+  try{
+    var r=await fetch(BASE+'/session/create',{method:'POST',headers:{'Authorization':'Bearer '+token}});
+    if(!r.ok)return;
+    var d=await r.json();sessionId=d.session_id;
+    document.getElementById('sessionIdDisplay').textContent=sessionId.substring(0,8)+'...';
+    document.getElementById('entityBox').style.display='none';
+    document.getElementById('chat').innerHTML='<div class="empty-state" id="emptyState"><div class="greeting-icon">🤖</div><div class="greeting" id="greetingText">有什么经营问题需要分析？</div><div class="greeting-sub" id="greetingSub">5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据</div><div class="quick-grid" id="quickGrid"></div><p style="font-size:12px;color:var(--muted)">或直接输入问题：</p></div>';
+    renderQuickGrid();switchTab('analysis');
+  }catch(e){console.warn(e);}
+}
+async function loadSessionInfo(){
+  if(!sessionId||!token)return;
+  try{
+    var r=await fetch(BASE+'/session/'+sessionId,{headers:{'Authorization':'Bearer '+token}});
+    if(r.ok){var d=await r.json(),em=d.entity_memory||{},keys=Object.keys(em);if(keys.length){var h='';keys.forEach(function(k){h+='<span class="ent">'+(em[k].type==='member'?'👤 ':'🏪 ')+esc(k)+'</span>';});document.getElementById('entityTags').innerHTML=h;document.getElementById('entityBox').style.display='block';}}
+  }catch(e){console.warn(e);}
+}
+function dismissHistory(id,e){
+  if(e)e.stopPropagation();
+  hiddenIds.add(id);var el=document.getElementById('hi-'+id);if(el)el.style.display='none';
+  try{var a=JSON.parse(localStorage.getItem('eia_dismissed')||'[]');a.push(id);localStorage.setItem('eia_dismissed',JSON.stringify(a));dismissedIds.add(id);}catch(ex){}
+}
+function clearAllHistory(){
+  if(!confirm('清除所有记录？'))return;
+  localStorage.setItem('eia_dismissed','[]');dismissedIds=new Set();hiddenIds=new Set();
+  if(_currentTab==='history')loadHistoryView(1);
+}
+var _hvData=[];
+function filterHistory(){
+  var q=(document.getElementById('hvSearch')||{}).value||'';
+  renderHistoryList(_hvData,q);
+}
+function renderHistoryList(rec,q){
+  if(q)rec=rec.filter(function(r){return(r.question||'').toLowerCase().indexOf(q.toLowerCase())>=0;});
+  if(!rec.length){document.getElementById('historyList').innerHTML='<div class="hv-empty"><div class="hv-empty-icon">🔍</div><div class="hv-empty-text">'+(q?'无匹配结果':'暂无记录')+'</div></div>';return;}
+  var html='';
+  rec.forEach(function(rr){
+    var ts=rr.created_at?rr.created_at.substring(0,10):(rr.create_time?rr.create_time.substring(0,10):'');
+    var qText=esc((rr.question||'').substring(0,80));
+    var summary=(rr.summary||'').replace(/[*#\[\]|]/g,'').trim().substring(0,100);
+    var passed=rr.reflection_passed;
+    html+='<div class="hv-item" onclick="viewHistoryDetail('+rr.id+')'+
+      '"><div class="hv-item-badge '+(passed?'hv-badge-pass':'hv-badge-fail')+'">'+(passed?'✅':'<span style="font-size:11px">⚠️</span>')+'</div>'+
+      '<div class="hv-item-body"><div class="hv-item-q">'+qText+'</div>'+
+      (summary?'<div class="hv-item-s">'+esc(summary)+'</div>':'')+
+      '<div class="hv-item-meta"><span class="hv-item-time">📅 '+ts+'</span>'+
+      '<span class="hv-item-status '+(passed?'hv-st-pass':'hv-st-fail')+'">'+(passed?'通过检查':'需审查')+'</span></div></div></div>';
+  });
+  var tp=Math.ceil((_hvData.total||0)/20);
+  if(tp>1){
+    html+='<div class="hv-pages">';
+    for(var p=1;p<=tp;p++) html+='<button class="hv-page'+(p===_hvData._page?' active':'')+'" onclick="loadHistoryView('+p+')">'+p+'</button>';
+    html+='</div>';
+  }
+  document.getElementById('historyList').innerHTML=html;
+}
+async function loadHistoryView(page){
+  if(!token)return;
+  page=page||1;
+  try{
+    var r=await fetch(BASE+'/analysis/history?page='+page+'&page_size=20',{headers:{'Authorization':'Bearer '+token}});
+    if(!r.ok)return;
+    var d=await r.json(),rec=(d.records||[]).filter(function(rr){return!hiddenIds.has(rr.id)&&!dismissedIds.has(rr.id);});
+    rec.total=d.total;rec._page=page;_hvData=rec;
+    document.getElementById('hvCount').textContent=(d.total||0)+' 条';
+    renderHistoryList(rec,(document.getElementById('hvSearch')||{}).value||'');
+  }catch(e){console.warn(e);}
+}
+async function viewHistoryDetail(id){
+  try{
+    var r=await fetch(BASE+'/analysis/history/'+id,{headers:{'Authorization':'Bearer '+token}});
+    if(!r.ok){toast('加载失败');return;}
+    var d=await r.json();
+    _lastReportText=d.report||'';_lastQuestionText=d.question||'';
+    document.getElementById('chat').innerHTML='<div class="msg user"><div class="bubble">'+esc(d.question||'')+'</div></div>';
+    if(d.report){
+      var sup='',ds='',fq='',rh='',fb='',tb='';
+      try{sup=buildSupervisorPlan(d.supervisor_plan);}catch(e){}
+      try{rh=marked.parse(convertTextTables(expandChartTags(d.report)));}catch(e){rh=esc(d.report);}
+      try{ds=buildTracePanel(d.data_sources);}catch(e){}
+      try{fq=buildFollowupButtons(d.followup_questions);}catch(e){}
+      try{if(d.id)fb='<div class="feedback-bar"><span>这个回答对你有帮助吗？</span><button class="feedback-btn" onclick="showFeedback(&#39;helpful&#39;)">👍 有帮助</button><button class="feedback-btn" onclick="showFeedback(&#39;bad&#39;)">👎 没有帮助</button></div>';}catch(e){}
+      tb='<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px;flex-wrap:wrap">'+
+        (d.id?'<span style="font-size:10px;color:var(--muted);margin-right:auto;align-self:center">#'+d.id+'</span>':'')+
+        '<span class="print-btn" onclick="_copyReport()">📋 复制</span>'+
+        '<span class="print-btn" onclick="window.print()">🖨️ 打印</span>'+
+        '<span class="share-btn" onclick="downloadMD()">⬇️ Markdown</span>'+
+        '<span class="share-btn" onclick="exportPDF()">📄 PDF</span></div>';
+      document.getElementById('chat').innerHTML+='<div class="msg assistant"><div class="bubble">'+sup+rh+ds+fq+'</div>'+tb+fb+'</div>';
+    }else{
+      document.getElementById('chat').innerHTML+='<div class="msg assistant"><div class="bubble" style="color:var(--amber)">无报告内容</div></div>';
+    }
+    switchTab('analysis');
+  }catch(e){console.warn(e);}
+}
+function getQuickQuestions(u){var m={admin:'admin',zhangsan:'regional_manager',lisi:'store_manager'};return QUICK_QUESTIONS[m[u]||'default']||QUICK_QUESTIONS.default;}
+function renderQuickGrid(){var g=document.getElementById('quickGrid');if(!g)return;var q=getQuickQuestions(localStorage.getItem('eia_user'));g.innerHTML=q.map(function(q){return '<button class="quick-btn" onclick="quickAsk(\''+jsEscape(q.text)+'\')">'+q.icon+' '+esc(q.text)+'</button>';}).join('');}
+function quickAsk(q){document.getElementById('question').value=q;document.getElementById('btn').click();}
+
+/* Voice */
+function initVoice(){
+  if(!('webkitSpeechRecognition'in window)&&!('SpeechRecognition'in window))return;
+  voiceRecognition=new(window.SpeechRecognition||window.webkitSpeechRecognition)();
+  voiceRecognition.lang='zh-CN';voiceRecognition.continuous=false;voiceRecognition.interimResults=true;
+  voiceRecognition.onresult=function(e){var t='';for(var i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;document.getElementById('question').value=t;};
+  voiceRecognition.onend=function(){stopVoice();};
+}
+function toggleVoice(){
+  if(voiceListening){stopVoice();return;}
+  if(!voiceRecognition)initVoice();
+  voiceListening=true;document.getElementById('voiceBtn').classList.add('listening');document.getElementById('voiceToast').classList.add('show');
+  try{voiceRecognition.start();}catch(e){}
+}
+function stopVoice(){
+  voiceListening=false;document.getElementById('voiceBtn').classList.remove('listening');document.getElementById('voiceToast').classList.remove('show');
+  try{voiceRecognition.stop();}catch(e){}
+  var q=document.getElementById('question').value.trim();if(q)document.getElementById('btn').click();
+}
+
+/* Chat SSE */
+function stopAnalysis(){
+  if(_abortController){_abortController.abort();_abortController=null;}
+  _isAnalyzing=false;document.getElementById('btn').disabled=false;document.getElementById('stopBtn').style.display='none';document.getElementById('quickBar').style.display='flex';
+  var pg=document.getElementById('progressMsg');if(pg)pg.remove();
+}
+async function ask(e){
+  if(e)e.preventDefault();
+  if(_isAnalyzing||!token)return;
+  var q=document.getElementById('question').value.trim();if(!q)return;
+  var el=document.getElementById('chat');
+  document.getElementById('question').value='';document.getElementById('btn').disabled=true;document.getElementById('stopBtn').style.display='';
+  _isAnalyzing=true;_abortController=new AbortController();_lastQuestionText=q;_lastReportText='';document.getElementById('quickBar').style.display='none';
+  el.innerHTML+='<div class="msg user"><div class="bubble">'+escapeHtml(q)+'</div></div>';
+  var ps='';STEPS.forEach(function(n,i){ps+='<span class="step" id="s-'+n+'">'+(SEMOJIS[n]||'')+' '+LABELS[i]+'</span>';});
+  el.innerHTML+='<div class="msg assistant" id="pM"><div class="bubble" style="padding:0;overflow:visible"><div class="progress"><h3><div class="spinner"></div> <span id="pT">🧠 规划中...</span></h3><div class="steps">'+ps+'</div></div></div></div>';
+  el.scrollTop=el.scrollHeight;var cs=[];
+  if(!sessionId)try{var sr=await fetch(BASE+'/session/create',{method:'POST',headers:{'Authorization':'Bearer '+token}});var sd=await sr.json();sessionId=sd.session_id;}catch(e){}
+  try{
+    var sr2=await fetch(BASE+'/analysis/analyze-stream',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({question:q,session_id:sessionId}),signal:_abortController.signal});
+    if(!sr2.ok)throw Error('API error');
+    var r2=sr2.body.getReader(),dec=new TextDecoder(),buf='',sc='',fr='',fid=null,fds=[],ffqs=[],fers=[],first=false,sb=null,fsp=null;
+    while(true){
+      var{done,value}=await r2.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});var ls=buf.split('\n');buf=ls.pop();
+      for(var l of ls){
+        if(!l.startsWith('data: '))continue;
+        try{
+          var ev=JSON.parse(l.slice(6));
+          if(ev.type==='phase'&&ev.status==='start'){
+            var pt=document.getElementById('pT');if(pt)pt.textContent=ev.message||ev.label||'';
+            document.querySelectorAll('.step.active').forEach(function(s){s.classList.remove('active');});
+            var ae=document.getElementById('s-'+ev.node);if(ae)ae.classList.add('active');
+          }else if(ev.type==='step'&&ev.status==='done'){
+            if(cs.indexOf(ev.node)===-1)cs.push(ev.node);
+            var de=document.getElementById('s-'+ev.node);if(de){de.classList.remove('active');de.classList.add('done');if(!de.querySelector('.ck'))de.innerHTML+='<span class="ck" style="margin-left:2px">✓</span>';}
+          }else if(ev.type==='token'){
+            if(!first)first=true;
+            if(cs.indexOf('report_agent')>=0){cs=cs.filter(function(n){return n!=='report_agent';});sc='';}
+            sc+=ev.text;
+          }else if(ev.type==='done'){
+            fr=ev.report||'';fers=ev.errors||[];fds=ev.data_sources||[];ffqs=ev.followup_questions||[];fid=ev.record_id||null;fsp=ev.supervisor_plan||null;
+            var ctr=fr||sc;
+            if(ctr&&!sb){
+              sb=document.createElement('div');sb.className='msg assistant';
+              var sd2=document.createElement('div');sd2.className='bubble stream-content';sb.appendChild(sd2);
+              var pm=document.getElementById('pM');
+              if(pm&&pm.parentNode)pm.parentNode.insertBefore(sb,pm.nextSibling);else el.appendChild(sb);
+              var fh;try{fh=marked.parse(convertTextTables(expandChartTags(ctr)));}catch(e){fh=esc(ctr);}
+              sd2.innerHTML=fh;
+              try{
+                var ext='';try{ext=buildSupervisorPlan(fsp);}catch(e){}
+                try{ext+=buildTracePanel(fds);}catch(e){}
+                try{ext+=buildFollowupButtons(ffqs);}catch(e){}
+                try{if(fid)ext+='<div class="feedback-bar"><span>有帮助吗？</span><button class="feedback-btn" onclick="showFeedback(\'helpful\')">👍</button><button class="feedback-btn" onclick="showFeedback(\'bad\')">👎</button></div>';}catch(e){}
+                sd2.insertAdjacentHTML('afterend',ext);
+                sd2.insertAdjacentHTML('afterend','<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px;flex-wrap:wrap">'+(fid?'<span style="font-size:10px;color:var(--muted);margin-right:auto;align-self:center">#'+fid+'</span>':'')+'<span class="print-btn" onclick="window.print()">✂️ 打印</span><span class="print-btn" onclick="downloadMD()">⬇️ MD</span><span class="share-btn" onclick="exportPDF()">📄 PDF</span></div>');
+                try{sb.scrollIntoView({block:'start',behavior:'smooth'});}catch(e){}
+                initChartsInBubble(sb);_lastReportText=sd2.textContent||'';_lastQuestionText=q||'';
+              }catch(e){console.error(e);}
+            }
+          }
+        }catch(e){}
+      }
+    }
+    var pm2=document.getElementById('pM');if(pm2)pm2.remove();
+    if(sb){}else if(fr){
+      try{var e2='';try{e2=buildSupervisorPlan(fsp);}catch(e){}try{e2+=buildTracePanel(fds);}catch(e){}try{e2+=buildFollowupButtons(ffqs);}catch(e){}
+      el.innerHTML+='<div class="msg assistant"><div class="bubble">'+marked.parse(convertTextTables(expandChartTags(fr)))+e2+'</div></div>';}catch(e){el.innerHTML+='<div class="msg assistant"><div class="bubble">'+esc(fr)+'</div></div>';}
+    }else if(!fr&&!sc){el.innerHTML+='<div class="msg assistant"><div class="bubble" style="color:var(--amber)">未生成报告</div></div>';}
+    if(!sb)el.scrollTop=el.scrollHeight;
+    document.getElementById('quickBar').style.display='flex';lastRecordId=fid;loadSessionInfo();
+  }catch(err){
+    if(err.name==='AbortError')return;
+    document.getElementById('question').value=q;var pm3=document.getElementById('pM');if(pm3)pm3.remove();
+    el.innerHTML+='<div class="msg assistant"><div class="bubble" style="color:var(--red)">请求失败</div></div>';
+  }finally{
+    _isAnalyzing=false;_abortController=null;document.getElementById('btn').disabled=false;document.getElementById('stopBtn').style.display='none';document.getElementById('quickBar').style.display='flex';document.getElementById('question').focus();
+  }
+}
+
+/* Feedback */
+function showFeedback(r){pendingFeedback={rating:r,record_id:lastRecordId};document.getElementById('feedbackModal').style.display='flex';setTimeout(function(){document.getElementById('feedbackText').focus();},100);}
+function closeFeedbackModal(){document.getElementById('feedbackModal').style.display='none';pendingFeedback=null;}
+async function submitFeedback(){
+  var t=document.getElementById('feedbackText').value.trim();if(!pendingFeedback){closeFeedbackModal();return;}
+  try{
+    var r=await fetch(BASE+'/feedback/submit',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({analysis_history_id:pendingFeedback.record_id,rating:pendingFeedback.rating,reason:t||null})});
+    var d=await r.json();closeFeedbackModal();document.getElementById('feedbackText').value='';
+    toast((d.stats&&d.stats.text)||d.message||'感谢反馈！');
+  }catch(e){toast('提交失败');}
+}
+async function showFeedbackHistory(){
+  if(!token){toast('请先登录');return;}
+  try{
+    var r=await fetch(BASE+'/feedback/history?limit=20',{headers:{'Authorization':'Bearer '+token}});
+    if(!r.ok){toast('加载失败');return;}
+    var d=await r.json(),h='<div class="modal-box" style="width:560px;max-width:95%;max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:18px;font-weight:700;color:var(--text)">📝 我的反馈</span>'+(d.total>0?' <span style="font-size:12px;color:var(--muted)">好评率 '+d.helpful_rate+'%</span>':'')+'<button onclick="cfh()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px">&times;</button></div>';
+    if(!d.entries||!d.entries.length)h+='<div style="padding:40px 0;text-align:center;color:var(--muted)">暂无记录</div>';
+    else d.entries.forEach(function(e){var ri=e.rating==='helpful'?'👍':'👎',rc=e.rating==='helpful'?'var(--green)':'var(--red)';h+='<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between">'+ri+' <span style="color:'+rc+';font-weight:600">'+(e.rating==='helpful'?'有帮助':'不准确')+'</span> <span style="color:var(--muted);font-size:11px">'+((e.created_at||'').slice(0,10)||'')+'</span></div>'+(e.question?'<div style="font-size:12px;color:var(--muted)">"'+esc(e.question)+'"</div>':'')+'</div>';});
+    h+='</div>';
+    var ov=document.createElement('div');ov.className='modal-overlay';ov.id='fbHistoryOverlay';ov.style.display='flex';ov.onclick=function(ev){if(ev.target===ov)cfh();};ov.innerHTML=h;document.body.appendChild(ov);
+  }catch(e){toast('加载失败');console.warn(e);}
+}
+function cfh(){var el=document.getElementById('fbHistoryOverlay');if(el)el.remove();}
+
+/* Export */
+function downloadMD(){var r=_lastReportText||'',t=_lastQuestionText||'report',fn=t.replace(/[<>:"\/\\|?*]/g,'_').substring(0,40)+'.md',b=new Blob([r],{type:'text/markdown;charset=utf-8'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=fn;a.click();URL.revokeObjectURL(u);toast('已下载');}
+async function exportPDF(){
+  if(!_lastReportText){toast('无报告');return;}
+  try{
+    var r=await fetch(BASE+'/weekly/export',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({report:_lastReportText,title:(_lastQuestionText||'报告').substring(0,40)})});
+    if(!r.ok){var e=await r.json();toast(e.detail||'导出失败');return;}
+    var b=await r.blob(),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='report.pdf';a.click();URL.revokeObjectURL(u);toast('PDF已下载');
+  }catch(e){toast('导出失败');}
+}
+
+/* Resize */
+window.addEventListener('resize',function(){document.querySelectorAll('.chart-container').forEach(function(e){if(e._chart)e._chart.resize();});Object.values(window._dashCharts||{}).forEach(function(c){c&&c.resize();});});
+
+function _copyReport(){if(_lastReportText) copyToClipboard(_lastReportText);}

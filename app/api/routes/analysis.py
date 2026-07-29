@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from app.api.dependencies import get_current_user, rate_limit, require_permission
 from app.apm.tracer import AgentTracer, set_tracer
+from app.llm import reset_task_tokens
 from app.auth.rbac import get_user_store_ids
 from app.errors.user_friendly import format_agent_errors
 from app.logging_config import bind_context, get_logger, new_trace_id
@@ -52,9 +53,11 @@ class AnalysisResponse(BaseModel):
     report: str | None = Field(default=None, description="分析报告正文（Markdown 格式，可能含图表标记）")
     reflection_passed: bool = Field(default=False, description="是否通过 Reflection Agent 质量审核")
     similar_histories: list[dict] = Field(default=[], description="相似历史分析记录")
+    reflection_feedback: str | None = Field(default=None, description="Reflection 质检反馈 JSON")
     agent_errors: list[dict] = Field(default=[], description="各 Agent 错误信息（含用户友好提示）")
     data_sources: list[dict] = Field(default=[], description="数据来源追溯（SQL、执行时间、返回行数）")
     followup_questions: list[str] = Field(default=[], description="建议追问问题列表")
+    supervisor_plan: str | None = Field(default=None, description="Supervisor 规划（激活的 Agent 和推理过程）")
 
 
 class HistoryResponse(BaseModel):
@@ -124,7 +127,7 @@ async def analyze(
 
     # Check for similar historical analyses first
     try:
-        similar = await find_similar_analyses(req.question)
+        similar = await find_similar_analyses(req.question, user_id=user["user_id"])
     except Exception as e:
         logger.warning("相似历史检索失败（降级处理）", exc_info=True)
         similar = []
@@ -153,26 +156,42 @@ async def analyze(
     tracer = AgentTracer(session_id=req.session_id or "", question=req.question, trace_id=trace_id)
     set_tracer(tracer)
 
+    # 重置 Token 累计（为本次分析清空上次的残留）
+    reset_task_tokens()
+
     # Run the full graph (with V4 trace_id)
-    state = await graph.ainvoke({
-        "question": question,
-        "user_id": user["user_id"],
-        "store_ids": store_ids,
-        "session_id": req.session_id,
-        "trace_id": trace_id,
-        "conversation_context": conversation_context,
-        "is_followup": is_followup,
-        "resolved_question": resolved_question if is_followup else None,
-    })
+    # V4.2: 420s 超时防止单次分析无限挂起（含 LLM 重试场景）
+    try:
+        state = await asyncio.wait_for(
+            graph.ainvoke({
+                "question": question,
+                "original_question": resolved_question,  # 原始问题（不带 ranking hint），用于展示
+                "user_id": user["user_id"],
+                "store_ids": store_ids,
+                "session_id": req.session_id,
+                "trace_id": trace_id,
+                "conversation_context": conversation_context,
+                "is_followup": is_followup,
+                "resolved_question": resolved_question if is_followup else None,
+            }),
+            timeout=420,
+        )
+    except asyncio.TimeoutError:
+        logger.error("分析链路超时（>420s），返回空报告")
+        return AnalysisResponse(
+            report=None,
+            reflection_passed=False,
+            agent_errors=[{"agent": "system", "error": "分析链路超时，请简化问题后重试"}],
+        )
 
     logger.info("分析链路完成", reflection_passed=state.get("reflection_passed", False))
-
     # Flush APM traces (non-blocking)
     await tracer.flush()
 
     # Extract results
     report = state.get("report", "")
     reflection_passed = state.get("reflection_passed", False)
+    _debug_fb = state.get("reflection_feedback")
     raw_errors = state.get("agent_errors", [])
     agent_errors = format_agent_errors(raw_errors)
 
@@ -186,14 +205,19 @@ async def analyze(
             summary=report[:300],
         )
 
+    # V4.5: 传递 Supervisor 规划供前端展示推理过程
+    _supervisor_plan = state.get("supervisor_plan")
+
     response = AnalysisResponse(
         record_id=state.get("memory_record_id"),
         report=report,
         reflection_passed=reflection_passed,
+        reflection_feedback=state.get("reflection_feedback"),
         similar_histories=similar,
         agent_errors=agent_errors,
         data_sources=state.get("data_sources", []),
         followup_questions=state.get("followup_questions", []),
+        supervisor_plan=_supervisor_plan,
     )
 
     # ── V3.1: 写入分析结果缓存（5 分钟 TTL）──
@@ -237,7 +261,7 @@ async def search_similar(
     user: dict = Depends(require_permission("history:view")),
 ):
     """使用向量相似度搜索历史分析记录。基于 BGE-M3 Embedding 的语义匹配。"""
-    results = await find_similar_analyses(query, limit=limit)
+    results = await find_similar_analyses(query, limit=limit, user_id=user["user_id"])
     return {"results": results}
 
 
@@ -285,6 +309,9 @@ async def _stream_graph(
 
     V3：支持多轮对话上下文注入和追问建议生成。
     """
+    # 重置 Token 累计（为本次分析清空上次的残留）
+    reset_task_tokens()
+
     # V4: trace_id 与 APM 追踪（与 /analyze 端点一致）
     trace_id = new_trace_id()
     bind_context(trace_id=trace_id, session_id=session_id or "", user_id=user_id)
@@ -304,10 +331,12 @@ async def _stream_graph(
 
     # Inject ranking/list instruction to prevent truncation
     from app.tools.question_enhancer import inject_ranking_hint as _inj_rank
+    display_question = resolved_question   # 原始问题（不带 hint），用于展示和存库
     processed_question = _inj_rank(resolved_question)
 
     initial_state = {
         "question": processed_question,
+        "original_question": display_question,
         "user_id": user_id,
         "store_ids": store_ids,
         "session_id": session_id,
@@ -384,10 +413,11 @@ async def _stream_graph(
             summary=report[:300],
         )
 
-    # V4: 原始数据注入已通过 data_sources 字段实现（含 raw_data 和 row_count），
+    # V4.5: 原始数据注入已通过 data_sources 字段实现（含 raw_data 和 row_count），
     # 前端可直接从 AnalysisResponse.data_sources 渲染完整数据表，
     # 无需在报告中搜索标记再追加。
-    yield f"data: {json.dumps({'type': 'done', 'report': report, 'errors': [{'agent': e.get('agent','unknown'), 'error': str(e.get('error',''))[:200], 'user_message': e.get('user_message',''), 'icon': e.get('icon','')} for e in errors], 'reflection_passed': reflection_passed, 'record_id': record_id, 'data_sources': final_state.get('data_sources', []), 'followup_questions': final_state.get('followup_questions', [])}, ensure_ascii=False)}\n\n"
+    _sp = final_state.get("supervisor_plan")
+    yield f"data: {json.dumps({'type': 'done', 'report': report, 'errors': [{'agent': e.get('agent','unknown'), 'error': str(e.get('error',''))[:200], 'user_message': e.get('user_message',''), 'icon': e.get('icon','')} for e in errors], 'reflection_passed': reflection_passed, 'record_id': record_id, 'data_sources': final_state.get('data_sources', []), 'followup_questions': final_state.get('followup_questions', []), 'supervisor_plan': _sp}, ensure_ascii=False)}\n\n"
 
 
 @router.post("/analyze-stream", summary="流式分析（SSE 实时推送）")
@@ -395,6 +425,7 @@ async def analyze_stream(
     request: Request,
     req: AnalysisRequest,
     user: dict = Depends(require_permission("analysis:create")),
+    _: None = Depends(rate_limit),
 ):
     """提交问题并通过 Server-Sent Events 实时推送分析进度。
 

@@ -3,9 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>企业智能经营分析平台 V4</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=4.30">
 <script src="/static/echarts.min.js"></script>
+<script src="/static/marked.min.js"></script>
 </head>
 <body>
 
@@ -41,13 +45,24 @@
     </div>
     <button class="intro-cta" onclick="transitionToLogin()">进入系统</button>
   </div>
-  <div class="intro-version">REACT 18 · TYPESCRIPT · ANT DESIGN 5 · FASTAPI · LANGGRAPH</div>
+  <div class="intro-version">原生 HTML/CSS/JS + ECharts 5 · FASTAPI · LANGGRAPH</div>
 </div>
 
-<div class="app">
+<div class="app" id="app">
   <aside class="sidebar">
     <h1><span class="dot"></span>智能经营分析</h1>
     <p class="status" id="status">● 就绪</p>
+
+    <!-- V4.5: Tab 导航从 Header 移入侧边栏 -->
+    <nav class="sidebar-nav" id="sidebarNav" style="display:none">
+      <button class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 经营看板</button>
+      <button class="nav-item" data-tab="analysis" onclick="switchTab('analysis')">💬 分析对话</button>
+      <button class="nav-item" data-tab="history" onclick="switchTab('history')">📝 历史记录</button>
+      <button class="nav-item" data-tab="monitor" onclick="switchTab('monitor')">📋 质量监控</button>
+      <button class="nav-item" id="adminNavBtn" data-tab="admin" onclick="openAdminPanel()" style="display:none">⚙️ 系统管理</button>
+    </nav>
+    <hr style="border-color:var(--border)">
+
     <button class="btn-new-session" onclick="newSession()">＋ 新建会话</button>
     <p style="font-size:10px;color:var(--muted);text-align:center">会话 ID：<span id="sessionIdDisplay">未创建</span></p>
     <div id="roleInfo" style="font-size:11px;color:var(--muted);background:var(--bg);padding:8px 10px;border-radius:6px;display:none">
@@ -58,44 +73,65 @@
       <p style="margin-bottom:4px">已记住的实体：</p>
       <div id="entityTags"></div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button onclick="logout()" id="logoutBtn" style="font-size:11px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--red);cursor:pointer;display:none">🚪 退出登录</button>
-      <a onclick="showLogin()" style="font-size:11px;color:var(--accent);cursor:pointer;text-decoration:none">切换账户</a>
-    </div>
-    <button onclick="openAdminPanel()" id="adminBtn" style="font-size:11px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--accent);cursor:pointer;margin-top:6px">⚙️ 系统管理</button>
-    <div style="font-size:11px;color:var(--muted)"><p>大模型：DeepSeek</p></div>
-    <hr style="border-color:var(--border)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <p style="font-size:11px;color:var(--muted);margin:0">最近提问</p>
-      <a onclick="clearAllHistory()" style="font-size:10px;color:var(--red);cursor:pointer;text-decoration:none" title="一键清除全部历史记录">清除</a>
-    </div>
-    <div id="history"></div>
   </aside>
   <div class="main">
     <div class="header">
       <h2>企业智能经营分析平台</h2>
-      <div class="tab-bar" id="tabBar" style="display:none">
-        <button class="tab-btn active" id="tabDashboard" onclick="switchTab('dashboard')">📊 经营看板</button>
-        <button class="tab-btn" id="tabChat" onclick="switchTab('chat')">💬 分析对话</button>
+      <div style="display:flex;align-items:center;gap:12px;margin-left:auto">
+        <span class="badge">v4.0</span>
+        <!-- V4.5: 用户菜单（替代侧边栏底部账户操作） -->
+        <div class="user-menu" id="userMenu" style="display:none">
+          <button class="user-menu-btn" id="userMenuBtn" onclick="toggleUserMenu()">
+            <span class="user-avatar" id="userAvatar">a</span>
+            <span id="userMenuName">admin</span>
+            <span class="user-caret">▾</span>
+          </button>
+          <div class="user-dropdown" id="userMenuDropdown">
+            <div class="dropdown-header">
+              <div class="dropdown-role" id="dropdownRole">管理员</div>
+              <div class="dropdown-scope" id="dropdownScope">全部门店</div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" onclick="showFeedbackHistory()">📝 我的反馈</div>
+            <div class="dropdown-item" onclick="showLogin()">🔄 切换账户</div>
+            <div class="dropdown-item" onclick="logout()">🚪 退出登录</div>
+          </div>
+        </div>
       </div>
-      <span class="badge">v4.0</span>
     </div>
-    <!-- 看板视图（在 chat 外部，避免被 newSession 销毁） -->
     <div class="dashboard-view" id="dashboardView" style="display:none">
-      <div class="dash-kpi-row" id="dashKpiRow"></div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+        <span id="dashGreeting" style="font-size:14px;color:var(--text-muted)"></span>
+        <span id="dashUser" style="font-size:14px;color:var(--text-primary);font-weight:600"></span>
+      </div>
+      <div class="dash-kpi-row" id="dashKpis"></div>
       <div class="dash-charts-row">
-        <div class="dash-chart-box" id="dashTrendChart" style="height:320px"></div>
-        <div class="dash-chart-box" id="dashRegionChart" style="height:320px"></div>
+        <div class="dash-chart-box"><h3 class="dash-chart-title">📈 销售额趋势（近30天）</h3><div id="dashTrendChart" style="height:280px"></div></div>
+        <div class="dash-chart-box"><h3 class="dash-chart-title">🌍 各区域销售占比</h3><div id="dashRegionChart" style="height:280px"></div></div>
       </div>
       <div class="dash-store-row">
-        <div class="dash-chart-box" id="dashStoreChart" style="height:340px"></div>
-        <div class="dash-chart-box" id="dashStoreTable" style="height:340px;overflow-y:auto"></div>
+        <div class="dash-chart-box"><h3 class="dash-chart-title">🏪 门店销售额 Top 10</h3><div id="dashStoreChart" style="height:300px"></div></div>
+        <div class="dash-chart-box"><h3 class="dash-chart-title">📋 门店排名详情</h3><div id="dashStoreTable" style="height:300px;overflow-y:auto"></div></div>
       </div>
+    </div>
+    <div class="monitor-view" id="monitorView" style="display:none"></div>
+    <div class="history-view" id="historyView" style="display:none">
+      <div class="hv-header">
+        <div class="hv-header-left">
+          <h2>📝 历史记录</h2>
+          <span class="hv-count" id="hvCount">0 条</span>
+        </div>
+        <div class="hv-controls">
+          <input class="hv-search" id="hvSearch" placeholder="搜索历史问题..." oninput="filterHistory()">
+          <button class="hv-btn" onclick="clearAllHistory()">🗑️ 清除全部</button>
+        </div>
+      </div>
+      <div id="historyList" class="hv-list"></div>
     </div>
     <div class="chat" id="chat">
       <div class="empty-state" id="emptyState">
-        <div class="greeting" id="greetingText">👋 欢迎</div>
-        <div class="greeting-sub" id="greetingSub">输入经营分析问题开始对话</div>
+        <div class="greeting-icon">🤖</div><div class="greeting" id="greetingText">有什么经营问题需要分析？</div>
+        <div class="greeting-sub" id="greetingSub">5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据</div>
         <div class="dashboard-card" id="dashboardCard" style="display:none">
           <div class="dash-item"><div class="dash-val" id="dashSales">-</div><div class="dash-label">昨日销售额</div></div>
           <div class="dash-item"><div class="dash-val" id="dashStores">-</div><div class="dash-label">活跃门店</div></div>
@@ -115,11 +151,12 @@
       <button class="quick-chip" onclick="quickAsk('整体经营分析报告')">📋 整体分析</button>
       <button class="quick-chip" onclick="quickAsk('各区域经营对比')">🌍 区域对比</button>
     </div>
-    <div class="input-area">
+    <div class="input-area" id="inputArea">
       <form id="form" onsubmit="return ask(event)">
         <input id="question" type="text" placeholder="输入经营问题，例如：分析华东区最近一周的销售趋势..." autofocus autocomplete="off">
         <button type="button" class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="语音输入">🎤</button>
         <button type="submit" id="btn">提问</button>
+        <button type="button" id="stopBtn" onclick="stopAnalysis()" style="display:none;padding:10px 16px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">⏹ 停止</button>
       </form>
       <div class="voice-toast" id="voiceToast"><span class="dot-red"></span>正在聆听...</div>
     </div>
@@ -145,7 +182,7 @@
           <button type="button" class="pw-toggle" onclick="togglePassword()" title="显示/隐藏密码">👁</button>
         </div>
       </div>
-      <button type="submit" style="width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">登 录</button>
+      <button type="submit" id="loginBtn" style="width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">登 录</button>
     </form>
     <div id="loginError" style="color:var(--red);font-size:12px;margin-top:10px;text-align:center;display:none"></div>
     <hr style="border-color:var(--border);margin:16px 0 12px 0">
@@ -154,7 +191,7 @@
       <a onclick="fillUser('zhangsan')">zhangsan</a> ·
       <a onclick="fillUser('lisi')">lisi</a>
     </div>
-    <div class="login-quick" style="margin-top:4px">密码均为 admin123</div>
+    <div class="login-quick" style="margin-top:4px">admin / admin123 · zhangsan / 123456 · lisi / 123456</div>
   </div>
 </div>
 
@@ -162,7 +199,7 @@
   <div class="modal-box">
     <h3 id="feedbackTitle">反馈</h3>
     <p style="font-size:12px;color:var(--muted);margin-bottom:12px">请告诉我们更多细节，帮助我们改进分析质量。</p>
-    <textarea id="feedbackReason" placeholder="可选：描述具体问题（如数据不准确、分析遗漏了重要维度等）"></textarea>
+    <textarea id="feedbackText" placeholder="可选：描述具体问题（如数据不准确、分析遗漏了重要维度等）"></textarea>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeFeedbackModal()">取消</button>
       <button class="btn-submit" onclick="submitFeedback()">提交</button>
@@ -172,7 +209,6 @@
 
 <div id="toast-container"></div>
 
-<!-- 系统管理面板 -->
 <div class="ap-backdrop" id="apBackdrop" onclick="closeAdminPanel()"></div>
 <div class="admin-panel" id="adminPanel">
   <div class="ap-header">
@@ -185,21 +221,18 @@
       <select class="ap-btn" id="apRoleFilter" onchange="renderUserList()" style="font-size:12px">
         <option value="">全部角色</option>
         <option value="admin">管理员</option>
-        <option value="regional_director">大区总监</option>
         <option value="regional_manager">区域经理</option>
         <option value="store_manager">店长</option>
       </select>
-      <button class="ap-btn" onclick="loadErrorLog()">📋 日志</button>
       <button class="ap-btn primary" onclick="showAddUserForm()">＋ 新增用户</button>
     </div>
     <div id="apContent">
-      <table class="ap-table"><thead><tr><th>ID</th><th>用户名</th><th>显示名</th><th>角色</th><th>门店范围</th><th>操作</th></tr></thead><tbody id="apUserList"></tbody></table>
+      <table class="ap-table"><thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>数据范围</th><th>状态</th><th>操作</th></tr></thead><tbody id="apUserList"></tbody></table>
     </div>
     <div id="apForm" style="display:none"></div>
   </div>
 </div>
 
-<!-- 编辑/新增用户弹窗 -->
 <div id="userEditModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;align-items:center;justify-content:center">
   <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.85)" onclick="closeUserEditModal()"></div>
   <div style="position:relative;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 32px;width:520px;max-width:95%;max-height:90vh;overflow-y:auto;z-index:1">
@@ -208,9 +241,16 @@
       <button onclick="closeUserEditModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px 8px">&times;</button>
     </div>
     <div id="userEditBody"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button onclick="closeUserEditModal()" style="padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;background:var(--border);color:var(--text)">取消</button>
+      <button id="userEditSaveBtn" onclick="closeUserEditModal()" style="padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;background:var(--accent);color:#fff">保存</button>
+    </div>
   </div>
 </div>
 
-<script src="/static/app.js"></script>
+<!-- V4 前端（8 模块，顺序依赖） -->
+<script src="/static/utils.js?v=4.31"></script>
+<script src="/static/views.js?v=4.35"></script>
+<script src="/static/app.js?v=4.27"></script>
 </body>
 </html>
