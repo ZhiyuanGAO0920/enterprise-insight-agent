@@ -1,0 +1,179 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - complementary [ref=f4e3]:
+      - heading "智能经营分析" [level=1] [ref=f4e4]
+      - paragraph [ref=f4e6]: ● 就绪
+      - button "＋ 新建会话" [ref=f4e7] [cursor=pointer]
+      - paragraph [ref=f4e8]: 会话 ID：未创建
+      - generic [ref=f4e9]:
+        - generic [ref=f4e10]:
+          - button "🚪 退出登录" [ref=f4e11] [cursor=pointer]
+          - button "⚙️ 系统管理" [ref=f4e44] [cursor=pointer]
+        - generic [ref=f4e12]:
+          - generic [ref=f4e13] [cursor=pointer]: 切换账户
+          - generic [ref=f4e14]: "|"
+          - generic [ref=f4e15] [cursor=pointer]: 📝 我的反馈
+      - paragraph [ref=f4e17]: 大模型：DeepSeek
+      - separator [ref=f4e18]
+      - generic [ref=f4e45]:
+        - generic [ref=f4e46]:
+          - generic [ref=f4e47]: 最近提问
+          - generic [ref=f4e48] [cursor=pointer]: 清除
+        - generic [ref=f4e49] [cursor=pointer]:
+          - generic [ref=f4e50]: test
+          - generic [ref=f4e51]: 2026-07-29
+          - generic "不再显示" [ref=f4e52]: ✕
+        - generic [ref=f4e53] [cursor=pointer]:
+          - generic [ref=f4e54]: 各门店销售额排名
+          - generic [ref=f4e55]: 2026-07-29
+          - generic "不再显示" [ref=f4e56]: ✕
+        - generic [ref=f4e57] [cursor=pointer]:
+          - generic [ref=f4e58]: stores rank
+          - generic [ref=f4e59]: 2026-07-29
+          - generic "不再显示" [ref=f4e60]: ✕
+        - generic [ref=f4e61] [cursor=pointer]:
+          - generic [ref=f4e62]: stores rank
+          - generic [ref=f4e63]: 2026-07-29
+          - generic "不再显示" [ref=f4e64]: ✕
+        - generic [ref=f4e65] [cursor=pointer]:
+          - generic [ref=f4e66]: 各门店销售额排名
+          - generic [ref=f4e67]: 2026-07-29
+          - generic "不再显示" [ref=f4e68]: ✕
+        - generic [ref=f4e69] [cursor=pointer]:
+          - generic [ref=f4e70]: 各门店销售额排名
+          - generic [ref=f4e71]: 2026-07-29
+          - generic "不再显示" [ref=f4e72]: ✕
+        - generic [ref=f4e73] [cursor=pointer]:
+          - generic [ref=f4e74]: 各门店销售额排名
+          - generic [ref=f4e75]: 2026-07-29
+          - generic "不再显示" [ref=f4e76]: ✕
+        - generic [ref=f4e77] [cursor=pointer]:
+          - generic [ref=f4e78]: stores rank
+          - generic [ref=f4e79]: 2026-07-29
+          - generic "不再显示" [ref=f4e80]: ✕
+        - generic [ref=f4e81] [cursor=pointer]:
+          - generic [ref=f4e82]: stores rank
+          - generic [ref=f4e83]: 2026-07-29
+          - generic "不再显示" [ref=f4e84]: ✕
+        - generic [ref=f4e85] [cursor=pointer]:
+          - generic [ref=f4e86]: store sales rank
+          - generic [ref=f4e87]: 2026-07-29
+          - generic "不再显示" [ref=f4e88]: ✕
+    - generic [ref=f4e19]:
+      - generic [ref=f4e20]:
+        - heading "企业智能经营分析平台" [level=2] [ref=f4e21]
+        - generic [ref=f4e22]:
+          - button "📊 经营看板" [ref=f4e23] [cursor=pointer]
+          - button "💬 分析对话" [ref=f4e24] [cursor=pointer]
+          - button "📋 质量监控" [ref=f4e25] [cursor=pointer]
+        - generic [ref=f4e26]: v4.0
+      - generic [ref=f4e27]:
+        - generic [ref=f4e28]:
+          - generic [ref=f4e89]: 中午好
+          - generic [ref=f4e29]: admin，
+        - generic [ref=f4e90]:
+          - generic [ref=f4e91]:
+            - generic [ref=f4e92]: 今日销售额
+            - generic [ref=f4e93]: ¥1.6万
+            - generic [ref=f4e94]: ↓ 69.7% vs 昨日
+          - generic [ref=f4e95]:
+            - generic [ref=f4e96]: 昨日销售额
+            - generic [ref=f4e97]: ¥5.3万
+            - generic [ref=f4e98]: 基线对比
+          - generic [ref=f4e99]:
+            - generic [ref=f4e100]: 退款率（近7天）
+            - generic [ref=f4e101]: 2.3%
+            - generic [ref=f4e102]: ✅ 正常
+          - generic [ref=f4e103]:
+            - generic [ref=f4e104]: 活跃门店
+            - generic [ref=f4e105]: "100"
+            - generic [ref=f4e106]: 近7天有订单
+          - generic [ref=f4e107]:
+            - generic [ref=f4e108]: 会员总数
+            - generic [ref=f4e109]: 5,000
+            - generic [ref=f4e110]: 累计注册
+          - generic [ref=f4e111]:
+            - generic [ref=f4e112]: 近24小时订单
+            - generic [ref=f4e113]: —
+            - generic [ref=f4e114]: 笔
+        - generic [ref=f4e30]:
+          - heading "📈 销售额趋势（近30天）" [level=3] [ref=f4e32]
+          - generic [ref=f4e34]:
+            - heading "🌍 各区域销售占比" [level=3] [ref=f4e35]
+            - generic [ref=f4e117]:
+              - button "华东" [ref=f4e118] [cursor=pointer]
+              - button "华北" [ref=f4e119] [cursor=pointer]
+              - button "华南" [ref=f4e120] [cursor=pointer]
+              - button "华中" [ref=f4e121] [cursor=pointer]
+              - button "西南" [ref=f4e122] [cursor=pointer]
+              - button "西北" [ref=f4e123] [cursor=pointer]
+              - button "东北" [ref=f4e124] [cursor=pointer]
+        - generic [ref=f4e37]:
+          - heading "🏪 门店销售额 Top 10" [level=3] [ref=f4e39]
+          - generic [ref=f4e41]:
+            - heading "📋 门店排名详情" [level=3] [ref=f4e42]
+            - table [ref=f4e129]:
+              - rowgroup [ref=f4e130]:
+                - row [ref=f4e131]:
+                  - columnheader "排名" [ref=f4e132]
+                  - columnheader "门店" [ref=f4e133]
+                  - columnheader "销售额" [ref=f4e134]
+              - rowgroup [ref=f4e135]:
+                - row [ref=f4e136]:
+                  - cell "1" [ref=f4e137]
+                  - cell "合肥太古里店" [ref=f4e139]
+                  - cell "¥6,552.4" [ref=f4e140]
+                - row [ref=f4e141]:
+                  - cell "2" [ref=f4e142]
+                  - cell "天津旗舰店" [ref=f4e144]
+                  - cell "¥6,202.86" [ref=f4e145]
+                - row [ref=f4e146]:
+                  - cell "3" [ref=f4e147]
+                  - cell "郑州万达店" [ref=f4e149]
+                  - cell "¥5,752.61" [ref=f4e150]
+                - row [ref=f4e151]:
+                  - cell "4" [ref=f4e152]
+                  - cell "佛山万象店" [ref=f4e154]
+                  - cell "¥5,605.3" [ref=f4e155]
+                - row [ref=f4e156]:
+                  - cell "5" [ref=f4e157]
+                  - cell "昆明银泰分店" [ref=f4e159]
+                  - cell "¥5,438.59" [ref=f4e160]
+                - row [ref=f4e161]:
+                  - cell "6" [ref=f4e162]
+                  - cell "北京旗舰分店" [ref=f4e164]
+                  - cell "¥5,383.68" [ref=f4e165]
+                - row [ref=f4e166]:
+                  - cell "7" [ref=f4e167]
+                  - cell "太原万达分店" [ref=f4e169]
+                  - cell "¥5,267.92" [ref=f4e170]
+                - row [ref=f4e171]:
+                  - cell "8" [ref=f4e172]
+                  - cell "厦门旗舰店" [ref=f4e174]
+                  - cell "¥5,230.89" [ref=f4e175]
+                - row [ref=f4e176]:
+                  - cell "9" [ref=f4e177]
+                  - cell "宁波龙湖门店" [ref=f4e179]
+                  - cell "¥4,975.88" [ref=f4e180]
+                - row [ref=f4e181]:
+                  - cell "10" [ref=f4e182]
+                  - cell "郑州旗舰店" [ref=f4e184]
+                  - cell "¥4,975.3" [ref=f4e185]
+  - generic [ref=f4e187]:
+    - generic [ref=f4e188]:
+      - generic [ref=f4e189]: 📊
+      - heading "企业智能经营分析平台" [level=2] [ref=f4e190]
+      - paragraph [ref=f4e191]: v4.0 · 登录后开始分析
+    - generic [ref=f4e192]:
+      - generic [ref=f4e193]:
+        - generic [ref=f4e194]: 用户名
+        - textbox "请输入用户名" [ref=f4e195]: admin
+      - generic [ref=f4e196]:
+        - generic [ref=f4e197]: 密码
+        - generic [ref=f4e198]:
+          - textbox "请输入密码" [ref=f4e199]: admin123
+          - button "👁" [ref=f4e200] [cursor=pointer]
+      - button "登录" [ref=f4e201] [cursor=pointer]
+    - separator [ref=f4e202]
+    - generic [ref=f4e203]: 测试账户： admin · zhangsan · lisi
+    - generic [ref=f4e204]: admin / admin123 · zhangsan / 123456 · lisi / 123456

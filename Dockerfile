@@ -13,7 +13,7 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# Stage 1: Builder — install build dependencies & compile wheels
+# Stage 1: Builder — compile wheels for deployment stages
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim AS builder
 
@@ -27,17 +27,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy only dependency declarations to leverage Docker caching
 COPY pyproject.toml .
 
-# Install ALL deps (runtime + dev) to ensure everything is built
-RUN pip install --no-cache-dir -e ".[dev]"
+# Install runtime deps (包括 PDF 支持) —— 编译产物供 production 阶段复用
+RUN pip install --no-cache-dir -e ".[pdf]"
 
 # ---------------------------------------------------------------------------
-# Stage 2: Development — full environment with hot-reload
+# Stage 2: Development — dev 工具 + 热重载
 # ---------------------------------------------------------------------------
 FROM builder AS development
 
+# 安装 dev 依赖（测试、lint 等）
+RUN pip install --no-cache-dir -e ".[dev]"
+
 WORKDIR /app
 
-# Copy application code (mounted as volume in dev, but baked for fallback)
 COPY app/ ./app/
 COPY prompts/ ./prompts/
 COPY alembic/ ./alembic/
@@ -52,7 +54,7 @@ EXPOSE 8000
 CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 # ---------------------------------------------------------------------------
-# Stage 3: Production — minimal runtime image
+# Stage 3: Production — 最小运行时镜像
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim AS production
 
@@ -67,9 +69,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgdk-pixbuf2.0-0 libcairo2 libffi8 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy pyproject.toml and install runtime + PDF dependencies
+# 从 builder 阶段复制已编译的依赖（避免重新 pip install）
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages/
+COPY --from=builder /usr/local/bin /usr/local/bin/
 COPY pyproject.toml .
-RUN pip install --no-cache-dir -e ".[pdf]" && pip uninstall -y setuptools pip
 
 # Copy application code
 COPY app/ ./app/

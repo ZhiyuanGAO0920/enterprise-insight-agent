@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout, Table, Button, Space, Typography, Modal, Form, Input, Select, message, Tabs } from 'antd';
 import { ArrowLeftOutlined, UserAddOutlined, ReloadOutlined, DatabaseOutlined } from '@ant-design/icons';
 import client from '../api/client';
@@ -6,6 +7,7 @@ import client from '../api/client';
 const { Title } = Typography;
 
 export default function AdminPage() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,7 +74,7 @@ export default function AdminPage() {
   return (
     <Layout style={{ minHeight: '100vh', background: '#1a1a2e', padding: 24 }}>
       <Space style={{ marginBottom: 24 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => window.location.hash = '/'}>返回分析</Button>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/analysis')}>返回分析</Button>
         <Title level={4} style={{ margin: 0, color: '#e0e0e0' }}>⚙️ 系统管理</Title>
       </Space>
 

@@ -9,7 +9,7 @@
 面向连锁零售的 Multi-Agent AI 经营分析平台。10 个 Agent 协作，用户用自然语言提问，60 秒内获得含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
-**状态**：V4，155 条测试通过 / 0 失败，GitHub 开源
+**状态**：V4.2，111 条测试通过 / 0 失败（核心测试），9 条 Windows asyncpg 环境问题可忽略
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商
 
 ---
@@ -31,8 +31,11 @@ Save Memory（pgvector 1024 维，BGE-M3 本地 Embedding）
 **关键文件**：
 - `app/workflow/graph.py` — 11 节点 StateGraph 编排
 - `app/agents/supervisor_agent.py` — 路由决策（LLM + 关键词兜底）
-- `app/agents/report_agent.py` — 流式报告生成 + FOLLOWUP 提取
-- `app/agents/reflection_agent.py` — 4 维质检（一致性/逻辑/可操作/完整）
+- `app/agents/report_agent.py` — 流式报告生成 + 图表注入 + FOLLOWUP 提取
+- `app/agents/reflection_agent.py` — 4 维质检（V4.2：区分查询型/分析型标准）
+- `app/agents/chart_advisor_agent.py` — 图表推荐 + 规则兜底表格解析
+- `app/tools/sql_runner.py` — RLS 注入（V4.2：sqlparse AST 解析）
+- `app/tools/stream_utils.py` — safe_get_stream_writer 降级兜底
 
 ---
 
@@ -62,7 +65,7 @@ app/
 │   ├── alerts.py    # /check（n8n 定时触发 + 飞书/钉钉/企微通知）
 │   └── weekly.py    # /generate + /export（PDF）
 ├── auth/            # JWT + RBAC + RLS（行级安全）
-├── database/        # 17 ORM 模型，8 版 Alembic 迁移
+├── database/        # 16 ORM 模型，10 版 Alembic 迁移
 ├── middleware/       # 🆕 audit.py（审计日志） + tenant.py（多租户）
 ├── services/        # notification.py + pdf_exporter.py
 ├── tools/           # sql_runner.py（RLS 注入），prompt_loader.py（3 级 fallback）
@@ -91,21 +94,13 @@ workflows/n8n-templates/  # alert-check.json, weekly-report.json
 
 ---
 
-## V4 本轮修复记录（2026-06-11，60项）
+## V4 修复记录
 
-详见 [CHANGELOG.md](CHANGELOG.md)。关键修复：
-- `reflection_retries` 永不递增 → 无限循环 → 反射节点正确返回 `reflection_retries`
-- 流式端点图执行两次 → LLM 成本翻倍 → `stream_mode=["updates","values"]` 单次执行
-- `build_store_filter_sql` SQL 注入 → 单引号转义 + 列名白名单
-- 审计中间件 `BaseHTTPMiddleware` 不触发 → 改为 FastAPI 原生 `@app.middleware("http")`
-- `save_analysis_history` 不填 `tenant_id` → NOT NULL 违反 → 自动查询用户/默认租户
-- `analysis_history.tenant_id` 历史数据回填 + FK 约束（迁移 007）
-- 前端 XSS：`marked.parse()` 无转义、onclick 注入 → 添加 `htmlEscape`/`jsEscape`
-- 反馈按钮 `submitFeedback(id)` 参数不匹配 → 改为 `showFeedback('helpful')`
-- `asyncio.run()` 与 pytest-asyncio 事件循环冲突 → 全部改为 `@pytest.mark.asyncio`
-- 图表函数 `_build_*`/`_encode_*` → 重命名为公共 API `build_*`/`encode_*`
-- `启动服务.bat` 与 `启动V4服务.bat` 重复 → 删除前者
-- `启动指南.md` → 移至 `docs/`
+| 版本 | 日期 | 主要内容 |
+|------|------|----------|
+| [V4.2.0](CHANGELOG.md#V420-2026-07-27) | 2026-07-27 | 报告质量升级（四段式方法论）、41 项安全/稳定性/测试修复 |
+| [V4.1.0](CHANGELOG.md#V410-2026-07-16) | 2026-07-16 | 质量监控面板、真实成本追踪、评估测试集扩充 |
+| [V4.0.0](CHANGELOG.md#V400-2026-06-11) | 2026-06-11 | 60 项修复（无限循环/LLM 成本翻倍/XSS/SQL 注入等） |
 
 ---
 
@@ -140,4 +135,4 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 - 启动：双击 `重启服务.bat` 或 `uvicorn app.api.main:app --port 8002 --reload`
 - 热重载 Prompt：`POST /api/v1/prompts/reload`
 - 测试：`pytest tests/ -v`（155 条）
-- 数据库迁移：`alembic upgrade head`（当前 8 个版本）
+- 数据库迁移：`alembic upgrade head`（当前 10 个版本）

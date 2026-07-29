@@ -20,7 +20,11 @@ from app.agents.report_agent import report_agent_node
 from app.agents.sales_agent import sales_agent_node
 from app.agents.supervisor_agent import supervisor_agent_node
 from app.agents.supply_chain_agent import supply_chain_agent_node
+from app.apm.tracer import trace_node
 from app.workflow.state import AnalysisState
+from app.logging_config import get_logger
+
+logger = get_logger("eia.workflow.graph")
 
 
 # ============================================================================
@@ -32,6 +36,8 @@ async def aggregate_node(state: AnalysisState) -> dict:
     """将所有已执行 Agent 的结果聚合为单个摘要。
 
     仅包含实际产生了输出的 Agent（非 None）。
+    V4.1：限制总长度防止下游 LLM 调用超时。
+    使用头尾保留策略而非简单截断，避免丢失末尾关键结论。
     """
     writer = get_stream_writer()
     writer({"type": "progress", "node": "aggregator", "message": "正在聚合分析结果..."})
@@ -51,7 +57,22 @@ async def aggregate_node(state: AnalysisState) -> dict:
     if not sections:
         return {"aggregator_summary": None}
 
-    return {"aggregator_summary": "\n\n---\n\n".join(sections)}
+    summary = "\n\n---\n\n".join(sections)
+
+    # V4.1: 限制聚合摘要总长度，防止大量原始数据导致下游 LLM 超时
+    # 使用头尾保留策略：前 70% + 后 30%，中间截断。
+    # 这样开头（分析框架）和末尾（关键发现/总结）都不会缺失。
+    MAX_SUMMARY_CHARS = 15000
+    if len(summary) > MAX_SUMMARY_CHARS:
+        tail_ratio = 0.3
+        head_len = int(MAX_SUMMARY_CHARS * (1 - tail_ratio))
+        tail_len = int(MAX_SUMMARY_CHARS * tail_ratio)
+        head_part = summary[:head_len]
+        tail_part = summary[-tail_len:]
+        logger.info("聚合摘要过长，头尾保留截断: %d → %d 字符", len(summary), MAX_SUMMARY_CHARS)
+        summary = head_part + f"\n\n>（中间数据已截断，完整数据见报告数据来源）\n\n" + tail_part
+
+    return {"aggregator_summary": summary}
 
 
 # ============================================================================
@@ -105,8 +126,8 @@ def after_reflection(state: AnalysisState) -> str:
         return "save_memory"
 
     retries = state.get("reflection_retries", 0)
-    if retries < 1:
-        return "report_agent"  # 重试一次
+    if retries < 2:
+        return "report_agent"  # 重试一次（首次失败时 retries=1，因此 <2 允许重试）
 
     # 重试次数耗尽 —— 保存现有结果并结束
     return "save_memory"
@@ -132,18 +153,18 @@ def build_graph() -> StateGraph:
     """
     builder = StateGraph(AnalysisState)
 
-    # ---- 注册所有节点 ----
-    builder.add_node("supervisor", supervisor_agent_node)
-    builder.add_node("sales_agent", sales_agent_node)
-    builder.add_node("crm_agent", crm_agent_node)
-    builder.add_node("finance_agent", finance_agent_node)
-    builder.add_node("inventory_agent", inventory_agent_node)       # V3 P3: 库存分析
-    builder.add_node("supply_chain_agent", supply_chain_agent_node) # V3 P3: 供应链分析
-    builder.add_node("aggregator", aggregate_node)
-    builder.add_node("chart_advisor", chart_advisor_node)        # V3：图表推荐
-    builder.add_node("report_agent", report_agent_node)
-    builder.add_node("reflection_agent", reflection_agent_node)
-    builder.add_node("save_memory", save_memory_node)
+    # ---- 注册所有节点（以 trace_node 包裹，自动记录 APM 追踪） ----
+    builder.add_node("supervisor", trace_node("supervisor")(supervisor_agent_node))
+    builder.add_node("sales_agent", trace_node("sales_agent")(sales_agent_node))
+    builder.add_node("crm_agent", trace_node("crm_agent")(crm_agent_node))
+    builder.add_node("finance_agent", trace_node("finance_agent")(finance_agent_node))
+    builder.add_node("inventory_agent", trace_node("inventory_agent")(inventory_agent_node))       # V3 P3: 库存分析
+    builder.add_node("supply_chain_agent", trace_node("supply_chain_agent")(supply_chain_agent_node)) # V3 P3: 供应链分析
+    builder.add_node("aggregator", trace_node("aggregator")(aggregate_node))
+    builder.add_node("chart_advisor", trace_node("chart_advisor")(chart_advisor_node))        # V3：图表推荐
+    builder.add_node("report_agent", trace_node("report_agent")(report_agent_node))
+    builder.add_node("reflection_agent", trace_node("reflection_agent")(reflection_agent_node))
+    builder.add_node("save_memory", trace_node("save_memory")(save_memory_node))
 
     # ---- 入口点 ----
     builder.set_entry_point("supervisor")

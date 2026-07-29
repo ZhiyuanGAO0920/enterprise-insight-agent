@@ -48,6 +48,10 @@ class AnalysisHistory(Base):
     inventory_result = Column(Text, nullable=True)       # V4: 库存分析持久化
     supply_chain_result = Column(Text, nullable=True)    # V4: 供应链分析持久化
     reflection_passed = Column(Boolean, default=False)
+    reflection_issues = Column(JSON, nullable=True)
+    input_tokens = Column(Integer, default=0)
+    output_tokens = Column(Integer, default=0)
+    llm_cost = Column(Float, default=0.0)
     create_time = Column(DateTime, default=_utcnow)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     tenant_id = Column(Integer, nullable=True)  # V4: 多租户隔离
@@ -279,4 +283,5 @@ class AuditLog(Base):
     user_agent = Column(String(500), nullable=True)
     status_code = Column(Integer, nullable=True, comment="HTTP 响应状态码")
     elapsed_ms = Column(Integer, nullable=True, comment="请求处理耗时（毫秒）")
+    trace_id = Column(String(12), nullable=True, comment="全链路追踪 ID，关联分析请求", index=True)
     created_at = Column(DateTime, default=_utcnow, index=True)

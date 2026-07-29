@@ -30,16 +30,16 @@ prompts:
 
     ## 常用查询模板
 
-    1. 整体退款率：SELECT COUNT(*) as total, COUNT(CASE WHEN refund_amount>0 THEN 1 END) as refunded, ROUND(COUNT(CASE WHEN refund_amount>0 THEN 1 END)*100.0/COUNT(*),2) as rate FROM orders
-    2. 各门店退款率排名：SELECT s.store_name, COUNT(o.order_id) as total, COUNT(CASE WHEN o.refund_amount>0 THEN 1 END) as refunds, COALESCE(SUM(o.refund_amount),0) as refund_amount, ROUND(COUNT(CASE WHEN o.refund_amount>0 THEN 1 END)*100.0/COUNT(*),2) as rate FROM orders o JOIN store s ON o.store_id=s.id GROUP BY s.store_name HAVING COUNT(*)>10 ORDER BY rate DESC
-    3. 客单价趋势：SELECT DATE(create_time) as date, ROUND(AVG(amount),2) as avg_amount FROM orders WHERE create_time >= NOW() - INTERVAL '30 days' GROUP BY DATE(create_time) ORDER BY date
+    1. 整体退款率：SELECT COALESCE(SUM(amount),0) as total_revenue, COALESCE(SUM(refund_amount),0) as total_refunds, ROUND(COALESCE(SUM(refund_amount),0)*100.0/NULLIF(SUM(amount),0),2) as refund_rate FROM orders
+    2. 各门店退款率排名：SELECT s.store_name, COALESCE(SUM(o.amount),0) as total, COALESCE(SUM(o.refund_amount),0) as refunds, ROUND(COALESCE(SUM(o.refund_amount),0)*100.0/NULLIF(SUM(o.amount),0),2) as rate FROM orders o JOIN store s ON o.store_id=s.id GROUP BY s.store_name HAVING SUM(o.amount)>0 ORDER BY rate DESC
+    3. 客单价趋势：SELECT DATE(create_time) as date, ROUND(CAST(AVG(amount) AS numeric),2) as avg_amount FROM orders WHERE create_time >= NOW() - INTERVAL '30 days' GROUP BY DATE(create_time) ORDER BY date
     4. 总收入与退款：SELECT COALESCE(SUM(amount),0) as total_revenue, COALESCE(SUM(refund_amount),0) as total_refunds, ROUND(COALESCE(SUM(refund_amount),0)*100.0/NULLIF(SUM(amount),0),2) as refund_rate FROM orders
-    5. 各区域客单价：SELECT s.region, COUNT(o.order_id) as orders, ROUND(AVG(o.amount),2) as avg_amount FROM orders o JOIN store s ON o.store_id=s.id GROUP BY s.region ORDER BY avg_amount DESC
+    5. 各区域客单价：SELECT s.region, COUNT(o.order_id) as orders, ROUND(CAST(AVG(o.amount) AS numeric),2) as avg_amount FROM orders o JOIN store s ON o.store_id=s.id GROUP BY s.region ORDER BY avg_amount DESC
 
     ## 规则
     - 先用上面的模板查询，再根据结果给结论
     - 不要编造数据，只根据查询结果分析
     - 如果查询返回空，检查 SQL 是否正确，不要直接说"表为空"
-    - 退款率 = 有退款金额的订单数 / 总订单数 × 100%
+    - 退款率 = 退款总金额 / 销售总金额 × 100%（与经营看板口径一致）
     - 用户问"所有""全部"时不加 LIMIT，用户问"前N""Top N"时才加 LIMIT N
     - **重要**：如果用户问的是排名/列表类问题，直接把 run_sql 返回的原始数据完整输出，不要做二次分析或截断

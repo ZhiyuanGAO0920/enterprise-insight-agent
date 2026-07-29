@@ -91,3 +91,78 @@ def test_case_insensitivity():
     is_safe, message = check_sql_safety("drop table orders")
     assert not is_safe
     assert "DROP" in message
+
+
+# ---------------------------------------------------------------------------
+# sqlparse 表名检测和 RLS 注入测试
+# ---------------------------------------------------------------------------
+
+from app.tools.sql_runner import _detect_store_column, _get_outermost_tables, inject_store_filter
+
+
+def test_detect_store_column():
+    """sqlparse 表名检测：不同表对应不同 RLS 列。"""
+    assert _detect_store_column("SELECT * FROM store") == "id"
+    assert _detect_store_column("SELECT * FROM orders") == "store_id"
+    assert _detect_store_column("SELECT * FROM order_items") == "store_id"
+    assert _detect_store_column("SELECT * FROM inventory") == "store_id"
+    assert _detect_store_column("SELECT * FROM member") is None
+    assert _detect_store_column("SELECT * FROM supplier") is None
+    assert _detect_store_column("SELECT * FROM product") is None
+    assert _detect_store_column("SELECT * FROM purchase_order") is None
+
+
+def test_detect_store_column_complex():
+    """复杂 SQL 的表名检测。"""
+    assert _detect_store_column("SELECT * FROM member JOIN orders ON ...") is None
+    assert _detect_store_column("SELECT o.id, s.name FROM orders o JOIN store s ON ...") == "store_id"
+    assert _detect_store_column("SELECT * FROM orders WHERE total > 100 ORDER BY id") == "store_id"
+    assert _detect_store_column("WITH cte AS (SELECT * FROM member) SELECT * FROM orders") == "store_id"
+
+
+def test_detect_store_column_subquery():
+    """子查询中的表不应影响外层检测。"""
+    q = "SELECT * FROM (SELECT * FROM member) sub WHERE sub.id > 0"
+    # A subquery around member doesn't change the RLS behavior
+    result = _detect_store_column(q)
+    assert result == "store_id" or result is None
+
+
+def test_inject_store_filter_simple():
+    """RLS 注入：基本查询。"""
+    q = "SELECT * FROM orders"
+    r = inject_store_filter(q, ["1", "2"])
+    assert "store_id IN ('1', '2')" in r
+    assert r.startswith("SELECT")
+
+
+def test_inject_store_filter_with_where():
+    """RLS 注入：已有 WHERE 子句。"""
+    q = "SELECT * FROM orders WHERE total > 100"
+    r = inject_store_filter(q, ["1", "2"])
+    assert "store_id IN ('1', '2')" in r
+    assert "AND" in r.upper()
+
+
+def test_inject_store_filter_no_access():
+    """空门店列表 → 注入 WHERE 1=0。"""
+    r = inject_store_filter("SELECT * FROM orders", [])
+    assert "1=0" in r
+
+
+def test_inject_store_filter_member_no_filter():
+    """会员表（纯查）不注入 RLS。"""
+    r = inject_store_filter("SELECT * FROM member", ["1", "2"])
+    assert r == "SELECT * FROM member"
+
+
+def test_inject_store_filter_store_uses_id():
+    """store 表用 id 列过滤。"""
+    r = inject_store_filter("SELECT * FROM store", ["10", "20"])
+    assert "id IN ('10', '20')" in r
+
+
+def test_inject_store_filter_order_by():
+    """无 WHERE 有 ORDER BY 时正确插入 RLS。"""
+    r = inject_store_filter("SELECT * FROM orders ORDER BY total DESC", ["1"])
+    assert "WHERE store_id IN ('1') ORDER BY" in r

@@ -59,3 +59,12 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
     finally:
         await session.close()
+
+
+async def dispose_engine():
+    """关闭异步引擎并释放连接池（在测试清理或服务关闭时调用）。"""
+    global _engine, _factory
+    if _engine is not None:
+        await _engine.dispose()
+        _engine = None
+        _factory = None

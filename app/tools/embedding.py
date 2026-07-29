@@ -6,17 +6,18 @@
 """
 
 import asyncio
-import logging
 from typing import Optional
 
 from openai import AsyncOpenAI
 
 from app.config import get_settings
+from app.logging_config import get_logger
 
 settings = get_settings()
-logger = logging.getLogger("eia.embedding")
+logger = get_logger("eia.embedding")
 
 _client: Optional[AsyncOpenAI] = None
+_http_client: Optional["httpx.AsyncClient"] = None
 _lock = asyncio.Lock()
 
 
@@ -31,7 +32,7 @@ async def _get_client() -> AsyncOpenAI:
 
     使用 asyncio.Lock 防止竞态条件下创建多个客户端实例。
     """
-    global _client
+    global _client, _http_client
     if _client is not None:
         return _client
     async with _lock:
@@ -108,3 +109,11 @@ async def get_embeddings(texts: list[str]) -> list[list[float]]:
     except Exception as e:
         logger.warning("批量嵌入生成失败，返回零向量降级: %s", e)
         return [[0.0] * settings.embedding_dimension for _ in texts]
+
+
+async def _shutdown_http():
+    """关闭 embedding 模块的 HTTP 连接池（在 FastAPI shutdown 事件中调用）。"""
+    global _http_client
+    if _http_client is not None:
+        await _http_client.aclose()
+        _http_client = None

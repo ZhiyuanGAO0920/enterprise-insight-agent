@@ -1,0 +1,114 @@
+- generic [ref=f19e2]:
+  - complementary [ref=f19e3]:
+    - heading "智能经营分析" [level=1] [ref=f19e4]
+    - paragraph [ref=f19e6]: ● 就绪
+    - navigation [ref=f19e7]:
+      - button "📊 经营看板" [ref=f19e8] [cursor=pointer]
+      - button "💬 分析对话" [ref=f19e9] [cursor=pointer]
+      - button "📝 历史记录" [ref=f19e10] [cursor=pointer]
+      - button "📋 质量监控" [ref=f19e11] [cursor=pointer]
+      - button "⚙️ 系统管理" [ref=f19e42] [cursor=pointer]
+    - separator [ref=f19e12]
+    - button "＋ 新建会话" [ref=f19e13] [cursor=pointer]
+    - paragraph [ref=f19e14]: 会话 ID：未创建
+  - generic [ref=f19e15]:
+    - generic [ref=f19e16]:
+      - heading "企业智能经营分析平台" [level=2] [ref=f19e17]
+      - generic [ref=f19e18]:
+        - generic [ref=f19e19]: v4.0
+        - button "a admin ▾" [ref=f19e21] [cursor=pointer]:
+          - generic [ref=f19e22]: a
+          - generic [ref=f19e23]: admin
+          - generic [ref=f19e24]: ▾
+    - generic [ref=f19e25]:
+      - generic [ref=f19e26]:
+        - generic [ref=f19e43]: 下午好
+        - generic [ref=f19e27]: admin
+      - generic [ref=f19e44]:
+        - generic [ref=f19e159]:
+          - generic [ref=f19e160]: 今日销售额
+          - generic [ref=f19e161]: ¥1.6万
+          - generic [ref=f19e162]: ↓ 69.7% vs 昨日
+        - generic [ref=f19e163]:
+          - generic [ref=f19e164]: 昨日销售额
+          - generic [ref=f19e165]: ¥5.3万
+          - generic [ref=f19e166]: 基线对比
+        - generic [ref=f19e167]:
+          - generic [ref=f19e168]: 退款率（近7天）
+          - generic [ref=f19e169]: 2.3%
+          - generic [ref=f19e170]: ✅ 正常
+        - generic [ref=f19e171]:
+          - generic [ref=f19e172]: 活跃门店
+          - generic [ref=f19e173]: "100"
+          - generic [ref=f19e174]: 近7天有订单
+        - generic [ref=f19e175]:
+          - generic [ref=f19e176]: 会员总数
+          - generic [ref=f19e177]: 5,000
+          - generic [ref=f19e178]: 累计注册
+        - generic [ref=f19e179]:
+          - generic [ref=f19e180]: 近24小时订单
+          - generic [ref=f19e181]: —
+          - generic [ref=f19e182]: 笔
+      - generic [ref=f19e28]:
+        - heading "📈 销售额趋势（近30天）" [level=3] [ref=f19e30]
+        - generic [ref=f19e32]:
+          - heading "🌍 各区域销售占比" [level=3] [ref=f19e33]
+          - generic [ref=f19e71]:
+            - button "华东" [ref=f19e72] [cursor=pointer]
+            - button "华北" [ref=f19e73] [cursor=pointer]
+            - button "华南" [ref=f19e74] [cursor=pointer]
+            - button "华中" [ref=f19e75] [cursor=pointer]
+            - button "西南" [ref=f19e76] [cursor=pointer]
+            - button "西北" [ref=f19e77] [cursor=pointer]
+            - button "东北" [ref=f19e78] [cursor=pointer]
+      - generic [ref=f19e35]:
+        - heading "🏪 门店销售额 Top 10" [level=3] [ref=f19e37]
+        - generic [ref=f19e39]:
+          - heading "📋 门店排名详情" [level=3] [ref=f19e40]
+          - table [ref=f19e189]:
+            - rowgroup [ref=f19e190]:
+              - row [ref=f19e191]:
+                - columnheader "排名" [ref=f19e192]
+                - columnheader "门店" [ref=f19e193]
+                - columnheader "销售额" [ref=f19e194]
+            - rowgroup [ref=f19e195]:
+              - row [ref=f19e196]:
+                - cell "1" [ref=f19e197]
+                - cell "合肥太古里店" [ref=f19e199]
+                - cell "¥6,552.4" [ref=f19e200]
+              - row [ref=f19e201]:
+                - cell "2" [ref=f19e202]
+                - cell "天津旗舰店" [ref=f19e204]
+                - cell "¥6,202.86" [ref=f19e205]
+              - row [ref=f19e206]:
+                - cell "3" [ref=f19e207]
+                - cell "郑州万达店" [ref=f19e209]
+                - cell "¥5,752.61" [ref=f19e210]
+              - row [ref=f19e211]:
+                - cell "4" [ref=f19e212]
+                - cell "佛山万象店" [ref=f19e214]
+                - cell "¥5,605.3" [ref=f19e215]
+              - row [ref=f19e216]:
+                - cell "5" [ref=f19e217]
+                - cell "昆明银泰分店" [ref=f19e219]
+                - cell "¥5,438.59" [ref=f19e220]
+              - row [ref=f19e221]:
+                - cell "6" [ref=f19e222]
+                - cell "北京旗舰分店" [ref=f19e224]
+                - cell "¥5,383.68" [ref=f19e225]
+              - row [ref=f19e226]:
+                - cell "7" [ref=f19e227]
+                - cell "太原万达分店" [ref=f19e229]
+                - cell "¥5,267.92" [ref=f19e230]
+              - row [ref=f19e231]:
+                - cell "8" [ref=f19e232]
+                - cell "厦门旗舰店" [ref=f19e234]
+                - cell "¥5,230.89" [ref=f19e235]
+              - row [ref=f19e236]:
+                - cell "9" [ref=f19e237]
+                - cell "宁波龙湖门店" [ref=f19e239]
+                - cell "¥4,975.88" [ref=f19e240]
+              - row [ref=f19e241]:
+                - cell "10" [ref=f19e242]
+                - cell "郑州旗舰店" [ref=f19e244]
+                - cell "¥4,975.3" [ref=f19e245]

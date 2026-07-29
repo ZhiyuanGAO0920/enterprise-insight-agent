@@ -29,8 +29,8 @@ services:
       - SERVER_PORT=8000
       - POSTGRES_USER=${POSTGRES_USER:?err}
       - POSTGRES_DB=${POSTGRES_DB:-enterprise_db}
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:?err}:${POSTGRES_PASSWORD:?err}@postgres-v4:5432/${POSTGRES_DB:-enterprise_db}
-      - DATABASE_URL_SYNC=postgresql+psycopg2://${POSTGRES_USER:?err}:${POSTGRES_PASSWORD:?err}@postgres-v4:5432/${POSTGRES_DB:-enterprise_db}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:?err}:@postgres-v4:5432/${POSTGRES_DB:-enterprise_db}
+      - DATABASE_URL_SYNC=postgresql+psycopg2://${POSTGRES_USER:?err}:@postgres-v4:5432/${POSTGRES_DB:-enterprise_db}
       - REDIS_URL=redis://redis-v4:6379/0
       - OLLAMA_BASE_URL=http://ollama-v4:11434
       - EMBEDDING_PROVIDER=ollama
@@ -43,6 +43,13 @@ services:
       - postgres_password
       - jwt_secret_key
       - deepseek_api_key
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export POSTGRES_PASSWORD="$$(cat /run/secrets/postgres_password)"
+        export JWT_SECRET_KEY="$$(cat /run/secrets/jwt_secret_key)"
+        export DEEPSEEK_API_KEY="$$(cat /run/secrets/deepseek_api_key)"
+        exec uvicorn app.api.main:app --host 0.0.0.0 --port $${SERVER_PORT:-8000}
     depends_on:
       postgres-v4:
         condition: service_healthy

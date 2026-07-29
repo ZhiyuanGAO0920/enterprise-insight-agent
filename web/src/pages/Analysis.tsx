@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Layout, Input, Button, Card, Space, Typography, Tag, Drawer } from 'antd';
-import { SendOutlined, LogoutOutlined, DashboardOutlined, SettingOutlined, HistoryOutlined } from '@ant-design/icons';
+import { Layout, Input, Button, Card, Space, Typography, Tag, Drawer, Tooltip } from 'antd';
+import { SendOutlined, LogoutOutlined, DashboardOutlined, SettingOutlined, HistoryOutlined, AuditOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSSE } from '../hooks/useSSE';
 import { useAppStore } from '../stores/appStore';
@@ -30,6 +31,7 @@ function safeHtml(text: string): string {
 }
 
 export default function AnalysisPage() {
+  const navigate = useNavigate();
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<{ role: string; content: string; charts?: any[] }[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -67,10 +69,21 @@ export default function AnalysisPage() {
           <Tag color="purple">{role}</Tag>
         </Space>
         <Space>
-          <Button type="text" icon={<HistoryOutlined />} onClick={() => setHistoryOpen(true)} />
-          <Button type="text" icon={<DashboardOutlined />} onClick={() => window.location.hash = '/dashboard'} />
-          <Button type="text" icon={<SettingOutlined />} onClick={() => window.location.hash = '/admin'} />
-          <Button type="text" icon={<LogoutOutlined />} onClick={logout} />
+          <Tooltip title="分析历史" mouseEnterDelay={0.5}>
+            <Button type="text" icon={<HistoryOutlined />} onClick={() => setHistoryOpen(true)} />
+          </Tooltip>
+          <Tooltip title="今日经营快报" mouseEnterDelay={0.5}>
+            <Button type="text" icon={<DashboardOutlined />} onClick={() => navigate('/dashboard')} />
+          </Tooltip>
+          <Tooltip title="AI 质量监控" mouseEnterDelay={0.5}>
+            <Button type="text" icon={<AuditOutlined />} onClick={() => navigate('/monitor')} />
+          </Tooltip>
+          <Tooltip title="系统管理" mouseEnterDelay={0.5}>
+            <Button type="text" icon={<SettingOutlined />} onClick={() => navigate('/admin')} />
+          </Tooltip>
+          <Tooltip title="退出登录">
+            <Button type="text" icon={<LogoutOutlined />} onClick={logout} />
+          </Tooltip>
           <Text style={{ color: '#94a3b8' }}>{username}</Text>
         </Space>
       </Header>

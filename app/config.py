@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # --- DeepSeek (LLM only) ---
     deepseek_api_key: str
-    deepseek_model_name: str = "DeepSeek-V4"  # 非思考模式，支持 tool_choice
+    deepseek_model_name: str = "deepseek-v4-pro"  # 可选：deepseek-v4-flash（思考模式，不支持 tool_choice）
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     llm_temperature: float = 0.0
     llm_max_tokens: int = 8192  # 必须大于推理 tokens；100 行表格需要约 5K tokens
@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     # --- Analysis limits ---
     max_sql_rows: int = 1000
     max_parallel_agents: int = 3
+
+    # --- Fallback LLM Provider（当 DeepSeek 不可用时自动切换） ---
+    fallback_api_key: str = ""
+    fallback_base_url: str = "https://api.xiaomimimo.com/v1"
+    fallback_model_name: str = "mimo-v2.5"
 
     # =========================================================================
     # V3 Feature Flags — 全部功能已通过测试验证，默认开启

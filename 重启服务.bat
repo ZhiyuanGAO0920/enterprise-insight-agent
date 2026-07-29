@@ -1,25 +1,26 @@
 @echo off
-chcp 65001 >nul 2>&1
-REM =============================================================================
-REM  Restart V4 dev server (Windows)
-REM  Only kills uvicorn processes of this project.
-REM  Production: docker compose -f docker-compose.prod.yml restart
-REM =============================================================================
 cd /d "%~dp0"
 
-echo Stopping V4 uvicorn processes...
-for /f "tokens=2" %%a in ('tasklist /fi "imagename eq python.exe" /fo list ^| findstr /c:"uvicorn" 2^>nul') do (
-    echo   Terminating PID %%a
-    taskkill /F /PID %%a >nul 2>&1
-)
+echo EIA V4 — Quick Start
+echo.
 
+REM Start Docker
+echo [1/3] Starting Docker...
+docker compose up -d redis-v4 postgres-v4 >nul 2>&1
+echo OK
+
+REM Kill old process
+echo [2/3] Stopping old server...
+powershell -NoProfile -Command "& {try{$p=Get-NetTCPConnection -LocalPort 8002 -State Listen -ErrorAction Stop; Stop-Process -Id $p.OwningProcess -Force}catch{}}"
 timeout /t 2 /nobreak >nul
+echo OK
 
-set PORT=8002
-:check
-netstat -ano | findstr ":%PORT% " >nul 2>&1
-if %errorlevel% equ 0 (set /a PORT+=1 & goto check)
+REM Start server and open browser
+echo [3/3] Starting server on http://localhost:8002
+set NO_PROXY=api.deepseek.com,localhost,127.0.0.1
+set http_proxy=
+set https_proxy=
 
-echo Starting V4 on http://localhost:%PORT%
-python -m uvicorn app.api.main:app --host 0.0.0.0 --port %PORT% --reload
+start http://localhost:8002
+python -m uvicorn app.api.main:app --host 0.0.0.0 --port 8002
 pause

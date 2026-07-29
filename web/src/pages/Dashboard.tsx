@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout, Card, Row, Col, Statistic, Typography, Button, Space } from 'antd';
 import { ArrowLeftOutlined, ShopOutlined, DollarOutlined, TeamOutlined, WarningOutlined } from '@ant-design/icons';
 import client from '../api/client';
@@ -6,6 +7,7 @@ import client from '../api/client';
 const { Title } = Typography;
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<any>({});
 
   useEffect(() => {
@@ -15,7 +17,7 @@ export default function DashboardPage() {
   return (
     <Layout style={{ minHeight: '100vh', background: '#1a1a2e', padding: 24 }}>
       <Space style={{ marginBottom: 24 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => window.location.hash = '/'}>返回分析</Button>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/analysis')}>返回分析</Button>
         <Title level={4} style={{ margin: 0, color: '#e0e0e0' }}>📊 今日经营快报</Title>
       </Space>
       <Row gutter={[16, 16]}>

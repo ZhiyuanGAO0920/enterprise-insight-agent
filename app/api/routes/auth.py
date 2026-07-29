@@ -15,8 +15,8 @@ router = APIRouter(prefix="/auth", tags=["用户认证"])
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(..., description="用户名", examples=["admin"])
-    password: str = Field(..., description="密码", examples=["admin123"])
+    username: str = Field(..., min_length=1, description="用户名", examples=["admin"])
+    password: str = Field(..., min_length=1, description="密码", examples=["admin123"])
 
 
 class LoginResponse(BaseModel):

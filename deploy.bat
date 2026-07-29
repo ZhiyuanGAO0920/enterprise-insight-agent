@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM =============================================================================
 REM deploy.bat — Enterprise Insight Agent V4 一键部署 (Windows)
 REM =============================================================================

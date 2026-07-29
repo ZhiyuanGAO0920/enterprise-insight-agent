@@ -145,11 +145,11 @@ LEFT JOIN orders o ON s.id = o.store_id GROUP BY s.store_name
 
 **验证**：修改 YAML → 调用 reload API → 新 Prompt 立即生效，无需重启。保留 Python fallback 确保 YAML 损坏时系统不崩溃。
 
-**教训**：AI 产品的 Prompt 是最频繁修改的"代码"。不能用对待数据库 Schema 的方式对待 Prompt——它需要秒级更新能力。
+**教训**：AI 产品的 Prompt 是最频繁修改的"代码"。不能用对待数据库 Schema（数据库表结构）的方式对待 Prompt——它需要秒级更新能力。
 
 ---
 
-## 迭代 8：V4 — 客户 Schema 动态适配 Prompt（2026-06-11）
+## 迭代 8：V4 — 客户 Schema 动态适配 Prompt（据客户数据库结构动态调整 Prompt，2026-06-11）
 
 **改动**：`PromptBuilder` 根据 `customer_schema.yaml` 动态生成每个 Agent 的 System Prompt，替换其中的表名、列名、SQL 模板为客户的物理名称。
 
@@ -157,8 +157,27 @@ LEFT JOIN orders o ON s.id = o.store_id GROUP BY s.store_name
 
 **验证**：修改 YAML 中的 `orders.physical_name: "t_sales_order"` → 所有 Agent Prompt 中自动替换为 `t_sales_order`。接入新客户从 2 小时 → 30 分钟。
 
-**教训**：Prompt 中硬编码业务 Schema 是 AI 产品最隐蔽的扩展瓶颈。表面看 Prompt 通用，实际上每个客户有一份独特的数据库字典。
+**教训**：Prompt 中硬编码业务 Schema（客户数据库表结构）是 AI 产品最隐蔽的扩展瓶颈。表面看 Prompt 通用，实际上每个客户有一份独特的数据库字典。
 
 ---
 
-*文档版本：v2.0 | 创建日期：2026-06-10 | 最后更新：2026-06-12 | 作者：高志远*
+---
+
+## 迭代 9：V4.4 — 追问指令从 Human prompt 末尾提为独立 SystemMessage + 规则兜底（2026-07-28）
+
+**背景**：追问按钮经常不展示，原因是 DeepSeek 模型忽略嵌在 Human prompt 末尾的 `[FOLLOWUP:]` 指令。
+
+**改动**：
+1. **指令位置调整**：追问指令从 Human prompt 末尾 `{followup_instruction}` 的一段文字 → 独立的 `SystemMessage`（在 Human 之前，模型更重视）
+2. **措辞强化**：从"建议输出"改为"**强制指令**你必须在报告末尾输出 3 个 JSON 格式的建议追问问题"
+3. **规则兜底**：LLM 仍不生成时，后端从报告中检测关键词（门店/区域/趋势/退款/会员/商品），自动生成对应的追问问题
+
+**原因**：DeepSeek 模型对 Human message 末尾的指令响应率低（约 30%），独立 SystemMessage 后提升到约 60%，仍有 40% 不生成。规则兜底确保 100% 展示。
+
+**验证**：`curl` 测试 5 次，追问按钮全部展示。规则生成的问题与报告内容相关（如门店排名报告生成"各区域的门店业绩对比如何？"）。
+
+**教训**：对"指令遵循率低"的模型，不能用纯 Prompt 方案依赖它乖乖执行——必须加代码层兜底。`SystemMessage` 比 HumanMessage 末尾的指令更有效，但仍不完美。
+
+---
+
+*文档版本：v2.1 | 创建日期：2026-06-10 | 最后更新：2026-07-28 | 作者：高志远*

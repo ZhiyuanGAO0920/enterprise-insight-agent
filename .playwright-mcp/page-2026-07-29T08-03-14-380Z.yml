@@ -1,0 +1,68 @@
+- generic [ref=f24e2]:
+  - complementary [ref=f24e3]:
+    - heading "智能经营分析" [level=1] [ref=f24e4]
+    - paragraph [ref=f24e6]: ● 就绪
+    - navigation [ref=f24e7]:
+      - button "📊 经营看板" [ref=f24e8] [cursor=pointer]
+      - button "💬 分析对话" [ref=f24e9] [cursor=pointer]
+      - button "📝 历史记录" [ref=f24e10] [cursor=pointer]
+      - button "📋 质量监控" [ref=f24e11] [cursor=pointer]
+      - button "⚙️ 系统管理" [ref=f24e37] [cursor=pointer]
+    - separator [ref=f24e12]
+    - button "＋ 新建会话" [ref=f24e13] [cursor=pointer]
+    - paragraph [ref=f24e14]: 会话 ID：未创建
+    - generic [ref=f24e15]: 大模型：DeepSeek
+  - generic [ref=f24e16]:
+    - generic [ref=f24e17]:
+      - heading "企业智能经营分析平台" [level=2] [ref=f24e18]
+      - generic [ref=f24e19]:
+        - generic [ref=f24e20]: v4.0
+        - button "a admin ▾" [ref=f24e22] [cursor=pointer]:
+          - generic [ref=f24e23]: a
+          - generic [ref=f24e24]: admin
+          - generic [ref=f24e25]: ▾
+    - generic [ref=f24e38]:
+      - generic [ref=f24e39]:
+        - generic [ref=f24e40]: 下午好
+        - generic [ref=f24e41]: admin
+        - generic [ref=f24e42]: 数据更新于 16:03
+      - generic [ref=f24e43]:
+        - generic [ref=f24e117]:
+          - generic [ref=f24e118]: 今日销售额
+          - generic [ref=f24e119]: ¥1.4万
+          - generic [ref=f24e120]: ↓ 69.7% vs 昨日
+        - generic [ref=f24e121]:
+          - generic [ref=f24e122]: 昨日销售额
+          - generic [ref=f24e123]: ¥4.5万
+          - generic [ref=f24e124]: 基线对比
+        - generic [ref=f24e125]:
+          - generic [ref=f24e126]: 退款率（近7天）
+          - generic [ref=f24e127]: 2.3%
+          - generic [ref=f24e128]: ✅ 正常
+        - generic [ref=f24e129]:
+          - generic [ref=f24e130]: 活跃门店
+          - generic [ref=f24e131]: "100"
+          - generic [ref=f24e132]: 近7天有订单
+        - generic [ref=f24e133]:
+          - generic [ref=f24e134]: 会员总数
+          - generic [ref=f24e135]: 5,000
+          - generic [ref=f24e136]: 累计注册
+        - generic [ref=f24e137]:
+          - generic [ref=f24e138]: 近24小时订单
+          - generic [ref=f24e139]: —
+          - generic [ref=f24e140]: 笔
+      - generic [ref=f24e68]:
+        - heading "📈 销售额趋势（近30天）" [level=3] [ref=f24e70]
+        - generic [ref=f24e74]:
+          - heading "🌍 各区域销售占比" [level=3] [ref=f24e75]
+          - generic [ref=f24e76]:
+            - button "华东" [ref=f24e77] [cursor=pointer]
+            - button "华北" [ref=f24e78] [cursor=pointer]
+            - button "华南" [ref=f24e79] [cursor=pointer]
+            - button "华中" [ref=f24e80] [cursor=pointer]
+            - button "西南" [ref=f24e81] [cursor=pointer]
+            - button "西北" [ref=f24e82] [cursor=pointer]
+            - button "东北" [ref=f24e83] [cursor=pointer]
+      - generic [ref=f24e87]:
+        - heading "🏪 门店销售额 Top 10" [level=3] [ref=f24e89]
+        - heading "🔄 门店退款率 Top 10" [level=3] [ref=f24e94]

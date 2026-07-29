@@ -61,7 +61,13 @@ async function doLogin(e){
     if(d.access_token){
       token=d.access_token;localStorage.setItem('eia_token',token);localStorage.setItem('eia_user',u);
       document.getElementById('loginOverlay').style.display='none';await restoreSession(u);checkAdmin();
-    }else toast('用户名或密码错误');
+    }else{
+      var errEl=document.getElementById('loginError');
+      if(errEl){
+        errEl.textContent=d.detail||'用户名或密码错误';
+        errEl.style.display='block';
+      }else toast('用户名或密码错误');
+    }
   }catch(e){toast('网络错误');}
   finally{btn.disabled=false;btn.textContent='登录';}
 }
@@ -174,10 +180,10 @@ async function loadDashboard(){
     if(_dashCharts.s)_dashCharts.s.dispose();
     _dashCharts.s=echarts.init(document.getElementById('dashStoreChart'));
     _dashCharts.s.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis'},
-      grid:{left:80,right:20,bottom:20,top:10},
+      grid:{left:110,right:20,bottom:20,top:10},
       xAxis:{type:'value',axisLabel:{color:'#94a3b8',fontSize:9,formatter:function(v){return v>=10000?(v/10000).toFixed(0)+'万':v}},splitLine:{lineStyle:{color:'rgba(51,65,85,0.5)'}}},
       yAxis:{type:'category',data:(d.top_stores||[]).slice().reverse(),axisLabel:{color:'#f1f5f9',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
-      series:[{type:'bar',data:(d.top_store_values||[]).slice().reverse(),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'rgba(99,102,241,0.6)'},{offset:1,color:th.color[0]}])},barMaxWidth:20}]});
+      series:[{type:'bar',data:(d.top_store_values||[]).slice().reverse(),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'rgba(99,102,241,0.6)'},{offset:1,color:th.color[0]}])},barMaxWidth:20,label:{show:true,position:'right',formatter:function(p){return formatAxisValue(p.value);},color:'#c7d2fe',fontSize:10}}]});
     var regs=(d.regions||[]).map(function(n,i){return{name:n,value:(d.region_values||[])[i]||0};}),regSel={};
     regs.forEach(function(r){regSel[r.name]=true;});
     var rc=document.getElementById('dashRegionChart');
@@ -199,13 +205,16 @@ async function loadDashboard(){
       rc.parentNode.insertBefore(fb,rc);
     }
     dr();
-    if(d.top_stores&&d.top_stores.length){
-      var rows='';
-      d.top_stores.forEach(function(n,i){
-        var rc2=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
-        rows+='<tr><td><span class="rank-num '+rc2+'">'+(i+1)+'</span></td><td>'+esc(n)+'</td><td>'+formatCurrency(d.top_store_values[i]||0)+'</td></tr>';
-      });
-      document.getElementById('dashStoreTable').innerHTML='<table class="dash-store-table"><thead><tr><th>排名</th><th>门店</th><th>销售额</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    // V4.5: 退款率 Top 10 图表
+    if(d.top_refund_stores&&d.top_refund_stores.length){
+      if(_dashCharts.rf)_dashCharts.rf.dispose();
+      _dashCharts.rf=echarts.init(document.getElementById('dashRefundChart'));
+      var rfData=(d.top_refund_stores||[]).map(function(n,i){return{name:n,value:d.top_refund_values[i]||0};}).sort(function(a,b){return a.value-b.value;});
+      _dashCharts.rf.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis',formatter:function(p){return p[0].name+'<br/>退款率: '+p[0].value+'%';}},
+        grid:{left:110,right:30,bottom:20,top:10},
+        xAxis:{type:'value',axisLabel:{color:'#94a3b8',fontSize:9,formatter:function(v){return v+'%';}},splitLine:{lineStyle:{color:'rgba(51,65,85,0.5)'}}},
+        yAxis:{type:'category',data:rfData.map(function(d){return d.name;}),axisLabel:{color:'#f1f5f9',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
+        series:[{type:'bar',data:rfData.map(function(d){return d.value;}),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'rgba(239,68,68,0.3)'},{offset:1,color:'#ef4444'}])},barMaxWidth:20,label:{show:true,position:'right',formatter:function(p){return p.value+'%';},color:'#fca5a5',fontSize:10,fontWeight:600}}]});
     }
   }catch(e){toast('看板加载失败');console.warn(e);}
 }
@@ -331,10 +340,13 @@ function _rM(ov,er){
   var ah='';(ov.agents||[]).forEach(function(a){var c=a.error_rate>5?'err':a.error_rate>2?'warn':'ok',bp=Math.min(a.error_rate*10,100);ah+='<tr><td><div class="mq-agent-cell"><span class="mq-agent-dot '+c+'"></span>'+esc(lm[a.agent]||a.agent)+'</div></td><td>'+a.total_runs+'</td><td>'+a.error_count+'</td><td><div class="mq-bar-wrap"><div class="mq-bar"><div class="mq-bar-fill '+c+'" style="width:'+bp+'%"></div></div><span class="mq-pct '+c+'">'+a.error_rate+'%</span></div></td><td>'+a.avg_ms+'</td><td>'+a.max_ms+'</td></tr>';});
   if(!ah)ah='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">暂无数据</td></tr>';
   var ei='';
-  if(er.errors&&er.errors.length)er.errors.forEach(function(e){
-    var icon=e.error&&e.error.match(/timeout|超时|time.?out/i)?'⏱️':e.error&&e.error.match(/SQL|sql|语法|column|table|relation/i)?'🗃️':'⚠️';
-    ei+='<div class="mq-error-item"><span class="mq-error-icon">'+icon+'</span><div class="mq-error-body"><span class="mq-error-time">'+((e.time||'').slice(5,16)||'')+'</span><span class="mq-error-agent-tag">'+esc(lm[e.agent]||e.agent)+'</span><span class="mq-error-msg">'+esc(e.error||'').substring(0,200)+'</span><span class="mq-error-dur">'+(e.elapsed_ms||0)+'ms</span></div></div>';
-  });else ei='<div class="mq-error-empty">✅ 无错误记录</div>';
+  if(er.errors&&er.errors.length){
+    ei='<div class="mq-error-header"><span class="mh-time">时间</span><span class="mh-agent">Agent</span><span class="mh-msg">错误信息</span><span class="mh-dur">耗时</span></div>';
+    er.errors.forEach(function(e){
+      var icon=e.error&&e.error.match(/timeout|超时|time.?out/i)?'⏱️':e.error&&e.error.match(/SQL|sql|语法|column|table|relation/i)?'🗃️':'⚠️';
+      ei+='<div class="mq-error-item"><span class="mq-error-icon">'+icon+'</span><div class="mq-error-body"><span class="mq-error-time">'+((e.time||'').slice(5,16)||'')+'</span><span class="mq-error-agent-tag">'+esc(lm[e.agent]||e.agent)+'</span><span class="mq-error-msg">'+esc(e.error||'').substring(0,200)+'</span><span class="mq-error-dur">'+(e.elapsed_ms||0)+'ms</span></div></div>';
+    });
+  }else ei='<div class="mq-error-empty">✅ 无错误记录</div>';
   var ch='';
   if(ov.token_trend&&ov.token_trend.length){
     var show=ov.token_trend.slice(-14),dates=[],inS=[],outS=[],costS=[],ti=0,to2=0,tc2=0;
@@ -452,7 +464,7 @@ async function viewHistoryDetail(id){
     if(d.report){
       var sup='',ds='',fq='',rh='',fb='',tb='';
       try{sup=buildSupervisorPlan(d.supervisor_plan);}catch(e){}
-      try{rh=marked.parse(convertTextTables(expandChartTags(d.report)));}catch(e){rh=esc(d.report);}
+      try{var _r2=d.report.replace(/\[FOLLOWUP[^\]]*\]\]/g,'');rh=marked.parse(convertTextTables(expandChartTags(_r2)));}catch(e){rh=esc(d.report);}
       try{ds=buildTracePanel(d.data_sources);}catch(e){}
       try{fq=buildFollowupButtons(d.followup_questions);}catch(e){}
       try{if(d.id)fb='<div class="feedback-bar"><span>这个回答对你有帮助吗？</span><button class="feedback-btn" onclick="showFeedback(&#39;helpful&#39;)">👍 有帮助</button><button class="feedback-btn" onclick="showFeedback(&#39;bad&#39;)">👎 没有帮助</button></div>';}catch(e){}
@@ -542,7 +554,7 @@ async function ask(e){
               var pm=document.getElementById('pM');
               if(pm&&pm.parentNode)pm.parentNode.insertBefore(sb,pm.nextSibling);else el.appendChild(sb);
               var fh;try{fh=marked.parse(convertTextTables(expandChartTags(ctr)));}catch(e){fh=esc(ctr);}
-              sd2.innerHTML=fh;
+              sd2.innerHTML=fh.replace(/\[FOLLOWUP[^\]]*\]\]/g,'');
               try{
                 var ext='';try{ext=buildSupervisorPlan(fsp);}catch(e){}
                 try{ext+=buildTracePanel(fds);}catch(e){}

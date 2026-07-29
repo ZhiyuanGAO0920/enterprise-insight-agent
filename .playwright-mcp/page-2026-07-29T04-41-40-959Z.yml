@@ -1,0 +1,35 @@
+- generic [ref=f5e2]:
+  - complementary [ref=f5e3]:
+    - heading "智能经营分析" [level=1] [ref=f5e4]
+    - paragraph [ref=f5e6]: ● 就绪
+    - navigation [ref=f5e7]:
+      - button "📊 经营看板" [ref=f5e8]
+      - button "💬 分析对话" [ref=f5e9]
+      - button "📋 质量监控" [ref=f5e10]
+    - separator [ref=f5e11]
+    - button "＋ 新建会话" [ref=f5e12] [cursor=pointer]
+    - paragraph [ref=f5e13]: 会话 ID：未创建
+    - separator [ref=f5e14]
+  - generic [ref=f5e15]:
+    - generic [ref=f5e16]:
+      - heading "企业智能经营分析平台" [level=2] [ref=f5e17]
+      - generic [ref=f5e18]:
+        - generic [ref=f5e19]: v4.0
+        - generic [ref=f5e20]:
+          - button "a admin ▾" [ref=f5e21]
+          - generic [ref=f5e22]:
+            - generic [ref=f5e23]:
+              - generic [ref=f5e24]: 管理员
+              - generic [ref=f5e25]: 全部门店
+            - generic [ref=f5e26]: 📝 我的反馈
+            - generic [ref=f5e27]: 🔄 切换账户
+            - generic [ref=f5e28]: 🚪 退出登录
+    - generic [ref=f5e30]:
+      - generic [ref=f5e31]: 🤖
+      - generic [ref=f5e32]: 有什么经营问题需要分析？
+      - generic [ref=f5e33]: 5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据
+      - paragraph [ref=f5e34]: 或直接输入问题：
+    - generic [ref=f5e36]:
+      - textbox "输入经营问题，例如：分析华东区最近一周的销售趋势..." [active] [ref=f5e37]
+      - button "🎤" [ref=f5e38] [cursor=pointer]
+      - button "提问" [ref=f5e39] [cursor=pointer]

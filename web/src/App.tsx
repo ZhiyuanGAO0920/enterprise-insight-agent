@@ -4,6 +4,7 @@ import LoginPage from './pages/Login';
 import AnalysisPage from './pages/Analysis';
 import DashboardPage from './pages/Dashboard';
 import AdminPage from './pages/Admin';
+import MonitorPage from './pages/Monitor';
 
 export default function App() {
   const { token } = useAuth();
@@ -14,10 +15,12 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<AnalysisPage />} />
+      <Route path="/monitor" element={<MonitorPage />} />
+      <Route path="/analysis" element={<AnalysisPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/admin" element={<AdminPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<Navigate to="/monitor" replace />} />
+      <Route path="*" element={<Navigate to="/monitor" replace />} />
     </Routes>
   );
 }

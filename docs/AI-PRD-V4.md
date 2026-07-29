@@ -45,7 +45,7 @@ V4 系统用自然语言对话的方式，让老板直接问"华东区域本周�
 - [x] 多租户数据隔离
 - [x] 全量 API 操作审计
 - [x] PDF 报告导出
-- [x] 客户数据库 Schema 自动发现 + 适配
+- [x] 客户数据库 Schema 自动发现 + 适配（客户数据库结构自动发现 + 映射适配）
 - [x] Docker 一键部署 + 离线支持
 
 **不包含范围（Out of Scope）**：
@@ -61,7 +61,7 @@ V4 系统用自然语言对话的方式，让老板直接问"华东区域本周�
 
 **AI能做**：
 - 理解自然语言经营问题，自动激活对应领域的分析 Agent
-- 根据客户数据库 Schema 自动生成 SQL 查询
+- 根据客户数据库 Schema（数据库表结构）自动生成 SQL 查询
 - 对多领域分析结果进行交叉验证和根因诊断
 - 根据数据特征自动推荐合适的图表类型
 - 生成结构化的中文经营报告，包含诊断结论和行动建议
@@ -82,7 +82,7 @@ V4 系统用自然语言对话的方式，让老板直接问"华东区域本周�
 
 | 项目 | 内容 |
 |-----|------|
-| **模型名称** | DeepSeek-Chat（非思考模式，支持 tool_choice） |
+| **模型名称** | DeepSeek-V4（非思考模式，支持 tool_choice） |
 | **调用方式** | API 调用（`https://api.deepseek.com/v1`），通过 langchain-openai 适配 |
 | **Temperature** | 路由决策/质检 0.0（确定性），报告生成 0.0（同） |
 | **Max Tokens** | 8192（输出 ≥ 推理 tokens，100 行表格约需 5K） |
@@ -107,7 +107,7 @@ V4 系统用自然语言对话的方式，让老板直接问"华东区域本周�
 
 **能力2：SQL 自动生成与执行（5 个领域 Agent）**
 
-- **输入**：用户问题 + 客户数据库 Schema（自动发现 + YAML 映射） + RAG 检索的历史 SQL
+- **输入**：用户问题 + 客户数据库 Schema（数据库表结构，自动发现 + YAML 映射） + RAG 检索的历史 SQL
 - **输出**：经过安全检查的 SQL 查询 → 执行 → 格式化结果 → 分析结论
 - **工具调用**：`run_sql`（执行查询）、`get_table_schema`（获取表结构）
 - **安全机制**：禁止模式拦截（DROP/DELETE）+ 风险模式拦截（CROSS JOIN/大 LIMIT）+ RLS 行级注入
@@ -176,7 +176,7 @@ V4 系统用自然语言对话的方式，让老板直接问"华东区域本周�
 - run_sql(query): 执行 SQL 查询
 - get_table_schema(table_name): 获取表结构
 
-## 数据库已知表（由 Schema 适配层动态注入）
+## 数据库已知表（由 Schema 适配层（数据库结构适配层）动态注入）
 ### orders 表
 | 字段 | 类型 | 说明 |
 | order_id | INT | 订单ID |
@@ -190,7 +190,7 @@ V4 系统用自然语言对话的方式，让老板直接问"华东区域本周�
 | store_name | VARCHAR | 门店名称 |
 | region | VARCHAR | 所属区域 |
 
-## 常用查询模板（表名/列名已根据客户 Schema 自动替换）
+## 常用查询模板（表名/列名已根据客户 Schema（客户数据库表结构）自动替换）
 1. 各区域销售:
 SELECT s.region, COUNT(o.order_id), SUM(o.amount)
 FROM store s LEFT JOIN orders o ON s.id=o.store_id
@@ -263,7 +263,7 @@ GROUP BY s.id, s.store_name ORDER BY SUM(o.amount) DESC
 | v1.0 | V1 | 基础 Prompt，单 Agent 线性 | SQL 准确率 ~70% |
 | v2.0 | V2 | 增加 Supervisor 路由 + 3 领域 Agent | 路由准确率 ~85% |
 | v3.0 | V3 | 增加 Chart Advisor + 追问建议 + RAG | SQL 准确率 ~85%，报告完整度提升 |
-| v4.0 | V4 | YAML 外部化 + 热重载 + 排名关键词注入 + 客户 Schema 动态适配 | SQL 截断问题修复，适配效率提升 |
+| v4.0 | V4 | YAML 外部化 + 热重载 + 排名关键词注入 + 客户 Schema 动态适配（据客户数据库结构动态调整） | SQL 截断问题修复，适配效率提升 |
 
 ### 2.4 工具调用定义
 
@@ -402,7 +402,7 @@ GROUP BY s.id, s.store_name ORDER BY SUM(o.amount) DESC
 | FR-011 | 多租户数据隔离 | P0 | tenant_id 注入 + 3 种隔离模式 |
 | FR-012 | API 操作审计 | P0 | 全量审计日志（用户/操作/IP/耗时），180 天保留 |
 | FR-013 | PDF 报告导出 | P1 | Markdown → A4 PDF（WeasyPrint） |
-| FR-014 | 客户 Schema 适配 | P0 | 3 层适配（自动发现 → YAML 映射 → Prompt 动态生成） |
+| FR-014 | 客户 Schema 适配（客户数据库结构映射适配） | P0 | 3 层适配（自动发现 → YAML 映射 → Prompt 动态生成） |
 | FR-015 | Docker 一键部署 | P0 | 含预打包 BGE-M3 模型 + 自动迁移 + 种子数据 |
 | FR-016 | 周报自动生成 | P1 | n8n 定时触发 + 报告存储 |
 | FR-017 | 异常检测与预警 | P1 | 可配置规则 + 阈值监控 |
@@ -505,6 +505,8 @@ GROUP BY s.id, s.store_name ORDER BY SUM(o.amount) DESC
 | 月成本（30 天） | ¥0.87 × 30 ≈ **¥26** |
 | 年成本 | ¥26 × 12 ≈ **¥312** |
 
+> **🆕 V4.1 更新**：成本估算已从固定 ¥0.04 改为真实 Token 消耗统计。`CostTracker` 使用 `ContextVar` 做 per-task 累计，每次分析完成写入 `analysis_history.llm_cost`。监控面板通过 `SUM(llm_cost)` 展示真实成本。
+
 **对比：如果用 GPT-4o**：
 
 | 指标 | DeepSeek | GPT-4o | Claude Sonnet |
@@ -526,6 +528,8 @@ GROUP BY s.id, s.store_name ORDER BY SUM(o.amount) DESC
 > 注：全部服务通过 Docker 容器运行在单台服务器上。最低配置 8GB RAM / 4 核 / 30GB 磁盘。
 
 ### 5.3 成本监控与告警
+
+> **🆕 V4.1**：新增 AI 质量监控面板（`GET /api/v1/monitor/overview`），实时展示 Reflection 通过率、Agent 错误率、P50/P95 延迟、真实 Token 成本。前端集成在第三 Tab「📋 质量监控」中。
 
 | 监控指标 | 阈值 | 告警方式 |
 |-----|-------|---------|
@@ -605,6 +609,8 @@ Satisfaction = (👍 次数) / (👍 + 👎 次数)
 | 每月 | 全量回归评估 | 确保无效果回退 |
 | 上线前 | 全量评估 + 边界测试 | 全部指标达标方可上线 |
 
+> **🆕 V4.1**：`run_eval.py` 评估结果自动同步到 `app/api/static/latest_eval_metrics.json`，监控面板第三 Tab 展示"离线评估通过率"。运行 `python tests/run_eval.py --port 8002` 后刷新即可在面板中看到最新评估结果。
+
 ### 6.4 上线标准（Go-Live Criteria）
 
 - [x] **效果指标达标**：SQL 准确率 ≥ 85%，Reflection 一次通过率 ≥ 85%
@@ -672,7 +678,7 @@ Satisfaction = (👍 次数) / (👍 + 👎 次数)
 | id | Integer | 主键 |
 | name | String(200) | 租户名称 |
 | slug | String(50) | 租户标识符 |
-| db_schema | String(50) | Schema-per-tenant 模式 |
+| db_schema | String(50) | Schema-per-tenant 模式（每租户独立数据库结构） |
 | db_url | String(500) | Database-per-tenant 模式 |
 | is_active | Boolean | 是否启用 |
 | max_users | Integer | 最大用户数 |
@@ -725,7 +731,7 @@ Satisfaction = (👍 次数) / (👍 + 👎 次数)
 | **V1** | MVP 验证 | 线性流水线，单轮 SQL 查询 + 一次 LLM 总结 |
 | **V2** | Multi-Agent 重构 | LangGraph 编排 + RBAC + pgvector + n8n + 39 测试 |
 | **V3.0** | 体验质变 | ECharts 图表 + 多轮对话 + 数据溯源 + 移动端 |
-| **V3.1** | 领域扩展 | 库存/供应链 Agent + Schema 适配层 + RAG + 137 测试 |
+| **V3.1** | 领域扩展 | 库存/供应链 Agent + Schema 适配层（数据库结构适配层） + RAG + 137 测试 |
 | **V4.0** ✅ | 企业就绪 | 多租户 + 审计日志 + PDF 导出 + React 前端 + 通知服务 + 结构化日志 + 一键部署 |
 | **V4.1** 🚧 | 通知集成 | 飞书/钉钉/企微 Webhook 接入（已计划，待实施） |
 | **V5.0** 🔮 | 智能化升级 | LLM Provider 抽象层 + 多模型降级 + 数据脱敏 + 评测自动化 + 新手引导 |
@@ -739,7 +745,7 @@ Satisfaction = (👍 次数) / (👍 + 👎 次数)
 | DeepSeek API 不可用 | 高：全部分析失败 | 低 | 🚧 LLM Provider 抽象层（多模型降级），V5 计划 |
 | SQL 生成准确率不达预期 | 中：用户信任度下降 | 中 | ✅ 自动重试 + RAG 增强 + 错误降级报告 |
 | 成本超预算（高频使用） | 中：影响 ROI | 低 | ✅ Redis 缓存 + V4 单次图执行 + 排名注入减少 SQL 行数 |
-| 客户数据库 Schema 差异大 | 高：无法开箱即用 | 高 | ✅ 3 层适配（自动发现 → YAML 映射 → Prompt 动态生成） |
+| 客户数据库 Schema（数据库表结构）差异大 | 高：无法开箱即用 | 高 | ✅ 3 层适配（自动发现 → YAML 映射 → Prompt 动态生成） |
 | 数据泄露/安全事故 | 高：法律风险 | 低 | ✅ 私有化部署 + SQL 注入防护 + XSS 防御 + 审计日志 |
 | 效果随时间衰减（Prompt 漂移） | 中 | 中 | 🚧 评测自动化（V5），当前依赖人工定期检查 |
 | 客户抵制 AI 分析（不信任） | 低 | 中 | ✅ 数据溯源面板（每结论可查原始 SQL）+ Reflection 质检 |
@@ -770,13 +776,13 @@ Satisfaction = (👍 次数) / (👍 + 👎 次数)
 | v1.0 | V1 | 初始 Prompt，单 Agent 线性 | SQL 准确率 ~70% |
 | v2.0 | V2 | 增加 Supervisor 路由 + 3 领域 Agent | 路由准确率 ~85% |
 | v3.0 | V3 | 增加 Chart Advisor + 追问建议 + RAG | SQL 准确率 ~85% |
-| v4.0 | V4 | YAML 外部化 + 热重载 + 排名关键词注入 + 客户 Schema 动态适配 | SQL 截断修复，适配效率提升 |
+| v4.0 | V4 | YAML 外部化 + 热重载 + 排名关键词注入 + 客户 Schema 动态适配（据客户数据库结构动态调整） | SQL 截断修复，适配效率提升 |
 
 ### 10.3 模型选型对比
 
 | 模型 | 中文理解 | 成本（输入/输出 ¥/MTok）| 支持 tool_choice | 选型结论 |
 |------|---------|----------------------|-----------------|---------|
-| DeepSeek-Chat | ⭐⭐⭐⭐⭐ | 1/2 | ✅ | ✅ 选用 — 最佳性价比 |
+| DeepSeek-V4 | ⭐⭐⭐⭐⭐ | 1/2 | ✅ | ✅ 选用 — 最佳性价比 |
 | GPT-4o | ⭐⭐⭐⭐ | 18/54 | ✅ | 备选 — 成本过高 |
 | Claude Sonnet | ⭐⭐⭐ | 22/79 | ✅ | 备选 — 中文弱 |
 | Qwen-Max | ⭐⭐⭐⭐ | 2.5/6 | ❌ | 备选 — 缺 tool_choice |

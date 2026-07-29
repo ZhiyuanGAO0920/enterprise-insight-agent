@@ -9,7 +9,9 @@ TODAY = datetime.now(CST).replace(hour=0, minute=0, second=0, microsecond=0, tzi
 
 
 async def enrich():
-    conn = await asyncpg.connect("postgresql://admin:admin123@localhost:15432/enterprise_db")
+    _db_url = os.environ.get("DATABASE_URL", "postgresql+asyncpg://admin:admin123@localhost:5434/enterprise_db")
+    _db_url = _db_url.replace("+asyncpg", "")  # asyncpg.connect 使用纯 postgresql://
+    conn = await asyncpg.connect(_db_url)
 
     # ---- 1. 扩展供应商 (8 -> 30) ----
     n = await conn.fetchval("SELECT COUNT(*) FROM supplier")

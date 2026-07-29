@@ -102,12 +102,11 @@ def setup_logging() -> None:
 
     if log_format == "json":
         # 生产环境：JSON 行输出
+        # structlog 的 JSONRenderer() 已包含所有结构化字段（trace_id/session_id/user_id 等）
+        # logging.Formatter 仅需输出 %(message)s 避免再次 JSON 嵌套
         handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(level)
-        formatter = logging.Formatter(
-            '{"timestamp":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}',
-            datefmt="%Y-%m-%dT%H:%M:%S",
-        )
+        formatter = logging.Formatter("%(message)s")
         handler.setFormatter(formatter)
         root.addHandler(handler)
     else:

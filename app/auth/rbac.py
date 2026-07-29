@@ -67,6 +67,10 @@ async def get_user_store_ids(user_id: int) -> list[str] | None:
     """
     from sqlalchemy import text
 
+    # 系统用户（ID=0）可访问全部门店，用于定时任务
+    if user_id == 0:
+        return None
+
     accesses = await get_user_store_access_raw(user_id)
     if not accesses:
         return []  # 无记录 = 无可访问门店（安全：默认拒绝）

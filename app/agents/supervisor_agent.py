@@ -9,8 +9,35 @@
 
 import json
 
+# ---------------------------------------------------------------------------
+# JSON 提取工具（括号计数法，支持嵌套 {}）
+# ---------------------------------------------------------------------------
+
+
+def _extract_json(text: str) -> dict | None:
+    """用括号计数从文本中提取最外层 JSON 对象，不受嵌套层级影响。"""
+    stack = []
+    start = -1
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if not stack:
+                start = i
+            stack.append(ch)
+        elif ch == "}":
+            if stack:
+                stack.pop()
+                if not stack and start >= 0:
+                    try:
+                        return json.loads(text[start : i + 1])
+                    except json.JSONDecodeError:
+                        return None
+    return None
+
+
+import re
+
 from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.config import get_stream_writer
+from app.tools.stream_utils import safe_get_stream_writer as get_stream_writer
 
 from app.llm import create_llm
 from app.logging_config import bind_context, get_logger
@@ -82,7 +109,7 @@ async def supervisor_agent_node(state: AnalysisState) -> dict:
     writer = get_stream_writer()
     writer({"type": "progress", "node": "supervisor", "message": "正在规划任务..."})
     try:
-        llm_with_schema = llm.bind_tools([SUPERVISOR_SCHEMA], tool_choice="supervisor_decision")
+        llm_with_schema = llm.bind_tools([SUPERVISOR_SCHEMA])
 
         # V3：如果有对话上下文则注入
         loader = get_prompt_loader()
@@ -102,12 +129,26 @@ async def supervisor_agent_node(state: AnalysisState) -> dict:
         if response.tool_calls:
             args = response.tool_calls[0]["args"]
         else:
-            # 兜底：LLM 未使用结构化输出
-            args = {
-                "activated_agents": ["sales", "crm", "finance", "inventory", "supply_chain"],
-                "reasoning": "Fallback (no structured output)",
-                "analysis_plan": "Activate all agents",
-            }
+            # 兜底：思考模型可能不调工具，尝试从文本提取 JSON
+            _text = (response.content or "")
+            # 用括号计数法提取 JSON（支持嵌套 {}，避免 [^}]* 遇到嵌套 } 断裂）
+            _parsed_json = _extract_json(_text)
+            if _parsed_json:
+                try:
+                    _parsed = _parsed_json
+                    args = {
+                        "activated_agents": _parsed.get("activated_agents", ["sales", "crm", "finance", "inventory", "supply_chain"]),
+                        "reasoning": _parsed.get("reasoning", "Extracted from text"),
+                        "analysis_plan": _parsed.get("analysis_plan", ""),
+                    }
+                except Exception:
+                    args = {"activated_agents": ["sales", "crm", "finance", "inventory", "supply_chain"], "reasoning": "Fallback (JSON parse error)", "analysis_plan": "Activate all agents"}
+            else:
+                args = {
+                    "activated_agents": ["sales", "crm", "finance", "inventory", "supply_chain"],
+                    "reasoning": "Fallback (no structured output)",
+                    "analysis_plan": "Activate all agents",
+                }
 
         # V4 流式进度：告知前端激活了哪些 Agent
         agent_names = {

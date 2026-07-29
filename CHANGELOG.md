@@ -1,5 +1,180 @@
 # CHANGELOG — V4 修复与优化记录
 
+## V4.5.0 (2026-07-29)
+
+### 🎨 前端架构重构
+
+| # | 文件 | 说明 |
+|---|------|------|
+| 1 | `app/api/static/views.js` + `utils.js` | 前端全面重构：Tab 导航从 Header 移入侧边栏，账户操作移至 Header 右上角下拉菜单 |
+| 2 | `app/api/static/index.html` | 侧边栏 5 导航（看板/对话/历史/监控/系统管理），Header 仅保留品牌+用户菜单 |
+| 3 | `app/api/static/style.css` | 新增侧边栏导航样式、用户下拉菜单样式、历史记录卡片样式 |
+| 4 | `app/api/static/style.css` | 颜色对比度修复：`--text-muted: #94a3b8` → `#b0c0d5` |
+
+### 🔴 P0 安全与稳定性
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 5 | `app/api/routes/dashboard.py` | SQL 参数化：全部 10+ 查询从字符串拼接改为绑定参数 `ANY(:store_ids)` |
+| 6 | `app/api/main.py` | 修复 catch-all 路由（`/api/{rest_of_path:path}`）与 v1_router 路由匹配冲突，改为中间件 |
+| 7 | `app/api/routes/analysis.py` | SSE 流式端点增加 420s 超时保护（`asyncio.timeout`），防 LLM 挂起导致连接泄漏 |
+
+### 🐛 功能修复
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 8 | `app/api/static/views.js` | 修复 `showEditUser` 保存按钮（`window[onSave]()` 传参错误导致回调不执行） |
+| 9 | `app/api/static/views.js` | 修复反馈历史弹窗关闭按钮（`ov.id` 未赋值导致 `cfh()` 找不到元素） |
+| 10 | `app/api/static/views.js` | 修复 ECharts `var(--semantic-error)` CSS 变量在 Canvas 渐变中不生效（改为 `#ef4444`） |
+| 11 | `app/api/static/views.js` | 修复 `[FOLLOWUP:]` 标记未从报告文本中剥离（缺少正则替换步骤） |
+| 12 | `app/api/static/style.css` | 看板页面添加 `overflow-y:auto`，修复门店 Top 10 被视口裁剪 |
+| 13 | `app/api/routes/dashboard.py` | 修复退款率 SQL：PostgreSQL `ROUND(double,1)` 不支持（改为 `CAST(... AS numeric(10,1))`） |
+
+### 📊 产品功能新增
+
+| # | 文件 | 说明 |
+|---|------|------|
+| 14 | `app/api/routes/feedback.py` + `views.js` | 反馈闭环：提交反馈后展示平台好评率，新增 `GET /feedback/history` 端点 |
+| 15 | `app/api/static/views.js` | Supervisor 推理过程展示面板：折叠展示激活的 Agent 和推理原因 |
+| 16 | `app/api/static/views.js` | 数据来源追溯面板恢复展示（原被 `traceHtml=''` 硬编码隐藏） |
+| 17 | `app/api/static/views.js` | KPI 数字递增动画（从 0 到目标值 easeOut） |
+| 18 | `app/api/static/views.js` | Dashboard 数据时效指示器（"数据更新于 HH:mm"） |
+| 19 | `app/api/static/views.js` | 首次使用引导 toast |
+| 20 | `app/api/routes/dashboard.py` + `views.js` | 退款率 Top 10 图表：替换冗余的门店排名表格 |
+| 21 | `app/api/static/style.css` | 质量监控错误列表新增表头 + 行列间距优化（`gap:8px`→`14px`） |
+| 22 | `app/api/static/views.js` | 流式报告工具栏补全（复制/打印/MD/PDF 按钮） |
+| 23 | `app/agents/report_agent.py` | 修复报告重试时追问指令被跳过（`not state.get("reflection_feedback")` 条件移除） |
+
+### 🧹 Prompt 优化
+
+| # | 文件 | 说明 |
+|---|------|------|
+| 24 | `prompts/report_prompt.py` | 新增对比表格结构规则：禁止行列展示同一维度，行=主体、列=指标 |
+
+### 📐 设计优化
+
+| # | 说明 |
+|---|------|
+| 25 | 侧边栏精简：移除底部账户操作、"大模型"信息，释放垂直空间 |
+| 26 | Dashboard 空状态增强：🤖 图标 + 功能描述文案 |
+| 27 | 历史记录页面重设计：卡片布局 + 搜索 + 分页 + 状态徽标 |
+| 28 | 图表标题统一标注时间范围（近30天/近7天） |
+| 29 | 图表左边界从 80px 扩至 110px，适配长门店名 |
+
+## V4.2.0 (2026-07-27)
+
+### 🆕 报告质量升级
+
+| # | 模块 | 说明 |
+|---|------|------|
+| 1 | `prompts/report_prompt.py` + `prompts/yaml/report.yaml` | 报告 Prompt 升级为"数据→洞察→根因→建议"四段式方法论，增加头部集中度分析、分布特征、异常标记、量化行动建议 |
+| 2 | `prompts/reflection_prompt.py` + `prompts/yaml/reflection.yaml` | Reflection 质检区分"数据查询型"与"综合分析型"报告标准，移除过严的"责任部门/预期执行时间"要求 |
+| 3 | `app/agents/report_agent.py` | 新增最终报告表格解析兜底：扫描 Markdown 表格自动注入 `[CHART:]` 图表标签，LLM 未生成图表时自动补充 |
+| 4 | `app/agents/chart_advisor_agent.py` | 新增 `_parse_tables_from_summary` 规则兜底函数，从聚合摘要中解析 Markdown 表格生成图表配置 |
+| 5 | `app/agents/reflection_agent.py` | `MAX_REPORT_CHARS` 10000→18000，适配更长报告；`MAX_SUMMARY_CHARS` 5000→8000 |
+| 6 | `app/api/routes/analysis.py` | AnalysisResponse 增加 `reflection_feedback` 字段，暴露质检反馈详情 |
+
+### 🔴 安全修复
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 7 | `app/api/static/views.js` | XSS 修复：`deleteUser()`/`impersonateUser()` onclick 中 `esc()`→`jsEscape()` |
+| 8 | 5 个领域 Agent | Prompt 注入防护：用户问题包裹在 `## 📋 用户问题\n\n{question}\n\n请按角色指令严格分析...` 模板中 |
+| 9 | `app/tools/question_enhancer.py` | 移除 `[系统指令]` 标记防越狱，改为自然语气附加说明 |
+
+### 🐛 功能 Bug 修复
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 10 | `app/api/static/style.css` | `#storeCheckboxes` 移除 `display:none`，管理员门店选择功能恢复正常 |
+| 11 | `app/api/static/views.js` | `showLogin()` 直接显示登录弹窗而非欢迎页 |
+| 12 | `app/api/static/index.html` | 测试账号密码提示逐用户标注（admin/admin123, zhangsan/123456, lisi/123456） |
+| 13 | `app/api/static/views.js` | 看板合并 `loadDashboardOverview` 到 `loadDashboard`，消除重复 API 请求 |
+| 14 | `app/api/static/views.js` | 切回分析标签页仅聊天区为空时显示 emptyState |
+| 15 | `app/api/static/index.html` | 移除不存在的 `regional_director` 角色筛选选项 |
+| 16 | `app/auth/rbac.py` | 系统用户 ID=0 返回 `None`（全部门店权限），修复周报定时任务无数据问题 |
+| 17 | `app/api/static/views.js` | 用户消息正确右对齐（`.msg.user{text-align:right}`） |
+
+### 🛠️ 稳定性与性能
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 18 | `app/database/redis.py` | 速率限制 TOCTOU 竞态修复：`zremrangebyscore+zcard+zadd` 改为 Redis Lua 脚本原子操作 |
+| 19 | `app/middleware/audit.py` | 审计日志写入改为 `asyncio.create_task` 后台异步执行，不阻塞请求响应 |
+| 20 | `app/apm/tracer.py` | APM tracer 全局变量改为 `contextvars.ContextVar`，消除并发竞态 |
+| 21 | `app/tools/memory.py` | `save_analysis_history` 3 个独立 DB 会话合并为 1 个，降低连接池压力 |
+| 22 | `app/tools/sql_runner.py` | RLS 表名检测和 LIMIT 替换改用 `sqlparse` AST 解析替代正则，正确跳过 CTE/子查询 |
+| 23 | `app/api/main.py` + `app/tools/embedding.py` | 添加 `shutdown` 事件：关闭 httpx 连接池，防止服务重启连接泄漏 |
+| 24 | `docker-compose.yml` / `.shared.yml` | 添加 `extra_hosts: host.docker.internal:host-gateway`，Linux 兼容 |
+| 25 | `docker-compose.yml` | n8n 添加 `depends_on: app`，消除启动竞态 |
+
+### 🧹 代码质量
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 26 | `app/agents/*.py`（9 个文件）| 统一 `logging.getLogger()` → `get_logger()`，Agent 日志注入 trace_id 全链路追踪 |
+| 27 | `app/tools/stream_utils.py` | 新增 `safe_get_stream_writer()` 包装函数，单元测试中 LangGraph 上下文外返回 noop 降级 |
+| 28 | `app/agents/supervisor_agent.py` | `__import__('re')`/`__import__('json')` 改为顶部正常 `import` |
+| 29 | `app/api/static/chat.js` + `auth.js` | 删除死代码文件（未被 index.html 加载，含与 views.js 冲突的旧版本实现） |
+| 30 | `docker-compose.yml` / `.shared.yml` | 移除已弃用 `version: '3.8'` 字段 |
+| 31 | `pyproject.toml` | LangGraph/LangChain/OpenAI 依赖收紧上限（`<0.3.0` / `<2.0.0`） |
+| 32 | `Dockerfile` | builder→production 阶段复用编译产物（`COPY --from=builder`），减少构建时间 |
+| 33 | `pyproject.toml` | 添加 `sqlparse>=0.5.0` 依赖 |
+
+### 🧪 测试
+
+| # | 说明 |
+|---|------|
+| 34 | `tests/test_sql_checker.py` 新增 11 个 RLS 表名检测和注入测试（含 CTE/子查询/空门店降级/ORDER BY 场景） |
+| 35 | `tests/conftest.py` 异步引擎清理 + TestClient 关闭，减少 Windows asyncpg 事件循环残留 |
+| 36 | `tests/test_v3_features.py` 修复 2 个 `get_stream_writer` LangGraph 上下文外调用崩溃 |
+
+### 🐳 部署
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 37 | `docker-compose.prod.yml` | Docker Secrets 机制修复：entrypoint 从 `/run/secrets/` 读取密钥并注入环境变量 |
+| 38 | `重启服务.bat` / `启动V4服务.bat` | `taskkill /F /IM python.exe` → `netstat` 定位 + `taskkill /F /PID` 精确杀端口 |
+| 39 | `deploy.bat` | 添加 `setlocal enabledelayedexpansion`，修复 `!ERRORLEVEL!` 健康检查条件 |
+| 40 | `scripts/enrich_demo_data.py` / `daily_demo_feed.py` / `seed_monitor_data.py` | 硬编码 `localhost:15432` → 从 `DATABASE_URL` 环境变量读取（默认 5434） |
+| 41 | `scripts/enable_wake.ps1` | 添加 try-catch 错误处理 |
+
+## V4.1.0 (2026-07-16)
+
+### 🆕 新功能
+
+| # | 模块 | 说明 |
+|---|------|------|
+| 1 | `app/api/static/` — 质量监控面板 | 第三 Tab「📋 质量监控」全屏展示 5 大核心指标（Reflection 通过率、P50 延迟、好评率、日均/月均成本、离线评估通过率）+ Agent 错误率排行 + 每日分析趋势图 + 错误详情列表 + 导航锚点 |
+| 2 | `app/llm.py` — 真实成本追踪 | CostTracker 改用 `ContextVar` 做 per-task 累计，分析完成后写入 `analysis_history.llm_cost`，监控面板展示真实 Token 消耗而非 ¥0.04 固定值 |
+| 3 | `tests/eval_set.json` — 评估测试集扩充 | 测试集从 20 条扩充至 102 条（50 lookup + 38 analysis + 14 edge），覆盖全部 5 个领域 Agent |
+| 4 | `app/api/routes/monitor.py` — 失败原因分布 | 新增 `reflection_issue_dist` 按 `consistency/logic/actionability/completeness` 四维度统计 Reflection 失败原因 |
+| 5 | `tests/run_eval.py` — 评估脚本增强 | 支持并发执行（`--parallel`）、基线对比（`--compare`）、自动同步结果到监控面板 |
+
+### 🔴 严重修复
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 1 | `app/api/routes/monitor.py` | SQL 注入加固：`_time_filter.col` 参数加入白名单 `_ALLOWED_TIME_COLS` |
+| 2 | `app/api/routes/monitor.py` | `:days::INTERVAL` 语法与 SQLAlchemy 参数解析冲突 → 改为 `(:d || ' days')::INTERVAL` |
+| 3 | `app/api/routes/monitor.py` | 列名不一致：`analysis_history` 用 `create_time`，`agent_trace_events` 用 `created_at` → 分表指定列名 |
+
+### 🟠 高优先级修复
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 4 | `app/api/static/app.js` | `dailyAvg` 变量使用在定义之前 → JS hoisting 导致 `undefined` |
+| 5 | `app/api/static/app.js` | 导航锚点用 `href="#id"` 无法滚动 `overflow-y:auto` 容器 → 改为 `scrollIntoView()` |
+| 6 | `app/api/routes/monitor.py` | `start_date` 字符串传给 asyncpg 报类型错误 → 改为 Python `date` 对象 |
+| 7 | `app/api/routes/monitor.py` | `_calc_period_days` 中多余 `col` 检查导致 NameError → 清理 |
+| 8 | `app/api/static/app.js` | `newSession()` 不切 Tab → 末尾加 `switchTab('chat')` |
+
+### 🟢 低优先级
+
+| # | 文件 | 说明 |
+|---|------|------|
+| 9 | `app/api/static/style.css` | Toast 提示从 `right:16px` 改为 `left:50%` 居中显示 |
+
 ## V4.0.0 (2026-06-11)
 
 ### 🔴 严重修复 (6)

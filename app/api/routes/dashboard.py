@@ -265,6 +265,17 @@ async def dashboard_overview(
     results["regions"] = region_names
     results["region_values"] = [round(float(v or 0), 2) for v in region_values]
 
+    # --- V4.5: 门店退款率 Top 10 ---
+    refund_names, refund_values = await _safe_rows(
+        f"SELECT s.store_name, CASE WHEN SUM(o.amount)>0 THEN CAST(SUM(o.refund_amount)*100.0/NULLIF(SUM(o.amount),0) AS numeric(10,1)) ELSE 0 END AS rate "
+        f"FROM orders o JOIN store s ON o.store_id=s.id "
+        f"WHERE o.create_time >= CURRENT_DATE - INTERVAL '30 days' {sf_store} "
+        f"GROUP BY s.store_name ORDER BY rate DESC LIMIT 10",
+        sp_store,
+    )
+    results["top_refund_stores"] = refund_names
+    results["top_refund_values"] = [float(v or 0) for v in refund_values]
+
     response = {"greeting": _greeting(), "username": username, **results, "cached_at": time.time()}
     await _set_cache(cache_key, response)
     return response

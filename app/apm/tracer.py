@@ -84,9 +84,9 @@ class AgentTracer:
                     await session.execute(
                         text("""
                             INSERT INTO agent_trace_events
-                                (session_id, node_name, question_hash, elapsed_ms, error)
+                                (session_id, node_name, question_hash, elapsed_ms, error, trace_id)
                             VALUES
-                                (:sid, :node, :qh, :ms, :err)
+                                (:sid, :node, :qh, :ms, :err, :tid)
                         """),
                         {
                             "sid": self.session_id,
@@ -94,6 +94,7 @@ class AgentTracer:
                             "qh": int(hashlib.md5(self.question.encode()).hexdigest()[:8], 16),
                             "ms": rec["elapsed_ms"],
                             "err": rec["error"],
+                            "tid": self.trace_id or None,
                         },
                     )
                 await session.commit()
@@ -107,18 +108,41 @@ class AgentTracer:
 
 
 # ---------------------------------------------------------------------------
-# 全局追踪器访问
+# 请求级追踪器访问（contextvars 避免并发竞态）
 # ---------------------------------------------------------------------------
 
-_tracer: Optional[AgentTracer] = None
+import contextvars
+
+_tracer_var: contextvars.ContextVar[Optional[AgentTracer]] = contextvars.ContextVar("apm_tracer", default=None)
 
 
 def set_tracer(tracer: AgentTracer) -> None:
-    """设置当前分析的追踪器（在每次分析开始时调用）。"""
-    global _tracer
-    _tracer = tracer
+    """设置当前分析的追踪器（每次分析开始时由分析路由调用）。"""
+    _tracer_var.set(tracer)
 
 
 def get_tracer() -> Optional[AgentTracer]:
-    """获取当前分析的追踪器。"""
-    return _tracer
+    """获取当前分析的追踪器（仅同一请求/任务内有效）。"""
+    return _tracer_var.get()
+
+
+def trace_node(node_name: str):
+    """装饰器：将 LangGraph 节点函数包裹 APM 追踪。
+
+    用法：
+        builder.add_node("sales", trace_node("sales_agent")(sales_agent_node))
+
+    通过 get_tracer() 在调用时动态获取当前分析的 tracer 实例。
+    ContextVar 在 Python 3.12 中会自动传播到 asyncio 子任务，
+    因此 LangGraph Send 的并行分支也能正确拿到 tracer。
+    """
+    def decorator(node_func):
+        async def wrapper(state):
+            tracer = get_tracer()
+            if tracer:
+                async with tracer.trace(node_name):
+                    return await node_func(state)
+            else:
+                return await node_func(state)
+        return wrapper
+    return decorator

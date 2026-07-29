@@ -1,0 +1,29 @@
+- generic [ref=f2e2]:
+  - complementary [ref=f2e3]:
+    - heading "智能经营分析" [level=1] [ref=f2e4]
+    - paragraph [ref=f2e6]: ● 就绪
+    - button "＋ 新建会话" [ref=f2e7] [cursor=pointer]
+    - paragraph [ref=f2e8]: 会话 ID：未创建
+    - generic [ref=f2e9]:
+      - button "🚪 退出登录" [ref=f2e10] [cursor=pointer]
+      - generic [ref=f2e11]:
+        - generic [ref=f2e12] [cursor=pointer]: 切换账户
+        - generic [ref=f2e13] [cursor=pointer]: 📝 我的反馈
+    - paragraph [ref=f2e15]: 大模型：DeepSeek
+    - separator [ref=f2e16]
+  - generic [ref=f2e17]:
+    - generic [ref=f2e18]:
+      - heading "企业智能经营分析平台" [level=2] [ref=f2e19]
+      - generic [ref=f2e20]:
+        - button "📊 经营看板" [ref=f2e21] [cursor=pointer]
+        - button "💬 分析对话" [ref=f2e22] [cursor=pointer]
+        - button "📋 质量监控" [ref=f2e23] [cursor=pointer]
+      - generic [ref=f2e24]: v4.0
+    - generic [ref=f2e25]:
+      - generic [ref=f2e26]: admin
+      - generic [ref=f2e28]:
+        - heading "📈 销售额趋势（近30天）" [level=3] [ref=f2e30]
+        - heading "🌍 各区域销售占比" [level=3] [ref=f2e33]
+      - generic [ref=f2e35]:
+        - heading "🏪 门店销售额 Top 10" [level=3] [ref=f2e37]
+        - heading "📋 门店排名详情" [level=3] [ref=f2e40]

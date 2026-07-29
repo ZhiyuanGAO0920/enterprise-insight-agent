@@ -13,8 +13,6 @@
 #   export POSTGRES_USER=admin POSTGRES_PASSWORD=yourpassword
 # =============================================================================
 
-version: '3.8'
-
 services:
   app:
     build:
@@ -29,6 +27,8 @@ services:
       - DATABASE_URL_SYNC=postgresql+psycopg2://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-dev_password}@host.docker.internal:5432/${POSTGRES_DB:-enterprise_db}
       - REDIS_URL=redis://host.docker.internal:6379/0
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env
     restart: unless-stopped

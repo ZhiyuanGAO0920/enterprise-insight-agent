@@ -61,15 +61,19 @@ async def generate_weekly_report(
     if not report:
         raise HTTPException(status_code=500, detail="报告生成失败，无输出内容")
 
-    record_id = await save_analysis_history(
-        question=question,
-        report=report,
-        user_id=system_uid,
-        sales_result=state.get("sales_result"),
-        crm_result=state.get("crm_result"),
-        finance_result=state.get("finance_result"),
-        reflection_passed=state.get("reflection_passed", False),
-    )
+    # 使用图谱自带的 save_memory_node 生成的 record_id（避免重复保存）
+    record_id = state.get("memory_record_id")
+    # 兜底：save_memory 失败时直接保存
+    if record_id is None:
+        record_id = await save_analysis_history(
+            question=question,
+            report=report,
+            user_id=system_uid,
+            sales_result=state.get("sales_result"),
+            crm_result=state.get("crm_result"),
+            finance_result=state.get("finance_result"),
+            reflection_passed=state.get("reflection_passed", False),
+        )
 
     now = datetime.now(timezone.utc)  # 保留 tzinfo，确保跨时区兼容
     week_start = now - timedelta(days=now.weekday())

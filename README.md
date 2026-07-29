@@ -11,10 +11,11 @@
 [![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL%2016%20%2B%20pgvector-blue.svg)](https://www.postgresql.org/)
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20TS-61dafb.svg)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Deploy-Docker%20One--Click-2496ed.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-115%20pass-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-111%20pass%20%7C%200%20fail-brightgreen.svg)](tests/)
+[![Prompt](https://img.shields.io/badge/Prompt-V4.2%20%22Data%E2%86%92Insight%E2%86%92Action%22-orange.svg)](prompts/yaml/report.yaml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-*多租户 · 审计日志 · React 前端 · PDF 导出 · 结构化日志 · 全链路追踪*
+*多租户 · 审计日志 · React 前端 · PDF 导出 · 结构化日志 · 全链路追踪 · AI 质量监控面板 · 规则兜底图表注入 🆕*
 
 </div>
 
@@ -53,6 +54,7 @@
 | **行业适配** | 通用数据平台 | 不懂零售术语 | **预置零售 SQL 模板 + 客户 Schema 自动适配** |
 | **数据安全** | 私有化部署 | 数据上传到云端 | **私有化 Docker 部署，数据不出企业** |
 | **成本** | 数万～数十万/年 | 按 Token 计费 | **LLM 成本 ¥0.03/次，年费 ~¥300** |
+| **质量监控** | ❌ 无 | ❌ 无 | **✅ AI 质量监控面板：Reflection 通过率 / Token 成本 / Agent 错误率 / 失败原因分布** |
 | **5 分钟部署** | 需专人实施 | 需开发集成 | ✅ **`./deploy.sh` 一键完成** |
 
 ---

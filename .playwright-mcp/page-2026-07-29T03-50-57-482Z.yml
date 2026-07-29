@@ -1,0 +1,98 @@
+- generic [ref=e45]:
+  - complementary [ref=e46]:
+    - heading "智能经营分析" [level=1] [ref=e47]
+    - paragraph [ref=e49]: ● 就绪
+    - button "＋ 新建会话" [ref=e50] [cursor=pointer]
+    - paragraph [ref=e51]: 会话 ID：未创建
+    - generic [ref=e52]:
+      - button "🚪 退出登录" [ref=e91] [cursor=pointer]
+      - generic [ref=e53]:
+        - generic [ref=e54] [cursor=pointer]: 切换账户
+        - generic [ref=e92] [cursor=pointer]: 📝 我的反馈
+    - button "⚙️ 系统管理" [ref=e93] [cursor=pointer]
+    - paragraph [ref=e56]: 大模型：DeepSeek
+    - separator [ref=e57]
+    - generic [ref=e94]:
+      - generic [ref=e95]:
+        - generic [ref=e96]: 最近提问
+        - generic [ref=e97] [cursor=pointer]: 清除
+      - generic [ref=e98] [cursor=pointer]:
+        - generic [ref=e99]: test
+        - generic [ref=e100]: 已收到您的测试消息，系统各Agent响应正常，数据处理能力就绪。👇 如需进一步分析，请提出具体问题，例如： - 销
+        - generic "不再显示" [ref=e101]: ✕
+        - generic "查看详情" [ref=e102]: 📋
+      - generic [ref=e103] [cursor=pointer]:
+        - generic [ref=e104]: 各门店销售额排名
+        - generic [ref=e105]: 各门店销售额排名 | 排名 | 门店名称 | 所属区域 | 订单数 | 销售额（元） | |:---:|:---|:-
+        - generic "不再显示" [ref=e106]: ✕
+        - generic "查看详情" [ref=e107]: 📋
+      - generic [ref=e108] [cursor=pointer]:
+        - generic [ref=e109]: stores rank
+        - generic [ref=e110]: 好的，收到您的指令和各Agent的分析结果。根据您的要求，我将直接为您呈现全部门店的销售额排名情况。 各门店销售额排
+        - generic "不再显示" [ref=e111]: ✕
+        - generic "查看详情" [ref=e112]: 📋
+      - generic [ref=e113] [cursor=pointer]:
+        - generic [ref=e114]: stores rank
+        - generic [ref=e115]: 全部门店销售额排名 | 排名 | 门店名称 | 所属区域 | 订单数 | 销售额 | |:---:|:---|:---
+        - generic "不再显示" [ref=e116]: ✕
+        - generic "查看详情" [ref=e117]: 📋
+      - generic [ref=e118] [cursor=pointer]:
+        - generic [ref=e119]: 各门店销售额排名
+        - generic [ref=e120]: 各门店销售额排名 | 排名 | 门店名称 | 区域 | 订单数 | 销售额（元） | |:---:|:---|:---
+        - generic "不再显示" [ref=e121]: ✕
+        - generic "查看详情" [ref=e122]: 📋
+      - generic [ref=e123] [cursor=pointer]:
+        - generic [ref=e124]: 各门店销售额排名
+        - generic [ref=e125]: 各门店销售额排名 | 排名 | 门店名称 | 区域 | 订单数 | 销售额（元） | |:---:|:---|:---
+        - generic "不再显示" [ref=e126]: ✕
+        - generic "查看详情" [ref=e127]: 📋
+      - generic [ref=e128] [cursor=pointer]:
+        - generic [ref=e129]: 各门店销售额排名
+        - generic [ref=e130]: 好的，遵照您的指示，以下是基于Agent分析结果的各门店销售额排名报告。 各门店销售额排名 | 排名 | 门店名称
+        - generic "不再显示" [ref=e131]: ✕
+        - generic "查看详情" [ref=e132]: 📋
+      - generic [ref=e133] [cursor=pointer]:
+        - generic [ref=e134]: stores rank
+        - generic [ref=e135]: 各门店销售额排名 | 排名 | 门店名称 | 所属区域 | 订单数 | 销售额(元) | |:---:|:---|:-
+        - generic "不再显示" [ref=e136]: ✕
+        - generic "查看详情" [ref=e137]: 📋
+      - generic [ref=e138] [cursor=pointer]:
+        - generic [ref=e139]: stores rank
+        - generic [ref=e140]: 各门店销售额排名 | 排名 | 门店名称 | 所属区域 | 订单数 | 销售额 | |:---:|:---------
+        - generic "不再显示" [ref=e141]: ✕
+        - generic "查看详情" [ref=e142]: 📋
+      - generic [ref=e143] [cursor=pointer]:
+        - generic [ref=e144]: store sales rank
+        - generic [ref=e145]: "各门店销售额排名 | 排名 | 门店名称 | 区域 | 订单数 | 销售额 | |:---:|:---|:---:|:"
+        - generic "不再显示" [ref=e146]: ✕
+        - generic "查看详情" [ref=e147]: 📋
+  - generic [ref=e58]:
+    - generic [ref=e59]:
+      - heading "企业智能经营分析平台" [level=2] [ref=e60]
+      - generic [ref=e148]:
+        - button "📊 经营看板" [ref=e149] [cursor=pointer]
+        - button "💬 分析对话" [active] [ref=e150] [cursor=pointer]
+        - button "📋 质量监控" [ref=e151] [cursor=pointer]
+      - generic [ref=e61]: v4.0
+    - generic [ref=e63]:
+      - generic [ref=e64]: 👋 欢迎
+      - generic [ref=e65]: 输入经营分析问题开始对话
+      - generic [ref=e266]:
+        - button "📋 整体经营分析报告" [ref=e267] [cursor=pointer]
+        - button "🌍 各区域经营对比" [ref=e268] [cursor=pointer]
+        - button "🚚 供应商准时交货率排名" [ref=e269] [cursor=pointer]
+        - button "📊 各门店销售额排名" [ref=e270] [cursor=pointer]
+        - button "🔄 退款率异常分析" [ref=e271] [cursor=pointer]
+        - button "👥 会员增长趋势" [ref=e272] [cursor=pointer]
+      - paragraph [ref=e66]: 或直接输入问题：
+    - generic [ref=e273]:
+      - button "📊 门店排名" [ref=e274] [cursor=pointer]
+      - button "📈 销售趋势" [ref=e275] [cursor=pointer]
+      - button "🔄 退款率" [ref=e276] [cursor=pointer]
+      - button "👥 会员分析" [ref=e277] [cursor=pointer]
+      - button "📋 整体分析" [ref=e278] [cursor=pointer]
+      - button "🌍 区域对比" [ref=e279] [cursor=pointer]
+    - generic [ref=e68]:
+      - textbox "输入经营问题，例如：分析华东区最近一周的销售趋势..." [ref=e69]
+      - button "🎤" [ref=e70] [cursor=pointer]
+      - button "提问" [ref=e71] [cursor=pointer]

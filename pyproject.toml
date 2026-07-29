@@ -4,10 +4,10 @@ version = "4.0.0"
 description = "Enterprise Multi-Agent Decision Intelligence Platform V4 — 10 agents, 5 business domains, multi-tenant, audit logging, PDF export, structured logging, React frontend"
 requires-python = ">=3.11"
 dependencies = [
-    "langgraph>=0.2.0",
-    "langchain-openai>=0.2.0",
-    "langchain-community>=0.3.0",
-    "openai>=1.55.0",
+    "langgraph>=0.2.0,<0.3.0",
+    "langchain-openai>=0.2.0,<0.3.0",
+    "langchain-community>=0.3.0,<0.4.0",
+    "openai>=1.55.0,<2.0.0",
     "fastapi[standard]>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "sqlalchemy[asyncio]>=2.0.36",
@@ -22,6 +22,7 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "pyyaml>=6.0",
+    "sqlparse>=0.5.0",
     "structlog>=24.0.0",
 ]
 
@@ -48,6 +49,8 @@ target-version = "py311"
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore::DeprecationWarning",
+    "ignore:coroutine 'Connection._cancel' was never awaited:RuntimeWarning",
+    "ignore:coroutine '.*_cancel' was never awaited:RuntimeWarning",
 ]
 markers = [
     "db: tests that require a running PostgreSQL database",

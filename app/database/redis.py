@@ -70,6 +70,35 @@ async def is_token_blacklisted(jti: str) -> bool:
 
 RATE_LIMIT_PREFIX = "rl:"  # 键格式：rl:{user_id}:{endpoint}
 
+# Lua 脚本：原子化滑动窗口速率限制
+_RATE_LIMIT_SCRIPT = """
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local window_seconds = tonumber(ARGV[2])
+local max_requests = tonumber(ARGV[3])
+local window_start = now - window_seconds
+
+redis.call('ZREMRANGEBYSCORE', key, 0, window_start)
+local count = redis.call('ZCARD', key)
+
+if count >= max_requests then
+    return {0, 0}
+end
+
+redis.call('ZADD', key, now, now)
+redis.call('EXPIRE', key, window_seconds + 10)
+return {1, max_requests - count - 1}
+"""
+_RATE_LIMIT_SCRIPT_SHA: Optional[str] = None
+
+
+async def _get_rate_limit_sha(r) -> str:
+    """获取或缓存速率限制 Lua 脚本的 SHA。"""
+    global _RATE_LIMIT_SCRIPT_SHA
+    if _RATE_LIMIT_SCRIPT_SHA is None:
+        _RATE_LIMIT_SCRIPT_SHA = await r.script_load(_RATE_LIMIT_SCRIPT)
+    return _RATE_LIMIT_SCRIPT_SHA
+
 
 async def check_rate_limit(
     user_id: int,
@@ -77,7 +106,7 @@ async def check_rate_limit(
     max_requests: int = 30,
     window_seconds: int = 60,
 ) -> tuple[bool, int]:
-    """滑动窗口速率限制器。
+    """滑动窗口速率限制器（原子操作，使用 Redis Lua 脚本）。
 
     使用有序集合跟踪每个用户每个端点的请求时间戳。
 
@@ -93,19 +122,10 @@ async def check_rate_limit(
     r = get_redis()
     key = f"{RATE_LIMIT_PREFIX}{user_id}:{endpoint}"
     now = time.time()
-    window_start = now - window_seconds
-
-    # 移除过期的记录
-    await r.zremrangebyscore(key, 0, window_start)
-
-    # 统计窗口内当前的请求数
-    count = await r.zcard(key)
-
-    if count >= max_requests:
-        return False, 0
-
-    # 添加当前请求
-    await r.zadd(key, {str(now): now})
-    await r.expire(key, window_seconds + 10)
-
-    return True, max_requests - count - 1
+    try:
+        sha = await _get_rate_limit_sha(r)
+        allowed, remaining = await r.evalsha(sha, 1, key, now, window_seconds, max_requests)
+        return bool(allowed), int(remaining)
+    except Exception:
+        # 降级：Lua 脚本执行失败时放行（避免 Redis 问题阻塞业务）
+        return True, max_requests

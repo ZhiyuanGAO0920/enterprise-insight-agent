@@ -15,6 +15,7 @@ class AnalysisState(TypedDict):
 
     # ==== 输入 ====
     question: str
+    original_question: Optional[str]       # V4.2: 原始用户问题（不含 ranking hint 注入），用于展示
     user_id: Optional[int]
     store_ids: Optional[list[str]]  # None=无限制, []=无门店, [...] = 允许的门店
     trace_id: Optional[str]         # V4: 全链路追踪 ID

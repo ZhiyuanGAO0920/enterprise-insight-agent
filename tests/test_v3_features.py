@@ -12,6 +12,7 @@
 """
 
 import asyncio
+import json
 import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -56,7 +57,7 @@ def test_chart_advisor_prompt_not_empty():
 
 
 def test_chart_marker_building():
-    """Verify chart markers are built in pipe-delimited format (for LLM readability)."""
+    """Verify chart markers are built in URL-encoded JSON format (for frontend consumption)."""
     from app.agents.report_agent import build_chart_markers
 
     charts = [
@@ -68,10 +69,14 @@ def test_chart_marker_building():
             "height": 400,
         }
     ]
+    import urllib.parse
     markers = build_chart_markers(charts)
     assert "[CHART:bar|" in markers
-    assert "各门店销售额排名" in markers
-    assert "门店A" in markers
+    # URL-encoded JSON: verify it can be decoded back
+    encoded_part = markers.split("|", 1)[1].rstrip("]")
+    decoded = json.loads(urllib.parse.unquote(encoded_part))
+    assert decoded["title"] == "各门店销售额排名"
+    assert decoded["x_data"] == ["门店A", "门店B", "门店C"]
 
     # Empty charts = no markers
     assert build_chart_markers([]) == ""
@@ -101,6 +106,12 @@ def test_chart_marker_encoding():
     # No markers = unchanged
     plain = "纯文本报告"
     assert encode_chart_markers(plain) == plain
+
+    # URL-encoded markers pass through unchanged (new format)
+    import urllib.parse
+    safe = {"type":"bar","title":"各门店销售额排名","x_data":["A","B"],"series":[{"name":"销售额","data":[100,200]}],"height":400}
+    encoded_marker = f'[CHART:bar|{urllib.parse.quote(json.dumps(safe, ensure_ascii=False), safe="")}]'
+    assert encode_chart_markers(encoded_marker) == encoded_marker
 
 
 def test_chart_instructions_for_llm():
@@ -403,7 +414,7 @@ def test_fastapi_includes_v3_routers():
     """FastAPI app should include V3 routes under /api/v1 prefix."""
     from app.api.main import app
 
-    routes = [r.path for r in app.routes]
+    routes = [r.path for r in app.routes if hasattr(r, "path")]
     assert "/api/v1/session/create" in routes
     assert "/api/v1/session/{session_id}" in routes
     assert "/api/v1/feedback/submit" in routes

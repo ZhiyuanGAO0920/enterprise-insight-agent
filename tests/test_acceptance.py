@@ -235,7 +235,7 @@ def test_fastapi_app_creates():
     from app.api.main import app
 
     assert "企业智能经营分析平台" in app.title
-    routes = [r.path for r in app.routes]
+    routes = [r.path for r in app.routes if hasattr(r, "path")]
     assert "/health" in routes
     assert "/api/v1/analysis/analyze" in routes
     assert "/api/v1/auth/login" in routes

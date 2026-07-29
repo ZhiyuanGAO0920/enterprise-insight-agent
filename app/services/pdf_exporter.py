@@ -14,7 +14,7 @@ logger = get_logger("eia.services.pdf")
 try:
     from weasyprint import HTML as WeasyHTML
     _WEASYPRINT_AVAILABLE = True
-except ImportError:
+except Exception:
     _WEASYPRINT_AVAILABLE = False
 
 # 报告模板路径

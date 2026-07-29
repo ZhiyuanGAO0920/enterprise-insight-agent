@@ -1,15 +1,10 @@
 """Phase 4: 多轮对话会话端到端测试。"""
 import pytest
 
-_tc = None
-
 def _c():
-    global _tc
-    if _tc is None:
-        from fastapi.testclient import TestClient
-        from app.api.main import app
-        _tc = TestClient(app)
-    return _tc
+    from fastapi.testclient import TestClient
+    from app.api.main import app
+    return TestClient(app)
 
 def _auth():
     r = _c().post("/api/auth/login", json={"username": "admin", "password": "admin123"})

@@ -1,0 +1,41 @@
+- generic [ref=f13e1]:
+  - generic [ref=f13e2]:
+    - generic [ref=f13e6]:
+      - generic [ref=f13e7]: AI 经营分析平台
+      - generic [ref=f13e8]: Enterprise Insight Agent
+      - generic [ref=f13e9]: V4.0 正式发布
+      - generic [ref=f13e10]:
+        - generic [ref=f13e11]:
+          - generic [ref=f13e12]: "10"
+          - generic [ref=f13e13]: AI AGENT
+        - generic [ref=f13e14]:
+          - generic [ref=f13e15]: "5"
+          - generic [ref=f13e16]: 业务域
+        - generic [ref=f13e17]:
+          - generic [ref=f13e18]: SQL
+          - generic [ref=f13e19]: 全链路追溯
+        - generic [ref=f13e20]:
+          - generic [ref=f13e21]: 60s
+          - generic [ref=f13e22]: 生成报告
+      - button "进入系统" [ref=f13e23] [cursor=pointer]
+    - generic [ref=f13e24]: 原生 HTML/CSS/JS + ECharts 5 · FASTAPI · LANGGRAPH
+  - generic [ref=f13e25]:
+    - complementary [ref=f13e26]:
+      - heading "智能经营分析" [level=1] [ref=f13e27]
+      - paragraph [ref=f13e29]: ● 就绪
+      - separator [ref=f13e30]
+      - button "＋ 新建会话" [ref=f13e31] [cursor=pointer]
+      - paragraph [ref=f13e32]: 会话 ID：未创建
+    - generic [ref=f13e33]:
+      - generic [ref=f13e34]:
+        - heading "企业智能经营分析平台" [level=2] [ref=f13e35]
+        - generic [ref=f13e36]: v4.0
+      - generic [ref=f13e39]:
+        - generic [ref=f13e40]: 🤖
+        - generic [ref=f13e41]: 有什么经营问题需要分析？
+        - generic [ref=f13e42]: 5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据
+        - paragraph [ref=f13e43]: 或直接输入问题：
+      - generic [ref=f13e45]:
+        - textbox "输入经营问题，例如：分析华东区最近一周的销售趋势..." [active] [ref=f13e46]
+        - button "🎤" [ref=f13e47] [cursor=pointer]
+        - button "提问" [ref=f13e48] [cursor=pointer]

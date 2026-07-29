@@ -8,8 +8,8 @@ import pytest
 
 pytestmark = pytest.mark.e2e
 
-os.environ["DATABASE_URL"] = "postgresql+asyncpg://admin:admin123@localhost:5432/enterprise_db"
-os.environ["DATABASE_URL_SYNC"] = "postgresql+psycopg2://admin:admin123@localhost:5432/enterprise_db"
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://admin:admin123@localhost:15432/enterprise_db"
+os.environ["DATABASE_URL_SYNC"] = "postgresql+psycopg2://admin:admin123@localhost:15432/enterprise_db"
 from app.config import get_settings
 get_settings.cache_clear()
 

@@ -1,13 +1,9 @@
 """Phase 5: 错误恢复测试。"""
 
-_tc = None
 def _c():
-    global _tc
-    if _tc is None:
-        from fastapi.testclient import TestClient
-        from app.api.main import app
-        _tc = TestClient(app)
-    return _tc
+    from fastapi.testclient import TestClient
+    from app.api.main import app
+    return TestClient(app)
 
 
 class TestFriendlyErrorMessages:

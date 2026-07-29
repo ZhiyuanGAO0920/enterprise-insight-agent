@@ -1,0 +1,26 @@
+[
+  {
+    "file": "app/llm.py",
+    "line": 115,
+    "summary": "Each create_llm() call creates new httpx.Client and httpx.AsyncClient that are never explicitly closed — a connection/resource leak. Previously a single shared_httpx_client was reused across all agents.",
+    "failure_scenario": "9 module-level LLM instances (one per agent) each own separate HTTPX connection pools that are never shut down. On graceful server shutdown, open connections may cause warnings or hang. If create_llm() is ever called dynamically in a request handler (e.g., per-analysis), connections accumulate unboundedly, eventually exhausting file descriptors and causing 'Too many open files' failures."
+  },
+  {
+    "file": "app/agents/supervisor_agent.py",
+    "line": 85,
+    "summary": "tool_choice='supervisor_decision' removed from bind_tools(). Without tool_choice, the LLM may respond with plain text instead of calling the supervisor_decision tool.",
+    "failure_scenario": "When the LLM returns text instead of a tool call, the fallback on line 106 activates ALL 5 agents unconditionally. This multiplies LLM cost by up to 5x and increases latency, defeating the purpose of selective routing. With temperature=0.0, non-tool-call responses may be rare but the cost of each occurrence is high."
+  },
+  {
+    "file": "app/agents/reflection_agent.py",
+    "line": 127,
+    "summary": "tool_choice='reflection_result' removed from bind_tools(). Fallback on line 158 treats any non-tool-call response as 'passed' with no issues.",
+    "failure_scenario": "When the LLM returns plain text instead of calling the reflection_result tool, the 4-dimensional quality check (consistency, logic, actionability, completeness) is silently bypassed — the report is marked as 'passed' regardless of actual quality. Defective reports reach users undetected. This is a silent degradation of the quality guarantee that reflection_agent is designed to enforce."
+  },
+  {
+    "file": "app/agents/reflection_agent.py",
+    "line": 28,
+    "summary": "Module docstring (line 9) and inline comment (line 28, 104) claim '使用 tool_choice 强制结构化 JSON 输出', but tool_choice is no longer passed to bind_tools().",
+    "failure_scenario": "Future maintainers reading the docstring and comments will not realize the quality guarantee is silently degraded. When investigating quality regressions, they may not look at the bind_tools() call because the comments suggest tool_choice is active."
+  }
+]

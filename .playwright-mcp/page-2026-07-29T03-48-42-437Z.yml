@@ -1,0 +1,40 @@
+- generic [ref=e1]:
+  - generic [ref=e45]:
+    - complementary [ref=e46]:
+      - heading "智能经营分析" [level=1] [ref=e47]
+      - paragraph [ref=e49]: ● 就绪
+      - button "＋ 新建会话" [ref=e50] [cursor=pointer]
+      - paragraph [ref=e51]: 会话 ID：未创建
+      - generic [ref=e52]: 切换账户
+      - paragraph [ref=e56]: 大模型：DeepSeek
+      - separator [ref=e57]
+    - generic [ref=e58]:
+      - generic [ref=e59]:
+        - heading "企业智能经营分析平台" [level=2] [ref=e60]
+        - generic [ref=e61]: v4.0
+      - generic [ref=e63]:
+        - generic [ref=e64]: 👋 欢迎
+        - generic [ref=e65]: 输入经营分析问题开始对话
+        - paragraph [ref=e66]: 或直接输入问题：
+      - generic [ref=e68]:
+        - textbox "输入经营问题，例如：分析华东区最近一周的销售趋势..." [ref=e69]
+        - button "🎤" [ref=e70] [cursor=pointer]
+        - button "提问" [ref=e71] [cursor=pointer]
+  - generic [ref=e73]:
+    - generic [ref=e74]:
+      - generic [ref=e75]: 📊
+      - heading "企业智能经营分析平台" [level=2] [ref=e76]
+      - paragraph [ref=e77]: v4.0 · 登录后开始分析
+    - generic [ref=e78]:
+      - generic [ref=e79]:
+        - generic [ref=e80]: 用户名
+        - textbox "请输入用户名" [ref=e81]
+      - generic [ref=e82]:
+        - generic [ref=e83]: 密码
+        - generic [ref=e84]:
+          - textbox "请输入密码" [ref=e85]
+          - button "👁" [ref=e86] [cursor=pointer]
+      - button "登 录" [ref=e87] [cursor=pointer]
+    - separator [ref=e88]
+    - generic [ref=e89]: 测试账户： admin · zhangsan · lisi
+    - generic [ref=e90]: admin / admin123 · zhangsan / 123456 · lisi / 123456

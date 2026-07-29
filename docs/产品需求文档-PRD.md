@@ -20,7 +20,7 @@
 |------|------|------|----------|
 | v1.0.0 | 2025-01 | 高志远 | MVP 验证，线性流水线 |
 | v2.0.0 | 2026-06 | 高志远 | Multi-Agent 重构：LangGraph 编排、RBAC、pgvector、n8n |
-| v3.0.0 | 2026-06 | 高志远 | 体验质变：ECharts 可视化、多轮对话、数据溯源、移动端适配、用户反馈闭环、库存/供应链 Agent、客户 Schema 适配层、离线评估体系、AI 质量仪表板 |
+| v3.0.0 | 2026-06 | 高志远 | 体验质变：ECharts 可视化、多轮对话、数据溯源、移动端适配、用户反馈闭环、库存/供应链 Agent、客户 Schema 适配层（客户数据库结构适配层）、离线评估体系、AI 质量仪表板 |
 | v4.0.0 | 2026-06 | 高志远 | 企业就绪：多租户、审计日志、PDF 导出、React 前端、结构化日志、通知服务、安全加固、图执行优化、60 项质量修复 |
 
 ---
@@ -64,7 +64,7 @@
 | 代码质量 | — | **60 项修复（见 CHANGELOG）** |
 | 测试 | 137 条 | **137 条（115 passed + 22 DB/API 跳过）** |
 | 数据库表 | 23 | **25（+ tenants, + audit_log）** |
-| API | 26 | **31（+ 模拟登录 / 审计查询 / Schema 管理）** |
+| API | 26 | **31（+ 模拟登录 / 审计查询 / Schema 管理（数据库结构管理））** |
 
 ### 1.3 关键指标
 
@@ -98,7 +98,7 @@
 │ Reflection 质检│ 数据溯源面板  │ SQL 白名单     │ Bad Case 复盘                │
 │ RAG SQL 增强  │ 追问建议按钮  │ JWT + 黑名单   │ 成本追踪                     │
 │ Chart Advisor │ 移动端适配    │ 会话所有权鉴权  │ 反馈闭环                     │
-│ 客户 Schema 适配│ Dashboard 快报│ 🆕 审计日志    │ APM 性能追踪                │
+│ 客户 Schema 适配（客户数据库结构映射适配）│ Dashboard 快报│ 🆕 审计日志    │ APM 性能追踪                │
 │ 🆕 PDF 导出   │ 🆕 企微/钉钉通知│ 🆕 多租户隔离  │ 🆕 structlog 结构化日志     │
 ├──────────────┼──────────────┼──────────────┼──────────────────────────────┤
 │   自动化       │   前端管理     │   工程基础     │      部署运维                │
@@ -266,7 +266,7 @@ Layer 1: SQL 安全（白名单审查 + 字符串剥离反绕过 + 行数上限�
 | | `GET /api/v1/admin/stores` | 门店列表 | — |
 | | `POST /api/v1/admin/impersonate/{id}` 🆕 | 模拟其他用户登录 | V4 新增 |
 | | `GET /api/v1/admin/audit-logs` 🆕 | 审计日志查询 | V4 新增 |
-| | `GET /api/v1/admin/schema/discover` | Schema 自动发现 | — |
+| | `GET /api/v1/admin/schema/discover` | Schema 自动发现（自动扫描客户数据库结构） | — |
 | | `POST /api/v1/admin/schema/preview-yaml` | 预览 YAML 映射 | — |
 | | `GET /api/v1/admin/schema/test-connection` | 测试 DB 连接 | — |
 | **监控** | `GET /api/v1/monitor/overview` | AI 质量仪表板 | — |
@@ -297,7 +297,7 @@ Layer 1: SQL 安全（白名单审查 + 字符串剥离反绕过 + 行数上限�
 | 语音输入 | ✅ | ✅ |
 | Dashboard 快报 | ✅ | ✅ |
 | 会话管理 | ✅ | ✅ |
-| 系统管理面板 | ✅ 用户 CRUD | ✅ 用户 CRUD + 🆕 模拟登录 + 🆕 Schema 配置 |
+| 系统管理面板 | ✅ 用户 CRUD | ✅ 用户 CRUD + 🆕 模拟登录 + 🆕 Schema 配置（数据库映射配置） |
 | 管理员按钮权限控制 | ❌ | ✅ 仅 admin 可见 |
 | XSS 防御 | ❌ | ✅ HTML 转义 + jsEscape |
 | 重入保护 | ❌ | ✅ _isAnalyzing 互斥锁 |
@@ -336,10 +336,10 @@ Layer 1: SQL 安全（白名单审查 + 字符串剥离反绕过 + 行数上限�
 
 ## 9. 适配与扩展
 
-### 9.1 客户 Schema 适配层
+### 9.1 客户 Schema 适配层（客户数据库结构适配层）
 
 ```
-第一层：Schema 自动发现 → 读取客户数据库所有表和列
+第一层：Schema 自动发现（自动扫描客户数据库表结构）→ 读取客户数据库所有表和列
 第二层：语义映射配置 → customer_schema.yaml 建立逻辑概念→物理表/列映射
 第三层：Prompt 动态生成 → 根据映射自动替换 Agent Prompt 中的表名/列名/SQL 模板
 ```
@@ -367,7 +367,7 @@ Layer 1: SQL 安全（白名单审查 + 字符串剥离反绕过 + 行数上限�
 | V1 | 线性流水线验证（Planner → SQL Generator → Analyzer → Reflection） |
 | V2 | Multi-Agent + LangGraph + RBAC + pgvector + n8n + 39 测试 |
 | V3.0 | ECharts + 多轮对话 + 数据溯源 + 移动端 + 反馈 + Feature Flag + 137 测试 |
-| V3.1 | 库存/供应链 Agent + 客户 Schema 适配层 + RAG 增强 + 离线评估 + AI 仪表板 + RBAC 五级 + 管理面板 |
+| V3.1 | 库存/供应链 Agent + 客户 Schema 适配层（客户数据库结构适配层） + RAG 增强 + 离线评估 + AI 仪表板 + RBAC 五级 + 管理面板 |
 | V4.0 | 多租户 + 审计日志 + PDF 导出 + React 前端 + 通知服务 + 结构化日志 + 安全加固 + 一键部署 + 60 项质量修复 |
 
 ### 后续规划

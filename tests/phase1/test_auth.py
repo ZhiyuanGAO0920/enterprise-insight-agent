@@ -1,15 +1,10 @@
 """Phase 1: 认证与基础设施端到端测试。"""
 import pytest
 
-_tc = None
-
 def _c():
-    global _tc
-    if _tc is None:
-        from fastapi.testclient import TestClient
-        from app.api.main import app
-        _tc = TestClient(app)
-    return _tc
+    from fastapi.testclient import TestClient
+    from app.api.main import app
+    return TestClient(app)
 
 
 class TestHealthChecks:
@@ -25,7 +20,6 @@ class TestHealthChecks:
 
 
 pytestmark = pytest.mark.db
-
 
 class TestAuth:
     def test_login_success(self):

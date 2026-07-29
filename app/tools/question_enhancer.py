@@ -22,10 +22,8 @@ _RANKING_KEYWORDS = [
 
 # 注入的系统指令
 _RANKING_HINT = (
-    "\n\n[系统指令] 这是一个排名/列表查询，请确保在最终报告中列出查询返回的"
-    "**全部数据行**，不允许只显示前10条或任意截断。如果 SQL 返回 100 行就列出"
-    "100 行，返回 50 行就列出 50 行。严禁使用『前10名』『Top 10』等只显示"
-    "部分数据的表述。"
+    "\n\n（注：这是一个排名/列表查询，请在报告中列出查询返回的"
+    "全部数据行。如果 SQL 返回 100 行就列出 100 行，返回 50 行就列出 50 行。）"
 )
 
 
@@ -42,8 +40,6 @@ def inject_ranking_hint(question: str) -> str:
     Returns:
         增强后的问题（可能包含系统指令），或原问题（如果不匹配）。
     """
-    question_lower = question.lower()
-
     # 检查中文关键词
     if any(kw in question for kw in _RANKING_KEYWORDS):
         return question + _RANKING_HINT
