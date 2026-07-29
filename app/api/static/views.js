@@ -90,6 +90,9 @@ async function restoreSession(username){
       if(_me){
         document.getElementById('dropdownRole').textContent=_me.role==='admin'?'管理员':_me.role==='regional_manager'?'区域经理':'店长';
         document.getElementById('dropdownScope').textContent=_me.scope_type==='all'?'全部门店':_me.region||_me.store_ids?(_me.store_ids||[]).length+'家门店':'—';
+        // V4.5: 质量监控仅管理员可见
+        var mn=document.getElementById('monitorNavBtn');
+        if(mn)mn.style.display=_me.role==='admin'?'':'none';
       }
     }
   }catch(e){}
@@ -112,6 +115,7 @@ async function logout(){
   document.getElementById('sidebarNav').style.display='none';
   document.getElementById('userMenu').style.display='none';
   document.getElementById('adminNavBtn').style.display='none';
+  document.getElementById('monitorNavBtn').style.display='none';
   document.getElementById('userMenuDropdown').classList.remove('show');
   showLogin();
 }
@@ -484,6 +488,7 @@ async function viewHistoryDetail(id){
 function getQuickQuestions(u){var m={admin:'admin',zhangsan:'regional_manager',lisi:'store_manager'};return QUICK_QUESTIONS[m[u]||'default']||QUICK_QUESTIONS.default;}
 function renderQuickGrid(){var g=document.getElementById('quickGrid');if(!g)return;var q=getQuickQuestions(localStorage.getItem('eia_user'));g.innerHTML=q.map(function(q){return '<button class="quick-btn" onclick="quickAsk(\''+jsEscape(q.text)+'\')">'+q.icon+' '+esc(q.text)+'</button>';}).join('');}
 function quickAsk(q){document.getElementById('question').value=q;document.getElementById('btn').click();}
+function askFollowup(q){document.getElementById('question').value=q;document.getElementById('btn').click();}
 
 /* Voice */
 function initVoice(){
