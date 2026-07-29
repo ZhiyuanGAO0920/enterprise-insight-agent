@@ -283,7 +283,7 @@ async function doAddUser(){
   var u=document.getElementById('nU').value.trim(),p=document.getElementById('nP').value,r=document.getElementById('nR').value;
   if(!u||!p){toast('用户名和密码不能为空');return;}
   var b={username:u,password:p,role:r};
-  if(r==='store_manager'){var ids=Array.from(document.querySelectorAll('.cb:checked')).map(function(c){return parseInt(c.value);});if(ids.length)b.store_ids=ids;}
+  if(r==='store_manager'){var ids=Array.from(document.querySelectorAll('.cb:checked')).map(function(c){return c.value;});if(ids.length)b.store_ids=ids;}
   if(r==='regional_manager'){var rg=document.getElementById('nRg');if(rg)b.region=rg.value;}
   try{
     var res=await fetch(BASE+'/admin/users',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(b)});
@@ -293,13 +293,43 @@ async function doAddUser(){
 function showEditUser(uid){
   var u=_allUsers.find(function(x){return x.id===uid;});if(!u)return;
   window._editUid=uid;
-  var h='<div class="admin-form"><label>用户名 <strong>'+esc(u.username)+'</strong></label><label>角色<select id="eR"><option value="store_manager"'+(u.role==='store_manager'?' selected':'')+'>店长</option><option value="regional_manager"'+(u.role==='regional_manager'?' selected':'')+'>区域经理</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>管理员</option></select></label><label>状态<select id="eA"><option value="1"'+(u.is_active!==false?' selected':'')+'>启用</option><option value="0"'+(u.is_active===false?' selected':'')+'>禁用</option></select></label></div>';
+  var st=u.scope_type||'店';
+  var h='<div class="admin-form"><label>用户名 <strong>'+esc(u.username)+'</strong></label>'+
+    '<label>角色<select id="eR" onchange="es()"><option value="store_manager"'+(u.role==='store_manager'?' selected':'')+'>店长</option><option value="regional_manager"'+(u.role==='regional_manager'?' selected':'')+'>区域经理</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>管理员</option></select></label>'+
+    '<label>状态<select id="eA"><option value="1"'+(u.is_active!==false?' selected':'')+'>启用</option><option value="0"'+(u.is_active===false?' selected':'')+'>禁用</option></select></label>'+
+    '<div id="eScope"><label>数据范围<select id="eSct" onchange="es()"><option value="all"'+(st==='all'?' selected':'')+'>全部门店</option><option value="region"'+(st==='region'?' selected':'')+'>按区域</option><option value="store"'+(st==='store'?' selected':'')+'>按门店</option></select></label>'+
+    '<div id="eReg"'+(st!=='region'?' style="display:none"':'')+'><label>区域<select id="eRg">'+(_allRegions||[]).sort().map(function(r){return '<option value="'+esc(r)+'"'+(u.region===r?' selected':'')+'>'+esc(r)+'</option>';}).join('')+'</select></label></div>'+
+    '<div id="eStr"'+(st!=='store'?' style="display:none"':'')+'><label>门店</label><div style="max-height:200px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px">'+(_allStores||[]).map(function(s){return '<label style="display:block;padding:3px 4px;font-size:12px;cursor:pointer"><input type="checkbox" value="'+s.id+'" class="ecb"'+(u.store_idsu.store_ids&&u.store_ids.indexOf(s.id)>=0u.store_ids&&u.store_ids.indexOf(s.id)>=0u.store_ids.indexOf(String(s.id))>=0?' checked':'')+'> '+esc(s.name||'门店'+s.id)+'</label>';}).join('')+'</div></div></div></div>';
   om('编辑用户 - '+u.username,h,'doEditUser');
+  es();
+}
+function es(){
+  var role=document.getElementById('eR').value;
+  var scopeSec=document.getElementById('eScope');
+  if(!scopeSec)return;
+  scopeSec.style.display=role==='admin'?'none':'block';
+  if(role==='admin')return;
+  var sct=document.getElementById('eSct').value;
+  var reg=document.getElementById('eReg');
+  var str=document.getElementById('eStr');
+  if(reg)reg.style.display=sct==='region'?'block':'none';
+  if(str)str.style.display=sct==='store'?'block':'none';
 }
 async function doEditUser(uid){
   uid=uid||window._editUid;if(!uid)return;
+  var role=document.getElementById('eR').value;
+  var body={role:role,is_active:document.getElementById('eA').value==='1'};
+  if(role!=='admin'){
+    var sct=document.getElementById('eSct').value;
+    body.scope_type=sct;
+    if(sct==='region')body.region=document.getElementById('eRg').value;
+    else if(sct==='store'){
+      var ids=Array.from(document.querySelectorAll('.ecb:checked')).map(function(c){return c.value;});
+      if(ids.length)body.store_ids=ids;
+    }
+  }
   try{
-    var r=await fetch(BASE+'/admin/users/'+uid,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({role:document.getElementById('eR').value,is_active:document.getElementById('eA').value==='1'})});
+    var r=await fetch(BASE+'/admin/users/'+uid,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(r.ok){closeUserEditModal();await loadAdminData();}else{var e=await r.json();toast(e.detail||'保存失败');}
   }catch(e){toast('网络错误');}
 }
