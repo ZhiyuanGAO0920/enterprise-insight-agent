@@ -88,7 +88,15 @@ async function restoreSession(username){
     }
   }catch(e){}
   document.getElementById('dashUser').textContent=u;_lastUser=u;
-  try{renderQuickGrid();switchTab('dashboard');loadSessionInfo();}catch(e){console.warn(e);}
+  try{renderQuickGrid();switchTab('dashboard');loadSessionInfo();
+    // V4.5: 首次使用引导
+    if(!localStorage.getItem('eia_first_visit')){
+      localStorage.setItem('eia_first_visit','1');
+      setTimeout(function(){
+        toast('💡 尝试输入“各门店销售额排名”或点击快捷按钮开始分析');
+      },1500);
+    }
+  }catch(e){console.warn(e);}
 }
 
 async function logout(){
@@ -124,6 +132,18 @@ async function loadDashboard(){
     var d=await r.json();
     document.getElementById('dashGreeting').textContent=d.greeting||'';
     document.getElementById('dashUser').textContent=localStorage.getItem('eia_user')||'';
+    // V4.5: 数据时效指示器
+    var fi=document.getElementById('dashFreshness');
+    if(d.cached_at){
+      var t=new Date(d.cached_at*1000);
+      var ts=t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
+      if(fi)fi.textContent='数据更新于 '+ts;
+      else{
+        var el=document.createElement('span');el.id='dashFreshness';el.style.cssText='font-size:11px;color:var(--muted);margin-left:8px';
+        el.textContent='数据更新于 '+ts;
+        document.getElementById('dashUser').parentNode.appendChild(el);
+      }
+    }
     var tS=d.today_sales||0,yS=d.yesterday_sales||0;
     var sc=yS>0?((tS-yS)/yS*100).toFixed(1):0,up=sc>=0;
     document.getElementById('dashKpis').innerHTML=
@@ -134,9 +154,14 @@ async function loadDashboard(){
       '<div class="dash-kpi"><div class="kpi-label">会员总数</div><div class="kpi-val" id="kM">—</div><div class="kpi-sub" style="color:var(--muted)">累计注册</div></div>'+
       '<div class="dash-kpi"><div class="kpi-label">近24小时订单</div><div class="kpi-val" id="kO">—</div><div class="kpi-sub" style="color:var(--muted)">笔</div></div>';
     setTimeout(function(){
-      var s=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
-      s('kT',formatCurrency(tS));s('kY',formatCurrency(yS));s('kR',formatPercent(d.week_refund_rate));
-      s('kA',d.active_stores);s('kM',d.total_members.toLocaleString());s('kO',d.recent_orders_24h||'—');
+      var ka=function(id,t){var e=document.getElementById(id);if(!e)return;var st=null;
+        (function fn(ts){if(!st)st=ts;var p=Math.min((ts-st)/350,1),v=Math.round(t*p);
+        if(typeof t==='number'&&t>=10000)e.textContent='¥'+(v/10000).toFixed(1)+(v>=10000?'万':'');
+        else if(typeof t==='number')e.textContent='¥'+v.toLocaleString();else e.textContent=v;
+        if(p<1)requestAnimationFrame(fn);})(performance.now());};
+      var kp=function(id,v){var e=document.getElementById(id);if(e)e.textContent=formatPercent(v);};
+      var kd=function(id,v){var e=document.getElementById(id);if(e)e.textContent=(v||'—');};
+      ka('kT',tS);ka('kY',yS);kp('kR',d.week_refund_rate);kd('kA',d.active_stores);kd('kM',d.total_members.toLocaleString());kd('kO',d.recent_orders_24h);
     },100);
     var th=echartsTheme();
     if(_dashCharts.t)_dashCharts.t.dispose();

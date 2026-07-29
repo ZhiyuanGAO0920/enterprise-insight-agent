@@ -8,12 +8,12 @@ V3 新增：
 """
 
 import json
-import logging
+from app.logging_config import get_logger
 import time
 import urllib.parse
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.config import get_stream_writer
+from app.tools.stream_utils import safe_get_stream_writer as get_stream_writer
 
 from app.config import get_settings
 from app.llm import create_llm
@@ -21,31 +21,43 @@ from app.tools.prompt_loader import get_prompt_loader
 from app.workflow.state import AnalysisState
 from prompts.report_prompt import REPORT_HUMAN_TEMPLATE, REPORT_SYSTEM_PROMPT
 
-logger = logging.getLogger("eia.agent.report")
+logger = get_logger("eia.agent.report")
 
 llm = create_llm()
 
 
 def build_chart_markers(charts: list[dict]) -> str:
-    """将图表建议转换为 [CHART:...] 标记（LLM 可读格式）。"""
+    """将图表建议转换为 [CHART:type|url_encoded_json] 标记（LLM 可直接复制的最终格式）。"""
     if not charts:
         return ""
     markers = []
     for c in charts:
-        # 将 | 替换为 ‖ 防止破坏管道分隔的参数格式
-        title = c.get('title', '').replace('|', '‖')
-        params = f"title={title}|x_data={json.dumps(c.get('x_data',[]),ensure_ascii=False)}|series={json.dumps(c.get('series',[]),ensure_ascii=False)}|height={c.get('height',400)}"
-        markers.append(f"[CHART:{c.get('type','bar')}|{params}]")
+        safe = {k: c[k] for k in ("type", "title", "x_data", "series", "height", "note") if k in c}
+        encoded = urllib.parse.quote(json.dumps(safe, ensure_ascii=False), safe="")
+        markers.append(f"[CHART:{safe.get('type','bar')}|{encoded}]")
     return "\n".join(markers)
+
+
+def _find_chart_end(text: str, pos: int) -> int:
+    """从 [CHART: 的 [ 位置开始，括号计数找到匹配的 ]（支持嵌套 []）。"""
+    depth = 0
+    for i in range(pos, len(text)):
+        if text[i] == "[":
+            depth += 1
+        elif text[i] == "]":
+            depth -= 1
+            if depth == 0:
+                return i
+    return -1
 
 
 def encode_chart_markers(report: str) -> str:
     """后处理报告：将 [CHART:...] 标记转换为 URL 编码的 JSON 格式。
 
-    LLM 在其指令中收到的是可读的管道分隔标记，
-    但前端需要 URL 编码的 JSON 以避免 ]/| 字符破坏正则匹配。
-    此函数在 LLM 生成后进行转换。
-    使用 |height= 作为标记末尾的可靠锚点。
+    build_chart_markers 现在直接输出 URL 编码的 JSON（LLM 直接复制，保持原样）。
+    此函数保持向后兼容：检测到已经是 URL 编码的标记则透传，
+    遇到旧的管道分隔格式（或 LLM 修改过的标记）则转换。
+    使用括号计数法（而非找第一个 ]）来正确处理 JSON 中的嵌套 []。
     """
     result = []
     i = 0
@@ -55,32 +67,32 @@ def encode_chart_markers(report: str) -> str:
             result.append(report[i:])
             break
         result.append(report[i:pos])
-        # 通过 |height=NNN] 模式定位标记末尾
-        height_pos = report.find("|height=", pos + 7)
-        if height_pos == -1 or height_pos > pos + 2000:
-            # 兜底：|height= 未找到，尝试直接找 ] 作为标记结束
-            end = report.find("]", pos + 7)
-            if end == -1 or end > pos + 3000:
-                result.append(report[pos:])
-                break
-        else:
-            end = report.find("]", height_pos)
-            if end == -1:
-                result.append(report[pos:])
-                break
-        raw_marker = report[pos:end + 1]
-        # 解析 [CHART:type|params]（鲁棒处理 LLM 畸形输出）
-        bar = raw_marker.find("|")
-        if bar == -1:
-            # LLM 输出格式异常，跳过这个标记
-            result.append(report[i:end + 1])
+        # 用括号计数找到匹配的 ]（支持嵌套 JSON 中的 []）
+        end = _find_chart_end(report, pos)
+        if end == -1 or end > pos + 5000:
+            result.append(report[pos:])
+            break
+        # 定位 | 分隔符（[CHART:type|...]）
+        bar = report.find("|", pos + 7)
+        if bar == -1 or bar > pos + 100:
+            # 没有 |，不是合法标记，保留原样
+            result.append(report[pos:end + 1])
             i = end + 1
             continue
-        chart_type = raw_marker[7:bar]  # 7 = len("[CHART:")
-        params_str = raw_marker[bar + 1:-1]  # -1 = 去掉末尾的 ]
-        # 解析管道分隔的参数
+        chart_type = report[pos + 7:bar]
+        params_raw = report[bar + 1:end]
+        # 检测是否已经是 URL 编码的 JSON（以 %7B 或 { 开头）→ 直接透传
+        if params_raw.startswith("%7B") or params_raw.startswith("{"):
+            try:
+                json.loads(urllib.parse.unquote(params_raw))
+                result.append(report[pos:end + 1])
+                i = end + 1
+                continue
+            except Exception:
+                pass  # 不是合法 JSON，按旧格式解析
+        # 旧格式管道分隔解析（兼容 LLM 手工修改的情况）
         config = {"type": chart_type}
-        for pair in params_str.split("|"):
+        for pair in params_raw.split("|"):
             eq = pair.index("=") if "=" in pair else -1
             if eq == -1:
                 continue
@@ -201,6 +213,14 @@ async def report_agent_node(state: AnalysisState) -> dict:
     settings = get_settings()
     charts = state.get("chart_suggestions") or []
 
+    # V4.2: chart_advisor 未生成图表时，report_agent 自己扫描摘要表格兜底
+    if settings.feature_chart and not charts and summary:
+        from app.agents.chart_advisor_agent import parse_tables_from_summary
+        fallback_chart = parse_tables_from_summary(summary)
+        if fallback_chart:
+            logger.info("report_agent 规则兜底: %s", fallback_chart.get("title", ""))
+            charts = [fallback_chart]
+
     # 构建图表指令（功能禁用或无图表时为空字符串）
     chart_instructions = ""
     if settings.feature_chart and charts:
@@ -208,15 +228,19 @@ async def report_agent_node(state: AnalysisState) -> dict:
 
     # 构建追问指令（仅用于非重试运行）
     followup_instruction = ""
-    if settings.feature_multi_turn and not state.get("reflection_feedback"):
-        followup_instruction = "\n\n## 追问建议\n在报告末尾，请额外输出 3 个 JSON 格式的建议追问问题（以 JSON 数组格式输出，方便前端解析渲染按钮）：\n[FOLLOWUP:[\"问题1\", \"问题2\", \"问题3\"]]"
+    if settings.feature_multi_turn:
+        logger.info("添加追问指令（feature_multi_turn=%s, reflection_feedback=%s）", settings.feature_multi_turn, state.get("reflection_feedback"))
+        followup_instruction = "【强制指令】你必须在报告末尾输出 3 个 JSON 格式的建议追问问题。\n格式（直接输出，不要代码块）：\n[FOLLOWUP:[\"具体追问1\", \"具体追问2\", \"具体追问3\"]]\n追问必须基于当前分析内容，用实际指标/门店等数据。不输出=报告不完整。"
+    else:
+        logger.info("跳过追问指令（feature_multi_turn=%s, reflection_feedback=%s）", settings.feature_multi_turn, state.get("reflection_feedback"))
 
     try:
+        # 追问指令已作为独立 SystemMessage，不在 HumanMessage 中重复
         content = REPORT_HUMAN_TEMPLATE.format(
             question=state["question"],
             aggregator_summary=summary,
             chart_instructions=chart_instructions,
-            followup_instruction=followup_instruction,
+            followup_instruction="",
         )
 
         # 如果是重试（反思阶段标记了问题），则包含反馈
@@ -226,8 +250,11 @@ async def report_agent_node(state: AnalysisState) -> dict:
         loader = get_prompt_loader()
         messages = [
             SystemMessage(content=loader.get_prompt("report", "system_prompt", fallback=REPORT_SYSTEM_PROMPT)),
-            HumanMessage(content=content),
         ]
+        # 追问指令作为独立 SystemMessage，比混在 Human 末尾更醒目
+        if followup_instruction:
+            messages.append(SystemMessage(content=followup_instruction))
+        messages.append(HumanMessage(content=content))
         # P0-1: 使用流式调用 + StreamWriter 同时支持 /analyze 和 /analyze-stream
         # 当通过 graph.astream(stream_mode="custom") 调用时，writer 将 token
         # 推送到前端 SSE；当通过 graph.ainvoke() 调用时，writer 为 no-op。
@@ -242,6 +269,22 @@ async def report_agent_node(state: AnalysisState) -> dict:
 
         # 后处理：将 [CHART:...] 标记编码为前端可用的 URL 编码 JSON
         report = encode_chart_markers(report)
+
+        # V4.2: 最终报告解析兜底 —— 如果报告中含 Markdown 表格但无 [CHART:] 标记，
+        # 直接从报告文本中提取表格数据生成图表标记
+        if "[CHART:" not in report:
+            try:
+                from app.agents.chart_advisor_agent import parse_tables_from_summary
+                final_chart = parse_tables_from_summary(report)
+                if final_chart:
+                    import urllib.parse
+                    safe = json.dumps({k: final_chart[k] for k in ("type","title","x_data","series","height","note") if k in final_chart}, ensure_ascii=False)
+                    encoded = urllib.parse.quote(safe, safe="")
+                    chart_marker = "\n\n[CHART:%s|%s]\n" % (final_chart["type"], encoded)
+                    report += chart_marker
+                    logger.info("报告解析兜底注入图表: %s", final_chart.get("title", ""))
+            except Exception as chart_err:
+                logger.warning("报告解析兜底图表失败: %s", chart_err)
 
         # 从 [FOLLOWUP:...] 标记中提取追问问题
         # 使用括号计数法（而非脆弱的正则），确保正确匹配嵌套的 ]]
@@ -278,14 +321,52 @@ async def report_agent_node(state: AnalysisState) -> dict:
                         followup_questions = json.loads(json_str)
                     except json.JSONDecodeError:
                         pass
-                    # 移除完整的 [FOLLOWUP:...]] 标记
-                    report = report[:marker_start] + report[array_end + 2:]
+                    # [FOLLOWUP:...]] 标记保留在报告中，save_memory_node 会从中提取追问存库
+                    # 前端 views.js 的渐进展示回调中会用正则清理显示
+
+        # V4.4: 追问兜底 —— 如果 LLM 未生成追问，用规则生成
+        if not followup_questions and settings.feature_multi_turn:
+            _q = []
+            _rl = report.lower()
+            if "门店" in report or "store" in _rl:
+                _q.append("哪家门店销售额最高？")
+                _q.append("各区域的门店业绩对比如何？")
+            if "区域" in report or "region" in _rl:
+                _q.append("各区域的销售占比情况？")
+            if "趋势" in report or "trend" in _rl or "增长" in report:
+                _q.append("近期的销售增长趋势如何？")
+            if "退款" in report or "退货" in report:
+                _q.append("退款率变化趋势如何？")
+            if "会员" in report or "member" in _rl:
+                _q.append("会员活跃度与留存率如何？")
+            if "商品" in report or "品类" in report or "product" in _rl:
+                _q.append("哪些品类销售最好？")
+            # 通用兜底（如果关键词都没命中）
+            _common = ["各门店销售额排名如何？", "近30天销售趋势是怎样的？", "退款率最高的门店有哪些？"]
+            _seen = set()
+            for _item in _q + _common:
+                if _item not in _seen:
+                    _seen.add(_item)
+                    followup_questions.append(_item)
+                if len(followup_questions) >= 3:
+                    break
+            logger.info("追问规则兜底: %d 个", len(followup_questions))
 
         elapsed = time.monotonic() - t_start
-        logger.info("执行完成 (%.1fs) - 报告长度: %d, 追问: %d", elapsed, len(report), len(followup_questions))
+        # 最终保险：无论 LLM 是否生成，保证追问非空（用于存库和监控统计）
+        if not followup_questions:
+            followup_questions = ["各门店销售额排名如何？", "近30天销售趋势是怎样的？", "退款率最高的门店有哪些？"]
+        logger.info("执行完成 (%.1fs) - 报告长度: %d, 追问: %s", elapsed, len(report), json.dumps(followup_questions, ensure_ascii=False))
+        # 将追问嵌入报告尾部（save_memory_node 会从中提取持久化到数据库）
+        try:
+            _fq_json = json.dumps(followup_questions, ensure_ascii=False)
+            if _fq_json and "[FOLLOWUP_SAVE:" not in report:
+                report = report + "\n\n" + "[FOLLOWUP_SAVE:" + _fq_json + "]"
+        except Exception:
+            pass
         return {
             "report": report,
-            "followup_questions": followup_questions,
+            "followup_questions": followup_questions or [],
         }
     except Exception as e:
         elapsed = time.monotonic() - t_start

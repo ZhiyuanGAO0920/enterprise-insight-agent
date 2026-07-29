@@ -437,8 +437,17 @@ async def analyze_stream(
     浏览器可用 EventSource 接收，前端进度条实时展示 9 步分析状态。
     """
     store_ids = await get_user_store_ids(user["user_id"])
+    # V4.5: SSE 流式超时保护（420s，与 /analyze 同步端点一致）
+    async def _timeout_wrapper():
+        try:
+            async with asyncio.timeout(420):
+                async for item in _stream_graph(req.question, user["user_id"], store_ids, req.session_id):
+                    yield item
+        except asyncio.TimeoutError:
+            logger.warning("SSE 流式分析超时")
+            yield json.dumps({"type": "done", "report": None, "errors": [{"agent": "system", "error": "分析链路超时，请简化问题后重试"}], "reflection_passed": False}) + "\n"
     return StreamingResponse(
-        _stream_graph(req.question, user["user_id"], store_ids, req.session_id),
+        _timeout_wrapper(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
