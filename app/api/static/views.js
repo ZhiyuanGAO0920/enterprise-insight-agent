@@ -97,8 +97,14 @@ async function restoreSession(username){
     }
   }catch(e){}
   document.getElementById('dashUser').textContent=u;_lastUser=u;
+  try{
+    var _test=await fetch(BASE+'/admin/users',{headers:{'Authorization':'Bearer '+token}});
+    if(_test.status===401){
+      localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');
+      token='';showLogin();return;
+    }
+  }catch(e){showLogin();return;}
   try{renderQuickGrid();switchTab('dashboard');loadSessionInfo();
-    // V4.5: 首次使用引导
     if(!localStorage.getItem('eia_first_visit')){
       localStorage.setItem('eia_first_visit','1');
       setTimeout(function(){
