@@ -13,8 +13,8 @@
 <!-- 预加载关键资源 -->
 <link rel="preload" href="/static/style.css?v=4.33" as="style">
 <link rel="stylesheet" href="/static/style.css?v=4.33">
-<!-- ECharts 1MB → async 提前加载（不阻塞 HTML 解析和 defer 队列） -->
-<script src="/static/echarts.min.js" async></script>
+<script>!function(){var t=localStorage.getItem("eia_token");if(t)fetch("/api/v1/auth/verify",{headers:{"Authorization":"Bearer "+t}}).then(function(r){if(!r.ok){localStorage.removeItem("eia_token");localStorage.removeItem("eia_user");}}).catch(function(){localStorage.removeItem("eia_token");localStorage.removeItem("eia_user");});}();</script>
+<!-- ECharts 1MB → 移到底部最后加载（app 先启动，图表后渲染） -->
 </head>
 <body>
 
@@ -23,6 +23,7 @@
      页面加载时首先展示，点击「进入系统」后淡出到登录界面
      ====================================================================== -->
 <div id="introOverlay" class="intro-overlay">
+  <script>!function(){var t=localStorage.getItem("eia_token"),u=localStorage.getItem("eia_user");if(t&&u){var io=document.getElementById("introOverlay");if(io)io.innerHTML='<div class="loading-app" style="position:relative;z-index:10;text-align:center;padding-top:40vh"><div class="loading-spinner" style="width:36px;height:36px;margin:0 auto 20px;border:3px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite"></div><div style="font-size:15px;color:#94a3b8;letter-spacing:1px">正在加载...</div></div>';}}();</script>
   <div class="intro-bg-grid"></div>
   <div class="intro-glow"></div>
   <div class="intro-particles" id="introParticles"></div>
@@ -63,8 +64,8 @@
       <button class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 经营看板</button>
       <button class="nav-item" data-tab="analysis" onclick="switchTab('analysis')">💬 分析对话</button>
       <button class="nav-item" data-tab="history" onclick="switchTab('history')">📝 历史记录</button>
-      <button class="nav-item" id="monitorNavBtn" data-tab="monitor" onclick="switchTab('monitor')" style="display:none">📋 质量监控</button>
-      <button class="nav-item" id="adminNavBtn" data-tab="admin" onclick="openAdminPanel()" style="display:none">⚙️ 系统管理</button>
+      <button class="nav-item" id="monitorNavBtn" data-tab="monitor" style="display:none" onclick="switchTab('monitor')">📋 质量监控</button>
+      <button class="nav-item" id="adminNavBtn" data-tab="admin" style="display:none" onclick="openAdminPanel()">⚙️ 系统管理</button>
     </nav>
     <hr style="border-color:var(--border)">
 
@@ -136,17 +137,12 @@
     </div>
     <div class="chat" id="chat">
       <div class="empty-state" id="emptyState">
-        <div class="greeting-icon">🤖</div><div class="greeting" id="greetingText">有什么经营问题需要分析？</div>
-        <div class="greeting-sub" id="greetingSub">5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据</div>
-        <div class="dashboard-card" id="dashboardCard" style="display:none">
-          <div class="dash-item"><div class="dash-val" id="dashSales">-</div><div class="dash-label">昨日销售额</div></div>
-          <div class="dash-item"><div class="dash-val" id="dashStores">-</div><div class="dash-label">活跃门店</div></div>
-          <div class="dash-item"><div class="dash-val" id="dashRefund">-</div><div class="dash-label">近7天退款率</div></div>
-          <div class="dash-item"><div class="dash-val" id="dashMembers">-</div><div class="dash-label">会员总数</div></div>
-          <div class="dash-item"><div class="dash-val" id="dashOrders">-</div><div class="dash-label">近24h订单</div></div>
-        </div>
+        <div class="greeting-icon">🤖</div>
+        <div class="greeting" id="greetingText">有什么经营问题需要分析？</div>
+        <div class="cap-cards" id="capCards"></div>
+        <div class="quick-stats" id="quickStats" style="display:none"></div>
         <div class="quick-grid" id="quickGrid"></div>
-        <p style="font-size:12px;color:var(--muted)">或直接输入问题：</p>
+        <p style="font-size:12px;color:var(--muted)">💡 支持文字或 🎤 语音输入，AI 将在 60 秒内生成诊断报告</p>
       </div>
     </div>
     <div class="quick-bar" id="quickBar">
@@ -249,9 +245,11 @@
 </div>
 
 <!-- V4 前端（底部顺序加载，不等 echarts；echarts 已在 head async 预加载） -->
+<script src="/static/purify.min.js"></script>
 <script src="/static/marked.min.js"></script>
 <script src="/static/utils.js?v=4.33"></script>
-<script src="/static/views.js?v=4.39"></script>
+<script src="/static/views.js?v=4.40"></script>
 <script src="/static/app.js?v=4.29"></script>
+<script src="/static/echarts.min.js"></script>
 </body>
 </html>
