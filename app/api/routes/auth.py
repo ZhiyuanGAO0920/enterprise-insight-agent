@@ -63,6 +63,11 @@ async def login(
         )
 
 
+@router.get("/verify", summary="验证令牌有效性")
+async def verify_token(user: dict = Depends(get_current_user)):
+    """轻量级 token 验证。仅检查 JWT 有效性，不查数据库。"""
+    return {"status": "ok", "user_id": user.get("user_id")}
+
 @router.post("/logout", summary="用户登出")
 async def logout(user: dict = Depends(get_current_user)):
     """将当前 JWT 令牌加入黑名单，使其立即失效。

@@ -76,7 +76,7 @@ async function restoreSession(username){
   var saved=localStorage.getItem('eia_token');
   if(!saved){showLogin();return;}
   token=saved;var u=username||localStorage.getItem('eia_user')||'admin';
-  // V4.5: 先显示界面，再异步加载角色信息（内联脚本已确认 token 有效）
+  // V4.5: 显示界面，再异步加载角色信息（内联脚本已确认 token 有效）
   document.getElementById('introOverlay').style.display='none';
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('app').style.display='flex';
