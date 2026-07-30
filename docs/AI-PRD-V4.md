@@ -263,7 +263,7 @@ GROUP BY s.id, s.store_name ORDER BY SUM(o.amount) DESC
 | v1.0 | V1 | 基础 Prompt，单 Agent 线性 | SQL 准确率 ~70% |
 | v2.0 | V2 | 增加 Supervisor 路由 + 3 领域 Agent | 路由准确率 ~85% |
 | v3.0 | V3 | 增加 Chart Advisor + 追问建议 + RAG | SQL 准确率 ~85%，报告完整度提升 |
-| v4.0 | V4 | YAML 外部化 + 热重载 + 排名关键词注入 + 客户 Schema 动态适配（据客户数据库结构动态调整） | SQL 截断问题修复，适配效率提升 |
+| v4.5 | V4.5 | 前端重构 + 性能优化 + 反馈闭环 | + 热重载 + 排名关键词注入 + 客户 Schema 动态适配（据客户数据库结构动态调整） | SQL 截断问题修复，适配效率提升 |
 
 ### 2.4 工具调用定义
 
@@ -776,7 +776,7 @@ Satisfaction = (👍 次数) / (👍 + 👎 次数)
 | v1.0 | V1 | 初始 Prompt，单 Agent 线性 | SQL 准确率 ~70% |
 | v2.0 | V2 | 增加 Supervisor 路由 + 3 领域 Agent | 路由准确率 ~85% |
 | v3.0 | V3 | 增加 Chart Advisor + 追问建议 + RAG | SQL 准确率 ~85% |
-| v4.0 | V4 | YAML 外部化 + 热重载 + 排名关键词注入 + 客户 Schema 动态适配（据客户数据库结构动态调整） | SQL 截断修复，适配效率提升 |
+| v4.5 | V4.5 | 前端重构 + 性能优化 + 反馈闭环 | + 热重载 + 排名关键词注入 + 客户 Schema 动态适配（据客户数据库结构动态调整） | SQL 截断修复，适配效率提升 |
 
 ### 10.3 模型选型对比
 
