@@ -98,53 +98,47 @@ async def today_summary(
 
     from app.tools.sql_runner import run_sql
     results = {}
+    sf, sp = _build_store_params(store_ids, "store_id")  # orders.store_id
+    sf_store, sp_store = _build_store_params(store_ids, "s.id")
 
-    # 昨日销售额
-    result = await run_sql(
-        "SELECT COALESCE(SUM(amount), 0) AS yesterday_sales "
-        "FROM orders "
-        "WHERE create_time >= CURRENT_DATE - INTERVAL '1 day' "
-        "AND create_time < CURRENT_DATE",
-        store_ids=store_ids,
+    # V4.5: 并行执行无依赖的 SQL 查询
+    import asyncio
+
+    # Group A: orders 表独立聚合（使用 sf/sp）
+    group_a = asyncio.gather(
+        _safe_scalar(f"SELECT COALESCE(SUM(amount), 0) FROM orders WHERE create_time >= CURRENT_DATE AND create_time < CURRENT_DATE + INTERVAL '1 day' {sf}", sp),
+        _safe_scalar(f"SELECT COALESCE(SUM(amount), 0) FROM orders WHERE create_time >= CURRENT_DATE - INTERVAL '1 day' AND create_time < CURRENT_DATE {sf}", sp),
+        _safe_scalar(f"SELECT CASE WHEN SUM(amount) > 0 THEN ROUND(CAST(SUM(refund_amount)*100.0/SUM(amount) AS numeric),1) ELSE 0 END FROM orders WHERE create_time >= CURRENT_DATE - INTERVAL '7 days' {sf}", sp),
+        _safe_scalar(f"SELECT COUNT(DISTINCT store_id) FROM orders WHERE create_time >= CURRENT_DATE - INTERVAL '7 days' {sf}", sp),
+        _safe_scalar("SELECT COUNT(*) FROM member" if store_ids is None else "SELECT 0"),
+        _safe_rows(f"SELECT TO_CHAR(create_time,'MM-DD') AS day, SUM(amount) AS daily FROM orders WHERE create_time >= CURRENT_DATE - INTERVAL '30 days' {sf} GROUP BY TO_CHAR(create_time,'MM-DD') ORDER BY MIN(create_time)", sp),
     )
-    results["yesterday_sales"] = _parse_single_value(result, 0)
 
-    # 活跃门店数（近 7 天有订单）
-    result = await run_sql(
-        "SELECT COUNT(DISTINCT store_id) AS active_stores "
-        "FROM orders "
-        "WHERE create_time >= CURRENT_DATE - INTERVAL '7 days'",
-        store_ids=store_ids,
+    # Group B: 门店/区域维度查询（使用 sf_store/sp_store）
+    group_b = asyncio.gather(
+        _safe_rows(f"SELECT s.store_name, COALESCE(SUM(o.amount),0) AS sales FROM orders o JOIN store s ON o.store_id = s.id WHERE o.create_time >= CURRENT_DATE - INTERVAL '30 days' {sf_store} GROUP BY s.store_name ORDER BY sales DESC LIMIT 10", sp_store),
+        _safe_rows(f"SELECT s.region, COALESCE(SUM(o.amount),0) AS sales FROM orders o JOIN store s ON o.store_id = s.id WHERE o.create_time >= CURRENT_DATE - INTERVAL '30 days' {sf_store} GROUP BY s.region ORDER BY sales DESC", sp_store),
+        _safe_rows(f"SELECT s.store_name, CASE WHEN SUM(o.amount)>0 THEN ROUND(CAST(SUM(o.refund_amount)*100.0/SUM(o.amount) AS numeric),1) ELSE 0 END AS rate FROM orders o JOIN store s ON o.store_id=s.id WHERE o.create_time >= CURRENT_DATE - INTERVAL '30 days' {sf_store} GROUP BY s.store_name ORDER BY rate DESC LIMIT 10", sp_store),
     )
-    results["active_stores"] = _parse_single_value(result, 0)
 
-    # 近 7 天退款率
-    result = await run_sql(
-        "SELECT CASE WHEN SUM(amount) > 0 "
-        "THEN ROUND(SUM(refund_amount) * 100.0 / SUM(amount), 1) "
-        "ELSE 0 END AS refund_rate "
-        "FROM orders "
-        "WHERE create_time >= CURRENT_DATE - INTERVAL '7 days'",
-        store_ids=store_ids,
-    )
-    results["week_refund_rate"] = _parse_single_value(result, 0)
+    # 等待所有查询完成
+    (today_sales, yesterday_sales, week_refund_rate, active_stores, total_members, (trend_dates, trend_values)) = await group_a
+    ((store_names, store_values), (region_names, region_values), (refund_names, refund_values)) = await group_b
 
-    # 总会员数
-    result = await run_sql(
-        "SELECT COUNT(*) AS total_members FROM member",
-        store_ids=store_ids,
-    )
-    results["total_members"] = _parse_single_value(result, 0)
-
-    # 近 24 小时订单数
-    result = await run_sql(
-        "SELECT COUNT(*) AS recent_orders "
-        "FROM orders "
-        "WHERE create_time >= NOW() - INTERVAL '24 hours'",
-        store_ids=store_ids,
-    )
-    results["recent_orders_24h"] = _parse_single_value(result, 0)
-
+    # 填充结果
+    results["today_sales"] = today_sales
+    results["yesterday_sales"] = yesterday_sales
+    results["week_refund_rate"] = week_refund_rate
+    results["active_stores"] = int(active_stores)
+    results["total_members"] = int(total_members) if store_ids is None else 0
+    results["trend_dates"] = trend_dates
+    results["trend_values"] = [round(float(v or 0), 2) for v in trend_values]
+    results["top_stores"] = store_names
+    results["top_store_values"] = [round(float(v or 0), 2) for v in store_values]
+    results["regions"] = region_names
+    results["region_values"] = [round(float(v or 0), 2) for v in region_values]
+    results["top_refund_stores"] = refund_names
+    results["top_refund_values"] = [float(v or 0) for v in refund_values]
     response = {"greeting": _greeting(), "username": username, **results, "cached_at": time.time()}
     await _set_cache(cache_key, response)
     return response
