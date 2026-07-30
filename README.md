@@ -11,8 +11,8 @@
 [![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL%2016%20%2B%20pgvector-blue.svg)](https://www.postgresql.org/)
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20TS-61dafb.svg)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Deploy-Docker%20One--Click-2496ed.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-111%20pass%20%7C%200%20fail-brightgreen.svg)](tests/)
-[![Prompt](https://img.shields.io/badge/Prompt-V4.2%20%22Data%E2%86%92Insight%E2%86%92Action%22-orange.svg)](prompts/yaml/report.yaml)
+[![Tests](https://img.shields.io/badge/Tests-177%20pass%20%7C%200%20fail-brightgreen.svg)](tests/)
+[![Prompt](https://img.shields.io/badge/Prompt-V4.5%20%22Data%E2%86%92Insight%E2%86%92Action%22-orange.svg)](prompts/yaml/report.yaml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 *多租户 · 审计日志 · React 前端 · PDF 导出 · 结构化日志 · 全链路追踪 · AI 质量监控面板 · 规则兜底图表注入 🆕*
@@ -335,7 +335,7 @@ WECOM_WEBHOOK_URL=                  # 企业微信机器人 webhook
 
 ```bash
 pytest tests/ -v --ignore=tests/test_e2e.py
-# 115 passed, 22 skipped, 0 failed
+# 177 passed, 0 failed
 ```
 
 > 22 条 skipped 需要真实 PostgreSQL / Redis / DeepSeek API 环境。

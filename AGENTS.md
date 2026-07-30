@@ -9,7 +9,7 @@
 面向连锁零售的 Multi-Agent AI 经营分析平台。10 个 Agent 协作，用户用自然语言提问，60 秒内获得含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
-**状态**：V4.2，111 条测试通过 / 0 失败（核心测试），9 条 Windows asyncpg 环境问题可忽略
+**状态**：V4.5，177 条测试通过 / 0 失败
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商
 
 ---
@@ -98,6 +98,7 @@ workflows/n8n-templates/  # alert-check.json, weekly-report.json
 
 | 版本 | 日期 | 主要内容 |
 |------|------|----------|
+| [V4.5.0](CHANGELOG.md#V450-2026-07-29) | 2026-07-29 | 前端重构 + 反馈闭环 + 性能优化 |
 | [V4.2.0](CHANGELOG.md#V420-2026-07-27) | 2026-07-27 | 报告质量升级（四段式方法论）、41 项安全/稳定性/测试修复 |
 | [V4.1.0](CHANGELOG.md#V410-2026-07-16) | 2026-07-16 | 质量监控面板、真实成本追踪、评估测试集扩充 |
 | [V4.0.0](CHANGELOG.md#V400-2026-06-11) | 2026-06-11 | 60 项修复（无限循环/LLM 成本翻倍/XSS/SQL 注入等） |
@@ -134,5 +135,5 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 - n8n: `http://localhost:5678`（Docker）
 - 启动：双击 `重启服务.bat` 或 `uvicorn app.api.main:app --port 8002 --reload`
 - 热重载 Prompt：`POST /api/v1/prompts/reload`
-- 测试：`pytest tests/ -v`（155 条）
+- 测试：`pytest tests/ -v`（177 条）
 - 数据库迁移：`alembic upgrade head`（当前 10 个版本）
