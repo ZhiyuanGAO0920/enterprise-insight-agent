@@ -161,10 +161,16 @@ except OSError:
 app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 
-@app.get("/", response_class=FileResponse)
+@app.get("/")
 async def root():
     """提供 Web 界面。"""
-    return _static_dir / "index.html"
+    from fastapi.responses import HTMLResponse
+    html = (_static_dir / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=html, headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    })
 
 
 @app.get("/health", tags=["健康检查"], summary="存活检查")
