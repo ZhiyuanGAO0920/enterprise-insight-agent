@@ -1,33 +1,52 @@
 /* Enterprise Insight Agent V4 — 入口
  * 初始化 + 会话恢复
- * V4.5: 先验证 token 有效性再恢复会话，避免闪现主界面
+ * V4.5: 用同步方式检查 token，避免异步导致主界面闪烁
  */
 (function(){
-  async function init(){
+  // 兜底：如果欢迎页被意外隐藏，立即恢复
+  var _checkTimer = setInterval(function(){
+    var intro = document.getElementById('introOverlay');
+    var login = document.getElementById('loginOverlay');
+    if(!intro || !login) return;
+    // 如果两个都隐藏了但 app 也没显示，说明出了问题，恢复欢迎页
+    if(intro.style.display !== 'none' && login.style.display !== 'none' &&
+       intro.style.display !== '' && login.style.display !== '') return;
+    if(intro.style.display === 'none' && login.style.display === 'none'){
+      var app = document.getElementById('app');
+      if(app && app.style.display !== 'flex'){
+        intro.style.display = '';
+        intro.style.opacity = '1';
+      }
+    }
+  }, 100);
+
+  function init(){
     initIntroParticles();
 
     var savedUser = localStorage.getItem('eia_user');
     var savedToken = localStorage.getItem('eia_token');
     if(savedToken && savedUser){
-      // 先验证 token 是否有效，再决定是否恢复会话
-      // 避免 token 过期时闪现主界面再跳回登录
       token = savedToken;
+      // 同步检查 token（用同步 XHR 避免闪屏）
       try{
-        var r = await fetch('/api/v1/admin/users', {
-          headers: {'Authorization': 'Bearer ' + token}
-        });
-        if(r.ok){
-          await restoreSession(savedUser);
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/v1/admin/users', false);  // false = 同步
+        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+        xhr.send();
+        if(xhr.status === 200){
+          clearInterval(_checkTimer);
+          restoreSession(savedUser);
           checkAdmin();
           return;
         }
       }catch(e){}
-      // token 无效，清除并停留在欢迎页
+      // token 无效
       localStorage.removeItem('eia_token');
       localStorage.removeItem('eia_user');
       token = '';
     }
-    // 无登录态，停留在欢迎页等待用户点击"进入系统"
+    // 停留在欢迎页
+    clearInterval(_checkTimer);
   }
 
   if(document.readyState === 'loading'){
