@@ -515,7 +515,7 @@ function renderMonitorView(ov,er){
   }
   document.getElementById('monitorView').innerHTML=
     '<div class="mq-header"><div class="mq-header-left"><h2>AI 质量监控</h2><span class="mq-header-period">'+per+'</span></div><div class="mq-pills">'+pills+'</div></div>'+
-    '<div class="mq-hero"><div class="mq-hero-card accent"><div class="mq-hero-top"><div class="mq-hero-icon">📊</div><span class="mq-hero-status good">日均 '+da+' 次</span></div><div class="mq-hero-value">'+da+'</div><div class="mq-hero-label">分析总量</div></div>'+
+    '<div class="mq-hero"><div class="mq-hero-card accent"><div class="mq-hero-top"><div class="mq-hero-icon">📊</div><span class="mq-hero-status good">日均 '+da+' 次</span></div><div class="mq-hero-value">'+da+'</div><div class="mq-hero-label">日均分析量</div></div>'+
     '<div class="mq-hero-card success"><div class="mq-hero-top"><div class="mq-hero-icon">✅</div><span class="mq-hero-status '+(pr>=90?'good':pr>=75?'warn':'bad')+'">'+(pr>=90?'优秀':pr>=75?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+pr+'%</div><div class="mq-hero-label">Reflection 通过率</div><div class="mq-hero-sub">用户好评率 '+fbr+'%</div></div>'+
     '<div class="mq-hero-card warning"><div class="mq-hero-top"><div class="mq-hero-icon">⚡</div><span class="mq-hero-status '+(p50<500?'good':p50<1000?'warn':'bad')+'">'+(p50<500?'优秀':p50<1000?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+p50+'ms</div><div class="mq-hero-label">P50 响应延迟</div><div class="mq-hero-sub">P95 '+p95+'ms · 完整分析 '+Math.round(dur/1000)+'s</div></div></div>'+
     '<div class="mq-groups"><div class="mq-group"><div class="mq-group-title">🔬 质量指标</div><div class="mq-group-cards">'+
