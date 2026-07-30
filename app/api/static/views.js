@@ -282,19 +282,37 @@ function om(title,body,onSave){
   document.getElementById('userEditModal').style.display='flex';
   document.getElementById('userEditBody').innerHTML=body;
   document.getElementById('userEditTitle').textContent=title;
-  document.getElementById('userEditSaveBtn').onclick=function(){closeUserEditModal();window[onSave]();};
+  // 不关闭弹窗——由 onSave 函数自己控制关闭时机
+  document.getElementById('userEditSaveBtn').onclick=function(){window[onSave]();};
 }
-function closeUserEditModal(){document.getElementById('userEditModal').style.display='none';}
+function closeUserEditModal(){document.getElementById('userEditModal').style.display='none';var ee=document.getElementById('userEditError');if(ee)ee.style.display='none';}
 async function doAddUser(){
   var u=document.getElementById('nU').value.trim(),p=document.getElementById('nP').value,r=document.getElementById('nR').value;
-  if(!u||!p){toast('用户名和密码不能为空');return;}
+  var errEl=document.getElementById('userEditError');
+  if(!errEl){
+    errEl=document.createElement('div');errEl.id='userEditError';
+    errEl.style.cssText='color:var(--semantic-error);font-size:12px;margin-bottom:12px;padding:8px 12px;background:rgba(239,68,68,.08);border-radius:6px;display:none';
+    var body=document.getElementById('userEditBody');
+    if(body)body.insertBefore(errEl,body.firstChild);
+  }
+  if(!u||!p){errEl.textContent='用户名和密码不能为空';errEl.style.display='block';return;}
+  if(u.length<2){errEl.textContent='用户名至少需要2个字符';errEl.style.display='block';return;}
+  if(p.length<6){errEl.textContent='密码至少需要6位';errEl.style.display='block';return;}
+  errEl.style.display='none';
   var b={username:u,password:p,role:r};
   if(r==='store_manager'){var ids=Array.from(document.querySelectorAll('.cb:checked')).map(function(c){return c.value;});if(ids.length)b.store_ids=ids;}
   if(r==='regional_manager'){var rg=document.getElementById('nRg');if(rg)b.region=rg.value;}
   try{
     var res=await fetch(BASE+'/admin/users',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(b)});
-    if(res.ok){closeUserEditModal();await loadAdminData();}else{var e=await res.json();toast(typeof e.detail==='string'?e.detail:(e.detail&&e.detail[0]&&e.detail[0].msg)||'创建失败');}
-  }catch(e){toast('网络错误');}
+    if(res.ok){closeUserEditModal();await loadAdminData();}
+    else{
+      var ed=await res.json();
+      var msg=typeof ed.detail==='string'?ed.detail:(ed.detail&&ed.detail[0]&&ed.detail[0].msg)||'';
+      var cn={'String should have at least 2 characters':'用户名至少需要2个字符','String should have at least 6 characters':'密码至少需要6位','Input should be a valid string':'请输入有效的字符串'};
+      errEl.textContent=cn[msg]||msg||'创建失败，请检查输入';
+      errEl.style.display='block';
+    }
+  }catch(e){errEl.textContent='网络错误，请重试';errEl.style.display='block';}
 }
 function showEditUser(uid){
   var u=_allUsers.find(function(x){return x.id===uid;});if(!u)return;
@@ -338,6 +356,14 @@ function es(){
 }
 async function doEditUser(uid){
   uid=uid||window._editUid;if(!uid)return;
+  var errEl=document.getElementById('userEditError');
+  if(!errEl){
+    errEl=document.createElement('div');errEl.id='userEditError';
+    errEl.style.cssText='color:var(--semantic-error);font-size:12px;margin-bottom:12px;padding:8px 12px;background:rgba(239,68,68,.08);border-radius:6px;display:none';
+    var body=document.getElementById('userEditBody');
+    if(body)body.insertBefore(errEl,body.firstChild);
+  }
+  errEl.style.display='none';
   var role=document.getElementById('eR').value;
   var body={role:role,is_active:document.getElementById('eA').value==='1'};
   if(role!=='admin'){
@@ -351,8 +377,15 @@ async function doEditUser(uid){
   }
   try{
     var r=await fetch(BASE+'/admin/users/'+uid,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(r.ok){closeUserEditModal();await loadAdminData();}else{var e=await r.json();toast(typeof e.detail==='string'?e.detail:(e.detail&&e.detail[0]&&e.detail[0].msg)||'保存失败');}
-  }catch(e){toast('网络错误');}
+    if(r.ok){closeUserEditModal();await loadAdminData();}
+    else{
+      var ed=await r.json();
+      var msg=typeof ed.detail==='string'?ed.detail:(ed.detail&&ed.detail[0]&&ed.detail[0].msg)||'';
+      var cn={'String should have at least 2 characters':'用户名至少需要2个字符','String should have at least 6 characters':'密码至少需要6位'};
+      errEl.textContent=cn[msg]||msg||'保存失败，请检查输入';
+      errEl.style.display='block';
+    }
+  }catch(e){errEl.textContent='网络错误，请重试';errEl.style.display='block';}
 }
 function _bMU(d,s,e){var u=BASE+'/monitor/overview?days='+Math.min(d,90);if(s)u+='&start_date='+s;if(e)u+='&end_date='+e;return u;}
 function loadMonitorOverview(){
