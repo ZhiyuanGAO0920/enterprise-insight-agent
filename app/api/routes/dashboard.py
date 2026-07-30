@@ -62,7 +62,7 @@ def _build_store_params(store_ids: list[str] | None, column: str = "store_id") -
         return "", {}  # 无限制
     if not store_ids:
         return "AND 1=0", {}  # 无门店访问权限
-    return f"AND {column} = ANY(:store_ids)", {"store_ids": store_ids}
+    return f"AND {column} = ANY(:store_ids)", {"store_ids": [int(s) for s in store_ids]}
 
 
 # ── 缓存层（统一处理问候语和用户名） ──
