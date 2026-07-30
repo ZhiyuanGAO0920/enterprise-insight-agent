@@ -70,10 +70,20 @@ function animateKPI(el, target, suffix, duration){
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
+/* ── HTML 净化（防御 XSS）：DOMPurify 封装，失败时兜底返回原文 ── */
+function sanitizeHtml(html){
+  try{
+    if(typeof DOMPurify!=='undefined'&&DOMPurify.sanitize)return DOMPurify.sanitize(html);
+  }catch(e){}
+  return html;
+}
+
 /* ── UI 反馈 ── */
-function toast(msg){
-  var el=document.createElement('div');el.className='toast';el.textContent=msg;
-  document.body.appendChild(el);setTimeout(function(){el.remove()},2500)
+function toast(msg,type){
+  var el=document.createElement('div');el.className='toast'+(type==='error'?' toast-error':type==='success'?' toast-success':'');el.textContent=msg;
+  document.body.appendChild(el);
+  var duration=type==='error'?5000:type==='success'?3000:2500;
+  setTimeout(function(){el.remove()},duration)
 }
 function copyToClipboard(text){
   navigator.clipboard.writeText(text).then(function(){toast('已复制到剪贴板')}).catch(function(){toast('复制失败')})
@@ -118,10 +128,8 @@ var QUICK_QUESTIONS = {
     {icon:'📋',text:'整体经营分析报告'},{icon:'🌍',text:'各区域经营对比'}
   ]
 };
-function getQuickQuestions(username){
-  var roleMap={admin:'admin',zhangsan:'regional_manager',lisi:'store_manager'};
-  var role=roleMap[username]||'default';
-  return QUICK_QUESTIONS[role]||QUICK_QUESTIONS.default;
+function getQuickQuestions(role){
+  return QUICK_QUESTIONS[role||'']||QUICK_QUESTIONS.default;
 }
 
 /* ── 纯文本表格 → Markdown 管道表格（兜底）── */
@@ -225,6 +233,19 @@ function formatAxisValue(v){
   return v>=10000?(v/10000).toFixed(0)+'万':v
 }
 
+/* ── ECharts 懒加载：echarts.min.js 在页面底部最后加载，此队列在加载完成后统一初始化图表 ── */
+var _echartsCbs=[],_echartsTimer=null;
+function onEChartsReady(cb){
+  if(window.echarts){cb(window.echarts);return}
+  _echartsCbs.push(cb);
+  if(!_echartsTimer)_echartsTimer=setInterval(function(){
+    if(!window.echarts)return;
+    clearInterval(_echartsTimer);_echartsTimer=null;
+    _echartsCbs.splice(0).forEach(function(fn){fn(window.echarts)});
+  },100);
+}
+setTimeout(function(){if(_echartsTimer){clearInterval(_echartsTimer);_echartsTimer=null;_echartsCbs=[]}},15000);
+
 /* ── 图表 ── */
 function parseChartParams(encoded){
   try{
@@ -303,7 +324,7 @@ function buildTracePanel(ds){
 /* ── 追问按钮 ── */
 function buildFollowupButtons(qs){
   if(!qs||!qs.length)return'';
-  return'<div class="followup-btns">'+qs.map(function(q){return'<button class="followup-btn" onclick="askFollowup(\''+jsEscape(q)+'\')">'+esc(q)+'</button>'}).join('')+'</div>'
+  return'<div class="followup-btns">'+qs.map(function(q){return'<button class="followup-btn" data-action="ask-followup" data-question="'+jsEscape(q)+'">'+esc(q)+'</button>'}).join('')+'</div>'
 }
 
 /* ── 杂项 ── */
@@ -324,10 +345,11 @@ function _calcDateRange(preset){
   }
 }
 
-/* 全局 resize：统一处理报告 + 看板内嵌图表 */
+/* 全局 resize：统一处理报告 + 看板内嵌图表 + 监控面板图表 */
 window.addEventListener('resize',function(){
   document.querySelectorAll('.chart-container').forEach(function(el){
     if(el._chart)el._chart.resize()
   });
-  Object.values(window._dashCharts||{}).forEach(function(c){c&&c.resize()})
+  Object.values(window._dashCharts||{}).forEach(function(c){c&&c.resize()});
+  if(window._monitorChart)window._monitorChart.resize()
 });

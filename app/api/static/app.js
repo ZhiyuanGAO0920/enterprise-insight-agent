@@ -11,7 +11,7 @@
     if(savedToken && savedUser){
       token = savedToken;
       restoreSession(savedUser);
-      checkAdmin();
+      // checkAdmin 已合并到 restoreSession 的 /admin/users 请求中
     }
   }
 

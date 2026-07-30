@@ -1,4 +1,5 @@
 /* Enterprise Insight Agent V4 — Frontend */
+var token=null;
 var _currentTab='dashboard',_lastUser='',_dashCharts={},_currentRole='default';(window._dashCharts=_dashCharts);
 var _monitorDays=30,_monitorPreset='30',_monitorStartDate='',_monitorEndDate='';
 var _allUsers=[],_allStores=[],_allRegions=[];

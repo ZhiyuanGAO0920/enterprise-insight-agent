@@ -160,7 +160,7 @@ async def redirect_old_api(request: Request, call_next):
 # 静态文件（Web 界面）
 class _CachedStaticFiles(StaticFiles):
     """库文件设长缓存，app 文件设短缓存。"""
-    _LIB_PATHS = {"echarts.min.js", "marked.min.js"}
+    _LIB_PATHS = {"echarts.min.js", "marked.min.js", "purify.min.js"}
     async def get_response(self, path: str, scope):
         resp: Response = await super().get_response(path, scope)
         if path in self._LIB_PATHS:
