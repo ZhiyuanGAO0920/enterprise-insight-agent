@@ -7,6 +7,10 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>企业智能经营分析平台 V4</title>
+<script>
+// 马上检查 token 状态，赶在页面渲染前清除过期 token
+!function(){try{var t=localStorage.getItem('eia_token');if(t){var x=new XMLHttpRequest();x.open('GET','/api/v1/admin/users',!1);x.setRequestHeader('Authorization','Bearer '+t);x.send();if(x.status!==200){localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');}}}catch(e){}}();
+</script>
 <link rel="stylesheet" href="/static/style.css?v=4.30">
 <script src="/static/echarts.min.js"></script>
 <script src="/static/marked.min.js"></script>
