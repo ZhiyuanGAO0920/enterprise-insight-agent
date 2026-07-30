@@ -294,13 +294,28 @@ function showEditUser(uid){
   var u=_allUsers.find(function(x){return x.id===uid;});if(!u)return;
   window._editUid=uid;
   var st=u.scope_type||'店';
-  var h='<div class="admin-form"><label>用户名 <strong>'+esc(u.username)+'</strong></label>'+
-    '<label>角色<select id="eR" onchange="es()"><option value="store_manager"'+(u.role==='store_manager'?' selected':'')+'>店长</option><option value="regional_manager"'+(u.role==='regional_manager'?' selected':'')+'>区域经理</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>管理员</option></select></label>'+
-    '<label>状态<select id="eA"><option value="1"'+(u.is_active!==false?' selected':'')+'>启用</option><option value="0"'+(u.is_active===false?' selected':'')+'>禁用</option></select></label>'+
-    '<div id="eScope"><label>数据范围<select id="eSct" onchange="es()"><option value="all"'+(st==='all'?' selected':'')+'>全部门店</option><option value="region"'+(st==='region'?' selected':'')+'>按区域</option><option value="store"'+(st==='store'?' selected':'')+'>按门店</option></select></label>'+
-    '<div id="eReg"'+(st!=='region'?' style="display:none"':'')+'><label>区域<select id="eRg">'+(_allRegions||[]).sort().map(function(r){return '<option value="'+esc(r)+'"'+(u.region===r?' selected':'')+'>'+esc(r)+'</option>';}).join('')+'</select></label></div>'+
-    '<div id="eStr"'+(st!=='store'?' style="display:none"':'')+'><label>门店</label><div style="max-height:200px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px">'+(_allStores||[]).map(function(s){return '<label style="display:block;padding:3px 4px;font-size:12px;cursor:pointer"><input type="checkbox" value="'+s.id+'" class="ecb"'+(u.store_ids&&u.store_ids.indexOf(String(s.id))>=0?' checked':'')+'> '+esc(s.name||'门店'+s.id)+'</label>';}).join('')+'</div></div></div></div>';
-  om('编辑用户 - '+u.username,h,'doEditUser');
+  var h='<div style="padding:4px 0">'+
+    // 基本信息
+    '<div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-subtle)">👤 基本信息</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">'+
+      '<div><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">用户名</label><div style="padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-weight:600">'+esc(u.username)+'</div></div>'+
+      '<div><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">状态</label><select id="eA" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><option value="1"'+(u.is_active!==false?' selected':'')+'>✅ 启用</option><option value="0"'+(u.is_active===false?' selected':'')+'>❌ 禁用</option></select></div>'+
+    '</div>'+
+    // 角色与权限
+    '<div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-subtle)">🔑 角色与权限</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">'+
+      '<div><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">角色</label><select id="eR" onchange="es()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><option value="store_manager"'+(u.role==='store_manager'?' selected':'')+'>🏪 店长</option><option value="regional_manager"'+(u.role==='regional_manager'?' selected':'')+'>🌍 区域经理</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>👨‍💼 管理员</option></select></div>'+
+      '<div><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">数据范围</label><select id="eSct" onchange="es()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><option value="all"'+(st==='all'?' selected':'')+'>🌐 全部门店</option><option value="region"'+(st==='region'?' selected':'')+'>🌍 按区域</option><option value="store"'+(st==='store'?' selected':'')+'>🏪 按门店</option></select></div>'+
+    '</div>'+
+    '<div id="eReg"'+(st!=='region'?' style="display:none"':'')+' style="margin-bottom:18px">'+
+      '<label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">所属区域</label>'+
+      '<select id="eRg" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none">'+(_allRegions||[]).sort().map(function(r){return '<option value="'+esc(r)+'"'+(u.region===r?' selected':'')+'>'+esc(r)+'</option>';}).join('')+'</select>'+
+    '</div>'+
+    '<div id="eStr"'+(st!=='store'?' style="display:none"':'')+' style="margin-bottom:4px">'+
+      '<label style="display:block;font-size:11px;color:var(--muted);margin-bottom:6px">分配门店</label>'+
+      '<div style="max-height:220px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px">'+(_allStores||[]).map(function(s){return '<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:12px;cursor:pointer;transition:background .1s"><input type="checkbox" value="'+s.id+'" class="ecb"'+(u.store_ids&&u.store_ids.indexOf(String(s.id))>=0?' checked':'')+' style="accent-color:var(--accent);width:14px;height:14px"> <span style="color:var(--text)">'+esc(s.name||'门店'+s.id)+'</span></label>';}).join('')+'</div>'+
+    '</div></div>';
+  om('编辑用户',h,'doEditUser');
   es();
 }
 function es(){
