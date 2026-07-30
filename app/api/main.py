@@ -7,7 +7,9 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from starlette.responses import Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.routing import APIRouter
 
@@ -51,6 +53,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# V4: GZip 压缩（静态 JS/CSS 压缩，echarts.min.js ~1MB → ~280KB）
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # V4: 审计日志中间件（在 CORS 之后，异常处理之前）
 app.middleware("http")(audit_middleware)
@@ -153,12 +158,23 @@ async def redirect_old_api(request: Request, call_next):
 
 
 # 静态文件（Web 界面）
+class _CachedStaticFiles(StaticFiles):
+    """库文件设长缓存，app 文件设短缓存。"""
+    _LIB_PATHS = {"echarts.min.js", "marked.min.js"}
+    async def get_response(self, path: str, scope):
+        resp: Response = await super().get_response(path, scope)
+        if path in self._LIB_PATHS:
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            resp.headers["Cache-Control"] = "public, max-age=3600"
+        return resp
+
 _static_dir = Path(__file__).parent / "static"
 try:
     _static_dir.mkdir(exist_ok=True)
 except OSError:
-    pass  # 只读文件系统下不阻断启动，静态文件 serving 会提供清晰错误
-app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+    pass
+app.mount("/static", _CachedStaticFiles(directory=str(_static_dir)), name="static")
 
 
 @app.get("/")

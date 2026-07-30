@@ -6,10 +6,19 @@ var sessionId=null,lastRecordId=null,pendingFeedback=null,_lastReportText='',_la
 var dismissedIds=(function(){try{return new Set(JSON.parse(localStorage.getItem('eia_dismissed')||'[]'));}catch(e){return new Set();}})();
 var hiddenIds=new Set(),_isAnalyzing=false,_abortController=null;
 var voiceListening=false,voiceRecognition=null;
-var STEPS='supervisor,sales_agent,crm_agent,finance_agent,inventory_agent,supply_chain_agent,aggregator,chart_advisor,report_agent,reflection_agent,save_memory'.split(',');
-var LABELS='规划中,销售分析,CRM分析,财务分析,库存分析,供应链分析,整合结果,图表推荐,生成报告,质量审核,保存记录'.split(',');
 var SEMOJIS={supervisor:'🧠',sales_agent:'📊',crm_agent:'👥',finance_agent:'💰',inventory_agent:'📦',supply_chain_agent:'🚚',aggregator:'📊',chart_advisor:'📈',report_agent:'📝',reflection_agent:'✅',save_memory:'📥'};
-var QUICK_QUESTIONS={admin:[{icon:'📋',text:'整体经营分析报告'},{icon:'🌍',text:'各区域经营对比'},{icon:'🚚',text:'供应商准时交货率排名'},{icon:'📊',text:'各门店销售额排名'},{icon:'🔄',text:'退款率异常分析'},{icon:'👥',text:'会员增长趋势'}],regional_manager:[{icon:'📋',text:'我负责区域的销售趋势'},{icon:'📊',text:'区域内门店排名'},{icon:'👥',text:'区域会员活跃度分析'},{icon:'🔄',text:'区域退款率分析'},{icon:'📦',text:'区域库存预警'},{icon:'📈',text:'近30天区域销售对比'}],store_manager:[{icon:'📋',text:'我们店昨日经营概况'},{icon:'📈',text:'本周销售趋势'},{icon:'👥',text:'本店会员消费排行'},{icon:'📦',text:'本店滞销商品预警'},{icon:'🔄',text:'本店退款订单分析'},{icon:'💰',text:'本店客单价分析'}],default:[{icon:'📊',text:'各门店销售额排名'},{icon:'📈',text:'近30天销售趋势'},{icon:'🔄',text:'退款率最高的门店'},{icon:'👥',text:'会员增长与留存情况'},{icon:'📋',text:'整体经营分析报告'},{icon:'🌍',text:'各区域经营对比'}]};
+
+/* ── 简单前端缓存：切 Tab 避免重复请求 ── */
+var _cache={};
+function _cachedFetch(key,url,ttlMs){
+  var now=Date.now();
+  if(_cache[key]&&now-_cache[key].time<ttlMs)return Promise.resolve(_cache[key].data);
+  return fetch(url,{headers:{'Authorization':'Bearer '+token}}).then(function(r){
+    if(!r.ok){_cache[key]=null;return Promise.reject(r)}
+    return r.json().then(function(d){_cache[key]={data:d,time:now};return d})
+  });
+}
+function _clearCache(key){delete _cache[key]}
 
 function updateNavActive(t){document.querySelectorAll('.sidebar-nav .nav-item').forEach(function(e){e.classList.toggle('active',e.getAttribute('data-tab')===t);});}
 
@@ -60,7 +69,7 @@ async function doLogin(e){
     var d=await r.json();
     if(d.access_token){
       token=d.access_token;localStorage.setItem('eia_token',token);localStorage.setItem('eia_user',u);
-      document.getElementById('loginOverlay').style.display='none';await restoreSession(u);checkAdmin();
+      document.getElementById('loginOverlay').style.display='none';await restoreSession(u);
     }else{
       var errEl=document.getElementById('loginError');
       if(errEl){
@@ -85,8 +94,9 @@ async function restoreSession(username){
   document.getElementById('userMenuName').textContent=u;
   document.getElementById('userAvatar').textContent=u.charAt(0).toLowerCase();
   document.getElementById('dashUser').textContent=u;_lastUser=u;
-  // 异步加载角色信息（不阻塞界面渲染）
+  // 异步加载角色信息（复用此 API 结果，替代 checkAdmin 的重复请求）
   fetch(BASE+'/admin/users',{headers:{'Authorization':'Bearer '+token}}).then(function(_r){
+    if(_r.status===401){localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');token='';showLogin();return;}
     if(!_r.ok)return;_r.json().then(function(_d){
       var _me=_d.users&&_d.users.find(function(x){return x.username===u;});
       if(!_me)return;
@@ -94,6 +104,8 @@ async function restoreSession(username){
       document.getElementById('dropdownScope').textContent=_me.scope_type==='all'?'全部门店':_me.region||_me.store_ids?(_me.store_ids||[]).length+'家门店':'—';
       var mn=document.getElementById('monitorNavBtn');
       if(mn)mn.style.display=_me.role==='admin'?'':'none';
+      var an=document.getElementById('adminNavBtn');
+      if(an)an.style.display=_me.role==='admin'?'':'none';
     });
   }).catch(function(){});
   try{renderQuickGrid();switchTab('dashboard');loadSessionInfo();
@@ -135,9 +147,8 @@ document.addEventListener('click',function(e){
 async function loadDashboard(){
   if(!token)return;
   try{
-    var r=await fetch(BASE+'/dashboard/overview',{headers:{'Authorization':'Bearer '+token}});
-    if(!r.ok)return;
-    var d=await r.json();
+    var d=await _cachedFetch('dashboard', BASE+'/dashboard/overview', 30000);
+    if(!d)return;
     document.getElementById('dashGreeting').textContent=d.greeting||'';
     document.getElementById('dashUser').textContent=localStorage.getItem('eia_user')||'';
     // V4.5: 数据时效指示器
@@ -172,15 +183,13 @@ async function loadDashboard(){
       ka('kT',tS);ka('kY',yS);kp('kR',d.week_refund_rate);kd('kA',d.active_stores);kd('kM',d.total_members.toLocaleString());kd('kO',d.recent_orders_24h);
     },100);
     var th=echartsTheme();
-    if(_dashCharts.t)_dashCharts.t.dispose();
-    _dashCharts.t=echarts.init(document.getElementById('dashTrendChart'));
+    if(!_dashCharts.t)_dashCharts.t=echarts.init(document.getElementById('dashTrendChart'));
     _dashCharts.t.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis'},
       grid:{left:50,right:20,bottom:30,top:10},
       xAxis:{type:'category',data:d.trend_dates,axisLabel:{color:'#94a3b8',fontSize:9,rotate:35},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
       yAxis:{type:'value',axisLabel:{color:'#94a3b8',fontSize:9,formatter:function(v){return v>=10000?(v/10000).toFixed(0)+'万':v}},splitLine:{lineStyle:{color:'rgba(51,65,85,0.5)'}}},
       series:[{type:'line',data:d.trend_values,smooth:true,symbol:'circle',symbolSize:4,lineStyle:{width:2,color:th.color[0]},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:th.color[0]+'4d'},{offset:1,color:th.color[0]+'00'}]}}}]});
-    if(_dashCharts.s)_dashCharts.s.dispose();
-    _dashCharts.s=echarts.init(document.getElementById('dashStoreChart'));
+    if(!_dashCharts.s)_dashCharts.s=echarts.init(document.getElementById('dashStoreChart'));
     _dashCharts.s.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis'},
       grid:{left:110,right:20,bottom:20,top:10},
       xAxis:{type:'value',axisLabel:{color:'#94a3b8',fontSize:9,formatter:function(v){return v>=10000?(v/10000).toFixed(0)+'万':v}},splitLine:{lineStyle:{color:'rgba(51,65,85,0.5)'}}},
@@ -191,8 +200,7 @@ async function loadDashboard(){
     var rc=document.getElementById('dashRegionChart');
     function dr(){
       var f=regs.filter(function(r){return regSel[r.name];});
-      if(_dashCharts.r)_dashCharts.r.dispose();
-      _dashCharts.r=echarts.init(rc);
+      if(!_dashCharts.r)_dashCharts.r=echarts.init(rc);
       _dashCharts.r.setOption({backgroundColor:'transparent',tooltip:{trigger:'item'},series:[{type:'pie',radius:['35%','60%'],data:f,label:{color:'#f1f5f9',fontSize:11,formatter:'{b}: {d}%'},itemStyle:{borderColor:'transparent',borderWidth:2},color:th.color}]});
     }
     var fb=rc.parentNode.querySelector('.rf');
@@ -209,8 +217,7 @@ async function loadDashboard(){
     dr();
     // V4.5: 退款率 Top 10 图表
     if(d.top_refund_stores&&d.top_refund_stores.length){
-      if(_dashCharts.rf)_dashCharts.rf.dispose();
-      _dashCharts.rf=echarts.init(document.getElementById('dashRefundChart'));
+      if(!_dashCharts.rf)_dashCharts.rf=echarts.init(document.getElementById('dashRefundChart'));
       var rfData=(d.top_refund_stores||[]).map(function(n,i){return{name:n,value:d.top_refund_values[i]||0};}).sort(function(a,b){return a.value-b.value;});
       _dashCharts.rf.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis',formatter:function(p){return p[0].name+'<br/>退款率: '+p[0].value+'%';}},
         grid:{left:110,right:30,bottom:20,top:10},
@@ -231,7 +238,16 @@ function closeAdminPanel(){
   document.getElementById('adminPanel').classList.remove('show');
   document.getElementById('apBackdrop').classList.remove('show');
 }
-async function loadAdminData(){
+async function loadAdminData(force){
+  if(!force){
+    var cached=_cache['admin'];
+    if(cached&&Date.now()-cached.time<300000){
+      _allUsers=cached.data.users;
+      _allStores=cached.data.stores;
+      _allRegions=cached.data.regions;
+      renderUserList();return;
+    }
+  }
   try{
     var [uR,sR]=await Promise.all([
       fetch(BASE+'/admin/users',{headers:{'Authorization':'Bearer '+token}}),
@@ -239,7 +255,10 @@ async function loadAdminData(){
     ]);
     if(!uR.ok)return;
     _allUsers=(await uR.json()).users;
-    if(sR.ok){var d=await sR.json();_allStores=d.stores||d;_allRegions=d.regions||[];}
+    var stores=[],regions=[];
+    if(sR.ok){var d=await sR.json();stores=d.stores||d;regions=d.regions||[];}
+    _allStores=stores;_allRegions=regions;
+    _cache['admin']={data:{users:_allUsers,stores:_allStores,regions:_allRegions},time:Date.now()};
     renderUserList();
   }catch(e){console.warn(e);}
 }
@@ -256,7 +275,7 @@ function renderUserList(){
 }
 function showAddUserForm(){
   var h='<div class="admin-form"><label>用户名<input id="nU" class="login-input"></label><label>密码<input id="nP" class="login-input" type="password"></label><label>角色<select id="nR" onchange="ts()"><option value="store_manager">店长</option><option value="regional_manager">区域经理</option><option value="admin">管理员</option></select></label><div id="sf" style="display:none"><div id="ss"><label>门店</label><div id="sc" style="max-height:200px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px"></div></div><div id="rs" style="display:none"><label>区域</label><select id="nRg" class="login-input"></select></div></div></div>';
-  om('添加用户',h,'doAddUser');ts();
+  openUserEditModal('添加用户',h,'doAddUser');ts();
 }
 function ts(){
   var r=document.getElementById('nR').value,sf=document.getElementById('sf');
@@ -270,7 +289,7 @@ function ts(){
   }
   if(r==='regional_manager'&&rs2){var sel=rs2.querySelector('select');if(sel&&!sel.options.length)(_allRegions||[]).sort().forEach(function(r){sel.innerHTML+='<option value="'+esc(r)+'">'+esc(r)+'</option>';});}
 }
-function om(title,body,onSave){
+function openUserEditModal(title,body,onSave){
   document.getElementById('userEditModal').style.display='flex';
   document.getElementById('userEditBody').innerHTML=body;
   document.getElementById('userEditTitle').textContent=title;
@@ -296,7 +315,7 @@ async function doAddUser(){
   if(r==='regional_manager'){var rg=document.getElementById('nRg');if(rg)b.region=rg.value;}
   try{
     var res=await fetch(BASE+'/admin/users',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(b)});
-    if(res.ok){closeUserEditModal();await loadAdminData();}
+    if(res.ok){closeUserEditModal();_clearCache("admin");await loadAdminData(true);}
     else{
       var ed=await res.json();
       var msg=typeof ed.detail==='string'?ed.detail:(ed.detail&&ed.detail[0]&&ed.detail[0].msg)||'';
@@ -331,7 +350,7 @@ function showEditUser(uid){
       '<label style="display:block;font-size:11px;color:var(--muted);margin-bottom:6px">分配门店</label>'+
       '<div style="max-height:220px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px">'+(_allStores||[]).map(function(s){return '<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:12px;cursor:pointer;transition:background .1s"><input type="checkbox" value="'+s.id+'" class="ecb"'+(u.store_ids&&u.store_ids.indexOf(String(s.id))>=0?' checked':'')+' style="accent-color:var(--accent);width:14px;height:14px"> <span style="color:var(--text)">'+esc(s.name||'门店'+s.id)+'</span></label>';}).join('')+'</div>'+
     '</div></div>';
-  om('编辑用户',h,'doEditUser');
+  openUserEditModal('编辑用户',h,'doEditUser');
   es();
 }
 function es(){
@@ -369,7 +388,7 @@ async function doEditUser(uid){
   }
   try{
     var r=await fetch(BASE+'/admin/users/'+uid,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(r.ok){closeUserEditModal();await loadAdminData();}
+    if(r.ok){closeUserEditModal();_clearCache("admin");await loadAdminData(true);}
     else{
       var ed=await r.json();
       var msg=typeof ed.detail==='string'?ed.detail:(ed.detail&&ed.detail[0]&&ed.detail[0].msg)||'';
@@ -379,23 +398,32 @@ async function doEditUser(uid){
     }
   }catch(e){errEl.textContent='网络错误，请重试';errEl.style.display='block';}
 }
-function _bMU(d,s,e){var u=BASE+'/monitor/overview?days='+Math.min(d,90);if(s)u+='&start_date='+s;if(e)u+='&end_date='+e;return u;}
+function buildMonitorUrl(d,s,e){var u=BASE+'/monitor/overview?days='+Math.min(d,90);if(s)u+='&start_date='+s;if(e)u+='&end_date='+e;return u;}
 function loadMonitorOverview(){
+  var mKey='monitor_'+_monitorDays+'_'+_monitorStartDate+'_'+_monitorEndDate;
+  var cached=_cache[mKey];
+  // 有缓存且未过期（30s）→直接渲染，跳过加载状态
+  if(cached&&Date.now()-cached.time<30000){
+    renderMonitorView(cached.data.ov,cached.data.er);
+    return;
+  }
   document.getElementById('monitorView').innerHTML='<div class="mq-loading"><div class="mq-loading-inner"><div class="spinner" style="margin:0 auto 14px"></div>加载中...</div></div>';
   !async function(){
     try{
       var [oR,eR]=await Promise.all([
-        fetch(_bMU(_monitorDays,_monitorStartDate,_monitorEndDate),{headers:{'Authorization':'Bearer '+token}}),
+        fetch(buildMonitorUrl(_monitorDays,_monitorStartDate,_monitorEndDate),{headers:{'Authorization':'Bearer '+token}}),
         fetch(BASE+'/monitor/errors?days='+_monitorDays+'&limit=50',{headers:{'Authorization':'Bearer '+token}})
       ]);
       if(!oR.ok||!eR.ok)throw Error('');
-      _rM(await oR.json(),await eR.json());
+      var ov=await oR.json(),er=await eR.json();
+      _cache[mKey]={data:{ov:ov,er:er},time:Date.now()};
+      renderMonitorView(ov,er);
     }catch(e){document.getElementById('monitorView').innerHTML='<div class="mq-error-state">❌ 加载失败</div>';}
   }();
 }
 function setMonitorPreset(p){
   if(p==='custom'){
-    document.getElementById('monitorView').innerHTML='<div class="mq-loading"><div class="mq-loading-inner" style="background:var(--card);padding:28px 36px;border-radius:14px;border:1px solid var(--border);max-width:420px"><div style="margin-bottom:16px;font-size:15px;font-weight:600;color:var(--text)">📅 选择日期范围</div><div style="display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap"><input type="date" id="cSD" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><span style="color:var(--muted);font-size:13px">至</span><input type="date" id="cED" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"></div><div style="margin-top:16px;display:flex;gap:8px;justify-content:center"><button onclick="acD()" style="padding:9px 28px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500">确认</button><button onclick="loadMonitorOverview()" style="padding:9px 28px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:13px">取消</button></div></div></div>';
+    document.getElementById('monitorView').innerHTML='<div class="mq-loading"><div class="mq-loading-inner" style="background:var(--card);padding:28px 36px;border-radius:14px;border:1px solid var(--border);max-width:420px"><div style="margin-bottom:16px;font-size:15px;font-weight:600;color:var(--text)">📅 选择日期范围</div><div style="display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap"><input type="date" id="cSD" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><span style="color:var(--muted);font-size:13px">至</span><input type="date" id="cED" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"></div><div style="margin-top:16px;display:flex;gap:8px;justify-content:center"><button onclick="applyCustomDate()" style="padding:9px 28px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500">确认</button><button onclick="loadMonitorOverview()" style="padding:9px 28px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:13px">取消</button></div></div></div>';
     return;
   }
   _monitorDays=_calcDateRange(p);_monitorPreset=p;var n=new Date();
@@ -403,13 +431,13 @@ function setMonitorPreset(p){
   _monitorEndDate=p==='prevMonth'?new Date(n.getFullYear(),n.getMonth(),0).toISOString().slice(0,10):'';
   loadMonitorOverview();
 }
-function acD(){
+function applyCustomDate(){
   var s=document.getElementById('cSD').value,e=document.getElementById('cED').value;
   if(!s){alert('请选择开始日期');return;}
   _monitorDays=Math.max(1,Math.round((e?new Date(e):new Date())-new Date(s))/86400000);_monitorStartDate=s;_monitorEndDate=e;_monitorPreset='custom';loadMonitorOverview();
 }
 
-function _rM(ov,er){
+function renderMonitorView(ov,er){
   var lm={sales:'销售',crm:'CRM',finance:'财务',inventory:'库存',supply_chain:'供应链',supervisor:'规划',aggregator:'聚合',chart_advisor:'图表',report:'报告',reflection:'质检'};
   var pr=ov.reflection_pass_rate||0,p50=ov.latency_p50_ms||0,p95=ov.latency_p95_ms||0,fbr=ov.feedback_helpful_rate||0;
   var dc=_monitorDays||1,da=ov.total_analyses?Math.round(ov.total_analyses/dc):0;
@@ -468,8 +496,7 @@ async function newSession(){
   if(!token){toast('请先登录');return;}
   try{
     var r=await fetch(BASE+'/session/create',{method:'POST',headers:{'Authorization':'Bearer '+token}});
-    if(!r.ok)return;
-    var d=await r.json();sessionId=d.session_id;
+    if(!d)return;sessionId=d.session_id;
     document.getElementById('sessionIdDisplay').textContent=sessionId.substring(0,8)+'...';
     document.getElementById('entityBox').style.display='none';
     document.getElementById('chat').innerHTML='<div class="empty-state" id="emptyState"><div class="greeting-icon">🤖</div><div class="greeting" id="greetingText">有什么经营问题需要分析？</div><div class="greeting-sub" id="greetingSub">5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据</div><div class="quick-grid" id="quickGrid"></div><p style="font-size:12px;color:var(--muted)">或直接输入问题：</p></div>';
@@ -561,7 +588,6 @@ async function viewHistoryDetail(id){
     switchTab('analysis');
   }catch(e){console.warn(e);}
 }
-function getQuickQuestions(u){var m={admin:'admin',zhangsan:'regional_manager',lisi:'store_manager'};return QUICK_QUESTIONS[m[u]||'default']||QUICK_QUESTIONS.default;}
 function renderQuickGrid(){var g=document.getElementById('quickGrid');if(!g)return;var q=getQuickQuestions(localStorage.getItem('eia_user'));g.innerHTML=q.map(function(q){return '<button class="quick-btn" onclick="quickAsk(\''+jsEscape(q.text)+'\')">'+q.icon+' '+esc(q.text)+'</button>';}).join('');}
 function quickAsk(q){document.getElementById('question').value=q;document.getElementById('btn').click();}
 function askFollowup(q){document.getElementById('question').value=q;document.getElementById('btn').click();}
@@ -599,7 +625,7 @@ async function ask(e){
   var el=document.getElementById('chat');
   document.getElementById('question').value='';document.getElementById('btn').disabled=true;document.getElementById('stopBtn').style.display='';
   _isAnalyzing=true;_abortController=new AbortController();_lastQuestionText=q;_lastReportText='';document.getElementById('quickBar').style.display='none';
-  el.innerHTML+='<div class="msg user"><div class="bubble">'+escapeHtml(q)+'</div></div>';
+  el.innerHTML+='<div class="msg user"><div class="bubble">'+esc(q)+'</div></div>';
   var ps='';STEPS.forEach(function(n,i){ps+='<span class="step" id="s-'+n+'">'+(SEMOJIS[n]||'')+' '+LABELS[i]+'</span>';});
   el.innerHTML+='<div class="msg assistant" id="pM"><div class="bubble" style="padding:0;overflow:visible"><div class="progress"><h3><div class="spinner"></div> <span id="pT">🧠 规划中...</span></h3><div class="steps">'+ps+'</div></div></div></div>';
   el.scrollTop=el.scrollHeight;var cs=[];
@@ -648,7 +674,7 @@ async function ask(e){
               }catch(e){console.error(e);}
             }
           }
-        }catch(e){}
+        }catch(e){console.warn('SSE event parse:',e);}
       }
     }
     var pm2=document.getElementById('pM');if(pm2)pm2.remove();
@@ -683,17 +709,16 @@ async function showFeedbackHistory(){
   try{
     var r=await fetch(BASE+'/feedback/history?limit=20',{headers:{'Authorization':'Bearer '+token}});
     if(!r.ok){toast('加载失败');return;}
-    var d=await r.json(),h='<div class="modal-box" style="width:560px;max-width:95%;max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:18px;font-weight:700;color:var(--text)">📝 我的反馈</span>'+(d.total>0?' <span style="font-size:12px;color:var(--muted)">好评率 '+d.helpful_rate+'%</span>':'')+'<button onclick="cfh()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px">&times;</button></div>';
+    var d=await r.json(),h='<div class="modal-box" style="width:560px;max-width:95%;max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:18px;font-weight:700;color:var(--text)">📝 我的反馈</span>'+(d.total>0?' <span style="font-size:12px;color:var(--muted)">好评率 '+d.helpful_rate+'%</span>':'')+'<button onclick="closeFeedbackHistory()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px">&times;</button></div>';
     if(!d.entries||!d.entries.length)h+='<div style="padding:40px 0;text-align:center;color:var(--muted)">暂无记录</div>';
     else d.entries.forEach(function(e){var ri=e.rating==='helpful'?'👍':'👎',rc=e.rating==='helpful'?'var(--green)':'var(--red)';h+='<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between">'+ri+' <span style="color:'+rc+';font-weight:600">'+(e.rating==='helpful'?'有帮助':'不准确')+'</span> <span style="color:var(--muted);font-size:11px">'+((e.created_at||'').slice(0,10)||'')+'</span></div>'+(e.question?'<div style="font-size:12px;color:var(--muted)">"'+esc(e.question)+'"</div>':'')+'</div>';});
     h+='</div>';
-    var ov=document.createElement('div');ov.className='modal-overlay';ov.id='fbHistoryOverlay';ov.style.display='flex';ov.onclick=function(ev){if(ev.target===ov)cfh();};ov.innerHTML=h;document.body.appendChild(ov);
+    var ov=document.createElement('div');ov.className='modal-overlay';ov.id='fbHistoryOverlay';ov.style.display='flex';ov.onclick=function(ev){if(ev.target===ov)closeFeedbackHistory();};ov.innerHTML=h;document.body.appendChild(ov);
   }catch(e){toast('加载失败');console.warn(e);}
 }
-function cfh(){var el=document.getElementById('fbHistoryOverlay');if(el)el.remove();}
+function closeFeedbackHistory(){var el=document.getElementById('fbHistoryOverlay');if(el)el.remove();}
 
 /* Export */
-function downloadMD(){var r=_lastReportText||'',t=_lastQuestionText||'report',fn=t.replace(/[<>:"\/\\|?*]/g,'_').substring(0,40)+'.md',b=new Blob([r],{type:'text/markdown;charset=utf-8'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=fn;a.click();URL.revokeObjectURL(u);toast('已下载');}
 async function exportPDF(){
   if(!_lastReportText){toast('无报告');return;}
   try{
@@ -703,7 +728,6 @@ async function exportPDF(){
   }catch(e){toast('导出失败');}
 }
 
-/* Resize */
-window.addEventListener('resize',function(){document.querySelectorAll('.chart-container').forEach(function(e){if(e._chart)e._chart.resize();});Object.values(window._dashCharts||{}).forEach(function(c){c&&c.resize();});});
+/* Copy report (复用 utils.js 中的 copyToClipboard) */
 
 function _copyReport(){if(_lastReportText) copyToClipboard(_lastReportText);}

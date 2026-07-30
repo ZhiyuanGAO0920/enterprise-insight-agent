@@ -13,8 +13,8 @@
 <!-- 预加载关键资源 -->
 <link rel="preload" href="/static/style.css?v=4.33" as="style">
 <link rel="stylesheet" href="/static/style.css?v=4.33">
-</script>
-<!-- ECharts 1MB 按需加载（初次加载不阻塞渲染） -->
+<!-- ECharts 1MB → async 提前加载（不阻塞 HTML 解析和 defer 队列） -->
+<script src="/static/echarts.min.js" async></script>
 </head>
 <body>
 
@@ -248,11 +248,10 @@
   </div>
 </div>
 
-<!-- V4 前端（defer 顺序依赖：echarts 最先加载，不阻塞首屏） -->
-<script src="/static/echarts.min.js" defer></script>
-<script src="/static/marked.min.js" defer></script>
-<script src="/static/utils.js?v=4.33" defer></script>
-<script src="/static/views.js?v=4.39" defer></script>
-<script src="/static/app.js?v=4.29" defer></script>
+<!-- V4 前端（底部顺序加载，不等 echarts；echarts 已在 head async 预加载） -->
+<script src="/static/marked.min.js"></script>
+<script src="/static/utils.js?v=4.33"></script>
+<script src="/static/views.js?v=4.39"></script>
+<script src="/static/app.js?v=4.29"></script>
 </body>
 </html>
