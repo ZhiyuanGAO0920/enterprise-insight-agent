@@ -7,13 +7,14 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>企业智能经营分析平台 V4</title>
-<script>
-!function(){var t=localStorage.getItem('eia_token');if(!t)return;fetch('/api/v1/auth/verify',{headers:{'Authorization':'Bearer '+t}}).then(function(r){if(!r.ok){localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');}}).catch(function(){localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');});}();
+<!-- 预连接 API 服务器 -->
+<link rel="preconnect" href="/api/v1">
+<link rel="dns-prefetch" href="/api/v1">
+<!-- 预加载关键资源 -->
+<link rel="preload" href="/static/style.css?v=4.33" as="style">
+<link rel="stylesheet" href="/static/style.css?v=4.33">
 </script>
-
-<link rel="stylesheet" href="/static/style.css?v=4.30">
-<script src="/static/echarts.min.js"></script>
-<script src="/static/marked.min.js"></script>
+<!-- ECharts 1MB 按需加载（初次加载不阻塞渲染） -->
 </head>
 <body>
 
@@ -187,7 +188,7 @@
           <button type="button" class="pw-toggle" onclick="togglePassword()" title="显示/隐藏密码">👁</button>
         </div>
       </div>
-      <button type="submit" id="loginBtn" style="width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">登 录</button>
+      <button type="submit" id="loginBtn" style="width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s">登 录</button>
     </form>
     <div id="loginError" style="color:var(--red);font-size:12px;margin-top:10px;text-align:center;display:none"></div>
 
@@ -247,9 +248,11 @@
   </div>
 </div>
 
-<!-- V4 前端（8 模块，顺序依赖） -->
-<script src="/static/utils.js?v=4.31"></script>
-<script src="/static/views.js?v=4.37"></script>
-<script src="/static/app.js?v=4.29"></script>
+<!-- V4 前端（defer 顺序依赖：echarts 最先加载，不阻塞首屏） -->
+<script src="/static/echarts.min.js" defer></script>
+<script src="/static/marked.min.js" defer></script>
+<script src="/static/utils.js?v=4.33" defer></script>
+<script src="/static/views.js?v=4.39" defer></script>
+<script src="/static/app.js?v=4.29" defer></script>
 </body>
 </html>
