@@ -239,6 +239,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 }
 .login-input{width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;transition:border-color .2s}
 .login-input:focus{border-color:var(--accent)}
+#loginBtn:hover{opacity:.9}
 .login-pw-wrap{position:relative}
 .login-pw-wrap .pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1}
 .login-pw-wrap .pw-toggle:hover{color:var(--text)}
@@ -257,6 +258,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .quick-btn{font-size:13px;padding:12px 10px;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;text-align:center;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
 .quick-btn:hover{border-color:var(--accent);background:rgba(99,102,241,.08);color:var(--accent-hover)}
 .quick-bar{padding:6px 28px;border-top:1px solid var(--border);display:none;flex-wrap:wrap;gap:6px;overflow-x:auto}
+
+/* ── 能力卡片（分析对话空状态） ── */
+.cap-cards{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:10px 0 16px}
+.cap-card{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s;min-width:130px;flex:1;max-width:180px}
+.cap-card:hover{border-color:var(--accent);background:var(--accent-soft);transform:translateY(-2px)}
+.cap-card-icon{font-size:22px;line-height:1;flex-shrink:0}
+.cap-card-text{display:flex;flex-direction:column;gap:2px}
+.cap-card-title{font-size:13px;font-weight:600;color:var(--text);line-height:1.3}
+.cap-card-desc{font-size:10px;color:var(--muted);line-height:1.2}
+@media(max-width:768px){
+  .cap-cards{gap:6px}
+  .cap-card{min-width:calc(33% - 6px);max-width:none;padding:8px 10px}
+  .cap-card-icon{font-size:18px}
+  .cap-card-title{font-size:11px}
+  .cap-card-desc{display:none}
+}
+@media(max-width:480px){
+  .cap-card{min-width:calc(50% - 6px);padding:6px 8px}
+  .cap-card-icon{font-size:16px}
+  .cap-card-title{font-size:10px}
+}
 
 /* ======================================================================
    V4 Dashboard / 经营看板
@@ -324,14 +346,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .admin-panel .ap-btn.danger{background:var(--semantic-error);color:#fff;border-color:var(--semantic-error)}
 .admin-panel .ap-btn:hover{opacity:.85}
 .admin-panel .ap-table{width:100%;border-collapse:collapse;font-size:12px}
-.admin-panel .ap-table th,.admin-panel .ap-table td{padding:8px 12px;border-bottom:1px solid var(--border);text-align:left}
+.admin-panel .ap-table th,.admin-panel .ap-table td{padding:8px 8px;border-bottom:1px solid var(--border);text-align:left}
 .admin-panel .ap-table th{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--bg)}
 .admin-panel .ap-table .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
 .admin-panel .ap-table .badge.admin-badge{background:rgba(99,102,241,.2);color:var(--accent-hover)}
 .admin-panel .ap-table .badge.region-badge{background:rgba(34,197,94,.2);color:var(--semantic-success)}
 .admin-panel .ap-table .badge.store-badge{background:rgba(245,158,11,.2);color:var(--semantic-warning)}
 .admin-panel .ap-table .badge.inactive{background:rgba(239,68,68,.15);color:var(--semantic-error)}
-.admin-panel .ap-table .action-link{color:var(--accent);cursor:pointer;margin:0 6px;font-size:11px;text-decoration:none}
+.admin-panel .ap-table .action-link{color:var(--accent);cursor:pointer;margin:0 4px;font-size:11px;text-decoration:none;white-space:nowrap}
 .admin-panel .ap-table .action-link:hover{text-decoration:underline}
 .admin-panel .ap-table .action-link.danger{color:var(--semantic-error)}
 .admin-form{display:flex;flex-direction:column;gap:12px}
@@ -677,3 +699,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .hv-empty-icon{font-size:48px;margin-bottom:12px}
 .hv-empty-text{font-size:16px;color:var(--text);font-weight:600;margin-bottom:4px}
 .hv-empty-sub{font-size:13px;color:var(--muted)}
+
+/* ── 加载过渡页（返回用户跳过欢迎页时显示） ── */
+.intro-overlay.loading{background:#0a0e1a}
+.loading-app{position:relative;z-index:10;text-align:center}
+.loading-spinner{width:36px;height:36px;margin:0 auto 20px;border:3px solid rgba(99,102,241,0.2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+.loading-text{font-size:15px;color:var(--muted);letter-spacing:1px}
+
+/* ── 可访问性：减少动画（前庭功能障碍用户） ── */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:0.01ms!important;
+    transition-duration:0.01ms!important;
+  }
+  .intro-particles{display:none!important}
+}
