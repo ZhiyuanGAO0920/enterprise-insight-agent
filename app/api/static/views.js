@@ -119,7 +119,7 @@ async function restoreSession(username){
       if(an)an.style.display=_me.role==='admin'?'':'none';
     });
   }).catch(function(){});
-  try{renderQuickGrid();renderEmptyStatoggleScopeFields();switchTab('dashboard');loadSessionInfo();
+  try{renderQuickGrid();renderEmptyStats();switchTab('dashboard');loadSessionInfo();
     if(!localStorage.getItem('eia_first_visit')){
       localStorage.setItem('eia_first_visit','1');
       setTimeout(function(){
@@ -515,7 +515,7 @@ async function newSession(){
     document.getElementById('sessionIdDisplay').textContent=sessionId.substring(0,8)+'...';
     document.getElementById('entityBox').style.display='none';
     document.getElementById('chat').innerHTML='<div class="empty-state" id="emptyState"><div class="greeting-icon">🤖</div><div class="greeting" id="greetingText">有什么经营问题需要分析？</div><div class="greeting-sub" id="greetingSub">5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据</div><div class="quick-stats" id="quickStats"></div><div class="quick-grid" id="quickGrid"></div><p style="font-size:12px;color:var(--muted)">或直接输入问题：</p></div>';
-    renderQuickGrid();renderEmptyStatoggleScopeFields();switchTab('analysis');
+    renderQuickGrid();renderEmptyStats();switchTab('analysis');
   }catch(e){console.warn(e);}
 }
 async function loadSessionInfo(){
