@@ -346,14 +346,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .admin-panel .ap-btn.danger{background:var(--semantic-error);color:#fff;border-color:var(--semantic-error)}
 .admin-panel .ap-btn:hover{opacity:.85}
 .admin-panel .ap-table{width:100%;border-collapse:collapse;font-size:12px}
-.admin-panel .ap-table th,.admin-panel .ap-table td{padding:8px 8px;border-bottom:1px solid var(--border);text-align:left}
+.admin-panel .ap-table th,.admin-panel .ap-table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+.admin-panel .ap-table td:nth-child(4){max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-panel .ap-table td:last-child{white-space:nowrap}
 .admin-panel .ap-table th{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--bg)}
 .admin-panel .ap-table .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
 .admin-panel .ap-table .badge.admin-badge{background:rgba(99,102,241,.2);color:var(--accent-hover)}
 .admin-panel .ap-table .badge.region-badge{background:rgba(34,197,94,.2);color:var(--semantic-success)}
 .admin-panel .ap-table .badge.store-badge{background:rgba(245,158,11,.2);color:var(--semantic-warning)}
 .admin-panel .ap-table .badge.inactive{background:rgba(239,68,68,.15);color:var(--semantic-error)}
-.admin-panel .ap-table .action-link{color:var(--accent);cursor:pointer;margin:0 4px;font-size:11px;text-decoration:none;white-space:nowrap}
+.admin-panel .ap-table .action-link{color:var(--accent);cursor:pointer;margin:0 6px;font-size:11px;text-decoration:none}
 .admin-panel .ap-table .action-link:hover{text-decoration:underline}
 .admin-panel .ap-table .action-link.danger{color:var(--semantic-error)}
 .admin-form{display:flex;flex-direction:column;gap:12px}
