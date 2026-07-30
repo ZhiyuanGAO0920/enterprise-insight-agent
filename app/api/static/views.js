@@ -76,16 +76,7 @@ async function restoreSession(username){
   var saved=localStorage.getItem('eia_token');
   if(!saved){showLogin();return;}
   token=saved;var u=username||localStorage.getItem('eia_user')||'admin';
-  // V4.5: 先验证 token 再显示界面，防闪屏
-  var _me=null;
-  try{
-    var _r=await fetch(BASE+'/admin/users',{headers:{'Authorization':'Bearer '+token}});
-    if(!_r.ok)throw Error('invalid token');
-    var _d=await _r.json();_me=_d.users&&_d.users.find(function(x){return x.username===u;});
-  }catch(e){
-    localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');
-    token='';showLogin();return;
-  }
+  // V4.5: 先显示界面，再异步加载角色信息（内联脚本已确认 token 有效）
   document.getElementById('introOverlay').style.display='none';
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('app').style.display='flex';
@@ -94,12 +85,17 @@ async function restoreSession(username){
   document.getElementById('userMenuName').textContent=u;
   document.getElementById('userAvatar').textContent=u.charAt(0).toLowerCase();
   document.getElementById('dashUser').textContent=u;_lastUser=u;
-  if(_me){
-    document.getElementById('dropdownRole').textContent=_me.role==='admin'?'管理员':_me.role==='regional_manager'?'区域经理':'店长';
-    document.getElementById('dropdownScope').textContent=_me.scope_type==='all'?'全部门店':_me.region||_me.store_ids?(_me.store_ids||[]).length+'家门店':'—';
-    var mn=document.getElementById('monitorNavBtn');
-    if(mn)mn.style.display=_me.role==='admin'?'':'none';
-  }
+  // 异步加载角色信息（不阻塞界面渲染）
+  fetch(BASE+'/admin/users',{headers:{'Authorization':'Bearer '+token}}).then(function(_r){
+    if(!_r.ok)return;_r.json().then(function(_d){
+      var _me=_d.users&&_d.users.find(function(x){return x.username===u;});
+      if(!_me)return;
+      document.getElementById('dropdownRole').textContent=_me.role==='admin'?'管理员':_me.role==='regional_manager'?'区域经理':'店长';
+      document.getElementById('dropdownScope').textContent=_me.scope_type==='all'?'全部门店':_me.region||_me.store_ids?(_me.store_ids||[]).length+'家门店':'—';
+      var mn=document.getElementById('monitorNavBtn');
+      if(mn)mn.style.display=_me.role==='admin'?'':'none';
+    });
+  }).catch(function(){});
   try{renderQuickGrid();switchTab('dashboard');loadSessionInfo();
     if(!localStorage.getItem('eia_first_visit')){
       localStorage.setItem('eia_first_visit','1');
