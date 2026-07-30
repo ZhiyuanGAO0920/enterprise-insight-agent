@@ -1,5 +1,5 @@
 /* Enterprise Insight Agent V4 — Frontend */
-var _currentTab='dashboard',_lastUser='',_dashCharts={};(window._dashCharts=_dashCharts);
+var _currentTab='dashboard',_lastUser='',_dashCharts={},_currentRole='default';(window._dashCharts=_dashCharts);
 var _monitorDays=30,_monitorPreset='30',_monitorStartDate='',_monitorEndDate='';
 var _allUsers=[],_allStores=[],_allRegions=[];
 var sessionId=null,lastRecordId=null,pendingFeedback=null,_lastReportText='',_lastQuestionText='';
@@ -21,7 +21,7 @@ function _cachedFetch(key,url,ttlMs){
     }catch(e){}
   }
   return fetch(url,{headers:{'Authorization':'Bearer '+token}}).then(function(r){
-    if(!r.ok){_cache[key]=null;return Promise.reject(r)}
+    if(!r.ok){_cache[key]=null;return null}
     return r.json().then(function(d){
       _cache[key]={data:d,time:now};
       if(key==='dashboard')try{sessionStorage.setItem('eia_dash',JSON.stringify(_cache[key]))}catch(e){}
@@ -68,7 +68,6 @@ function transitionToLogin(){
 }
 function showLogin(){document.getElementById('introOverlay').style.display='none';document.getElementById('loginOverlay').style.display='flex';}
 function togglePassword(){var p=document.getElementById('loginPass');p.type=p.type==='password'?'text':'password';}
-function fillUser(u){var m={'admin':'admin123','zhangsan':'123456','lisi':'123456'};document.getElementById('loginUser').value=u;document.getElementById('loginPass').value=m[u]||'';}
 
 async function doLogin(e){
   e.preventDefault();
@@ -88,7 +87,7 @@ async function doLogin(e){
         errEl.style.display='block';
       }else toast('用户名或密码错误');
     }
-  }catch(e){toast('网络错误');}
+  }catch(e){toast('网络错误','error');}
   finally{btn.disabled=false;btn.textContent='登录';}
 }
 
@@ -113,6 +112,7 @@ async function restoreSession(username){
       if(!_me)return;
       document.getElementById('dropdownRole').textContent=_me.role==='admin'?'管理员':_me.role==='regional_manager'?'区域经理':'店长';
       document.getElementById('dropdownScope').textContent=_me.scope_type==='all'?'全部门店':_me.region||_me.store_ids?(_me.store_ids||[]).length+'家门店':'—';
+      _currentRole=_me.role||'default';
       var mn=document.getElementById('monitorNavBtn');
       if(mn)mn.style.display=_me.role==='admin'?'':'none';
       var an=document.getElementById('adminNavBtn');
@@ -126,7 +126,7 @@ async function restoreSession(username){
         toast('💡 尝试输入“各门店销售额排名”或点击快捷按钮开始分析');
       },1500);
     }
-  }catch(e){console.warn(e);}
+  }catch(e){console.warn("Catch:",e);}
 }
 
 async function logout(){
@@ -152,6 +152,32 @@ function toggleUserMenu(){document.getElementById('userMenuDropdown').classList.
 document.addEventListener('click',function(e){
   var m=document.getElementById('userMenu'),d=document.getElementById('userMenuDropdown');
   if(m&&!m.contains(e.target))d.classList.remove('show');
+});
+
+/* 事件委托：替代内联 onclick，配合 CSP */
+document.addEventListener('click',function(e){
+  var t=e.target;
+  // 能力卡片
+  var card=t.closest('.cap-card[data-question]');
+  if(card){fillQuestion(card.getAttribute('data-question'));return;}
+  // 快捷提问按钮
+  var qb=t.closest('.quick-btn[data-question]');
+  if(qb){quickAsk(qb.getAttribute('data-question'));return;}
+  // 追问按钮（LLM 生成内容，需走委托避免 XSS）
+  var fb=t.closest('.followup-btn[data-action="ask-followup"]');
+  if(fb){askFollowup(fb.getAttribute('data-question'));return;}
+  // 管理面板表格操作
+  var a=t.closest('[data-action]');
+  if(a){
+    var tr=a.closest('tr[data-uid]');
+    if(tr){
+      var uid=parseInt(tr.getAttribute('data-uid')),action=a.getAttribute('data-action');
+      if(action==='edit')showEditUser(uid);
+      else if(action==='delete')deleteUser(uid,a.getAttribute('data-uname'));
+      else if(action==='reset-pw')resetPassword(uid);
+    }
+    return;
+  }
 });
 
 /* Dashboard */
@@ -238,7 +264,7 @@ async function loadDashboard(){
         series:[{type:'bar',data:rfData.map(function(d){return d.value;}),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'rgba(239,68,68,0.3)'},{offset:1,color:'#ef4444'}])},barMaxWidth:20,label:{show:true,position:'right',formatter:function(p){return p.value+'%';},color:'#fca5a5',fontSize:10,fontWeight:600}}]});
     }
     });
-  }catch(e){toast('看板加载失败');console.warn(e);}
+  }catch(e){toast('看板加载失败','error');console.warn(e);}
 }
 
 /* Admin */
@@ -273,7 +299,7 @@ async function loadAdminData(force){
     _allStores=stores;_allRegions=regions;
     _cache['admin']={data:{users:_allUsers,stores:_allStores,regions:_allRegions},time:Date.now()};
     renderUserList();
-  }catch(e){console.warn(e);}
+  }catch(e){console.warn("Catch:",e);}
 }
 function renderUserList(){
   var s=(document.getElementById('apSearch')||{}).value||'',rf=(document.getElementById('apRoleFilter')||{}).value||'';
@@ -282,7 +308,7 @@ function renderUserList(){
   function sn(ids){if(!ids||!ids.length)return '';return ids.map(function(id){return sm[String(id)]||'#'+id;}).filter(Boolean).join('、');}
   var html=f.map(function(u){
     var sids=u.store_ids||u.stores||[],st=u.scope_type==='all'?'全部门店':u.scope_type==='region'?u.region||'区域':sids.length>3?sids.length+'家门店':(sn(sids)||'—');
-    return '<tr><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+(u.role==='admin'?'<span class="badge admin-badge">管理员</span>':u.role==='regional_manager'?'<span class="badge region-badge">区域经理</span>':'<span class="badge store-badge">店长</span>')+'</td><td>'+st+'</td><td>'+(u.is_active===false?'<span class="badge inactive">禁用</span>':'<span class="badge admin-badge">启用</span>')+'</td><td><a class="action-link" onclick="showEditUser('+u.id+')">编辑</a><a class="action-link danger" onclick="deleteUser('+u.id+',\''+jsEscape(u.username)+'\')">删除</a><a class="action-link" onclick="resetPassword('+u.id+')">重置密码</a></td></tr>';
+    return '<tr data-uid="'+u.id+'"><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+(u.role==='admin'?'<span class="badge admin-badge">管理员</span>':u.role==='regional_manager'?'<span class="badge region-badge">区域经理</span>':'<span class="badge store-badge">店长</span>')+'</td><td>'+st+'</td><td>'+(u.is_active===false?'<span class="badge inactive">禁用</span>':'<span class="badge admin-badge">启用</span>')+'</td><td><a class="action-link" data-action="edit">编辑</a><a class="action-link danger" data-action="delete" data-uname="'+jsEscape(u.username)+'">删除</a><a class="action-link" data-action="reset-pw">重置密码</a></td></tr>';
   }).join('');
   document.getElementById('apUserList').innerHTML=html;
 }
@@ -477,14 +503,13 @@ function renderMonitorView(ov,er){
     ch='<div class="mq-chart-box"><div class="mq-chart" id="mTC" style="height:260px"></div><div class="mq-chart-summary"><div class="mq-chart-stat"><span class="mq-chart-stat-label">累计 Input</span><span class="mq-chart-stat-value">'+(ti>=1000000?(ti/1000000).toFixed(1)+'M':ti>=1000?(ti/1000).toFixed(1)+'K':ti)+'</span></div><div class="mq-chart-stat"><span class="mq-chart-stat-label">累计 Output</span><span class="mq-chart-stat-value">'+(to2>=1000000?(to2/1000000).toFixed(1)+'M':to2>=1000?(to2/1000).toFixed(1)+'K':to2)+'</span></div><div class="mq-chart-stat"><span class="mq-chart-stat-label">总成本</span><span class="mq-chart-stat-value">¥'+tc2.toFixed(4)+'</span></div></div></div>';
     setTimeout(function(){
       var el=document.getElementById('mTC');if(!el)return;
-      var c=echarts.init(el);
-      c.setOption({tooltip:{trigger:'axis',backgroundColor:'rgba(30,35,55,0.95)',borderColor:'#334155',textStyle:{color:'#e2e8f0',fontSize:12}},
+      if(window._monitorChart)window._monitorChart.dispose();window._monitorChart=echarts.init(el);
+      window._monitorChart.setOption({tooltip:{trigger:'axis',backgroundColor:'rgba(30,35,55,0.95)',borderColor:'#334155',textStyle:{color:'#e2e8f0',fontSize:12}},
         legend:{data:['Input','Output','Cost(x¥1e4)'],textStyle:{color:'#94a3b8',fontSize:11},top:0,right:0,icon:'circle',itemWidth:8,itemHeight:8},
         grid:{left:50,right:20,top:40,bottom:30},
         xAxis:{type:'category',data:dates,axisLabel:{color:'#94a3b8',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
         yAxis:[{type:'value',name:'Tokens',nameTextStyle:{color:'#94a3b8',fontSize:10},axisLabel:{color:'#94a3b8',fontSize:10,formatter:function(v){return v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(1)+'K':v;}},splitLine:{lineStyle:{color:'#1e293b'}}},{type:'value',name:'Cost',nameTextStyle:{color:'#94a3b8',fontSize:10},axisLabel:{color:'#94a3b8',fontSize:10,formatter:function(v){return '¥'+(v/10000).toFixed(4);}},splitLine:{show:false}}],
         series:[{name:'Input',type:'line',data:inS,smooth:true,symbol:'circle',symbolSize:6,lineStyle:{width:2,color:'#6366f1'},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(99,102,241,0.25)'},{offset:1,color:'rgba(99,102,241,0)'}]}}},{name:'Output',type:'line',data:outS,smooth:true,symbol:'circle',symbolSize:6,lineStyle:{width:2,color:'#22c55e'},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(34,197,94,0.2)'},{offset:1,color:'rgba(34,197,94,0)'}]}}},{name:'Cost(x¥1e4)',type:'bar',yAxisIndex:1,data:costS,itemStyle:{color:'rgba(245,158,11,0.5)',borderColor:'#f59e0b',borderWidth:1,borderRadius:[2,2,0,0]}}]});
-      window.addEventListener('resize',function(){c.resize();});
     },100);
   }
   document.getElementById('monitorView').innerHTML=
@@ -516,14 +541,14 @@ async function newSession(){
     document.getElementById('entityBox').style.display='none';
     document.getElementById('chat').innerHTML='<div class="empty-state" id="emptyState"><div class="greeting-icon">🤖</div><div class="greeting" id="greetingText">有什么经营问题需要分析？</div><div class="greeting-sub" id="greetingSub">5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据</div><div class="quick-stats" id="quickStats"></div><div class="quick-grid" id="quickGrid"></div><p style="font-size:12px;color:var(--muted)">或直接输入问题：</p></div>';
     renderQuickGrid();renderEmptyStats();switchTab('analysis');
-  }catch(e){console.warn(e);}
+  }catch(e){console.warn("Catch:",e);}
 }
 async function loadSessionInfo(){
   if(!sessionId||!token)return;
   try{
     var r=await fetch(BASE+'/session/'+sessionId,{headers:{'Authorization':'Bearer '+token}});
     if(r.ok){var d=await r.json(),em=d.entity_memory||{},keys=Object.keys(em);if(keys.length){var h='';keys.forEach(function(k){h+='<span class="ent">'+(em[k].type==='member'?'👤 ':'🏪 ')+esc(k)+'</span>';});document.getElementById('entityTags').innerHTML=h;document.getElementById('entityBox').style.display='block';}}
-  }catch(e){console.warn(e);}
+  }catch(e){console.warn("Catch:",e);}
 }
 function dismissHistory(id,e){
   if(e)e.stopPropagation();
@@ -535,10 +560,13 @@ function clearAllHistory(){
   localStorage.setItem('eia_dismissed','[]');dismissedIds=new Set();hiddenIds=new Set();
   if(_currentTab==='history')loadHistoryView(1);
 }
-var _hvData=[];
+var _hvData=[],_hvFilterTimer=null;
 function filterHistory(){
-  var q=(document.getElementById('hvSearch')||{}).value||'';
-  renderHistoryList(_hvData,q);
+  clearTimeout(_hvFilterTimer);
+  _hvFilterTimer=setTimeout(function(){
+    var q=(document.getElementById('hvSearch')||{}).value||'';
+    renderHistoryList(_hvData,q);
+  },200);
 }
 function renderHistoryList(rec,q){
   if(q)rec=rec.filter(function(r){return(r.question||'').toLowerCase().indexOf(q.toLowerCase())>=0;});
@@ -574,19 +602,19 @@ async function loadHistoryView(page){
     rec.total=d.total;rec._page=page;_hvData=rec;
     document.getElementById('hvCount').textContent=(d.total||0)+' 条';
     renderHistoryList(rec,(document.getElementById('hvSearch')||{}).value||'');
-  }catch(e){console.warn(e);}
+  }catch(e){console.warn("Catch:",e);}
 }
 async function viewHistoryDetail(id){
   try{
     var r=await fetch(BASE+'/analysis/history/'+id,{headers:{'Authorization':'Bearer '+token}});
-    if(!r.ok){toast('加载失败');return;}
+    if(!r.ok){toast('加载失败','error');return;}
     var d=await r.json();
     _lastReportText=d.report||'';_lastQuestionText=d.question||'';
     document.getElementById('chat').innerHTML='<div class="msg user"><div class="bubble">'+esc(d.question||'')+'</div></div>';
     if(d.report){
       var sup='',ds='',fq='',rh='',fb='',tb='';
       try{sup=buildSupervisorPlan(d.supervisor_plan);}catch(e){}
-      try{var _r2=d.report.replace(/\[FOLLOWUP[^\]]*\]\]/g,'');rh=marked.parse(convertTextTables(expandChartTags(_r2)));}catch(e){rh=esc(d.report);}
+      try{var _r2=d.report.replace(/\[FOLLOWUP[^\]]*\]\]/g,'');rh=sanitizeHtml(marked.parse(convertTextTables(expandChartTags(_r2))));}catch(e){rh=esc(d.report);}
       try{ds=buildTracePanel(d.data_sources);}catch(e){}
       try{fq=buildFollowupButtons(d.followup_questions);}catch(e){}
       try{if(d.id)fb='<div class="feedback-bar"><span>这个回答对你有帮助吗？</span><button class="feedback-btn" onclick="showFeedback(&#39;helpful&#39;)">👍 有帮助</button><button class="feedback-btn" onclick="showFeedback(&#39;bad&#39;)">👎 没有帮助</button></div>';}catch(e){}
@@ -601,7 +629,7 @@ async function viewHistoryDetail(id){
       document.getElementById('chat').innerHTML+='<div class="msg assistant"><div class="bubble" style="color:var(--amber)">无报告内容</div></div>';
     }
     switchTab('analysis');
-  }catch(e){console.warn(e);}
+  }catch(e){console.warn("Catch:",e);}
 }
 
 var CAP_CARDS=[
@@ -615,12 +643,11 @@ function renderCapabilityCards(){
   var cc=document.getElementById("capCards");
   if(!cc)return;
   cc.innerHTML=CAP_CARDS.map(function(c){
-    var sq=String.fromCharCode(39);
-    return "<div class=\"cap-card\" onclick=\"fillQuestion("+sq+jsEscape(c.question)+sq+")\"><span class=\"cap-card-icon\">"+c.icon+"</span><div class=\"cap-card-text\"><span class=\"cap-card-title\">"+esc(c.title)+"</span><span class=\"cap-card-desc\">"+esc(c.desc)+"</span></div></div>"
+    return "<div class=\"cap-card\" data-question=\""+esc(c.question)+"\"><span class=\"cap-card-icon\">"+c.icon+"</span><div class=\"cap-card-text\"><span class=\"cap-card-title\">"+esc(c.title)+"</span><span class=\"cap-card-desc\">"+esc(c.desc)+"</span></div></div>"
   }).join("");
 }
 function fillQuestion(q){document.getElementById("question").value=q;document.getElementById("question").focus();}
-function renderQuickGrid(){var g=document.getElementById('quickGrid');if(!g)return;var q=getQuickQuestions(localStorage.getItem('eia_user'));g.innerHTML=q.map(function(q){return '<button class="quick-btn" onclick="quickAsk(\''+jsEscape(q.text)+'\')">'+q.icon+' '+esc(q.text)+'</button>';}).join('');}
+function renderQuickGrid(){var g=document.getElementById('quickGrid');if(!g)return;var q=getQuickQuestions(_currentRole);g.innerHTML=q.map(function(q){return '<button class="quick-btn" data-question="'+esc(q.text)+'">'+q.icon+' '+esc(q.text)+'</button>';}).join('');}
 function renderEmptyStats(){
   var qs=document.getElementById("quickStats");
   if(!qs)return;
@@ -728,7 +755,7 @@ async function ask(e){
               var sd2=document.createElement('div');sd2.className='bubble stream-content';sb.appendChild(sd2);
               var pm=document.getElementById('pM');
               if(pm&&pm.parentNode)pm.parentNode.insertBefore(sb,pm.nextSibling);else el.appendChild(sb);
-              var fh;try{fh=marked.parse(convertTextTables(expandChartTags(ctr)));}catch(e){fh=esc(ctr);}
+              var fh;try{fh=sanitizeHtml(marked.parse(convertTextTables(expandChartTags(ctr))));}catch(e){fh=esc(ctr);}
               sd2.innerHTML=fh.replace(/\[FOLLOWUP[^\]]*\]\]/g,'');
               try{
                 var ext='';try{ext=buildSupervisorPlan(fsp);}catch(e){}
@@ -742,13 +769,13 @@ async function ask(e){
               }catch(e){console.error(e);}
             }
           }
-        }catch(e){console.warn('SSE event parse:',e);}
+        }catch(e){_sseParseErrs++;if(_sseParseErrs>5){toast('连接不稳定，部分数据可能丢失');_sseParseErrs=0;}console.warn('SSE event parse:',e);}
       }
     }
     var pm2=document.getElementById('pM');if(pm2)pm2.remove();
     if(sb){}else if(fr){
       try{var e2='';try{e2=buildSupervisorPlan(fsp);}catch(e){}try{e2+=buildTracePanel(fds);}catch(e){}try{e2+=buildFollowupButtons(ffqs);}catch(e){}
-      el.innerHTML+='<div class="msg assistant"><div class="bubble">'+marked.parse(convertTextTables(expandChartTags(fr)))+e2+'</div></div>';}catch(e){el.innerHTML+='<div class="msg assistant"><div class="bubble">'+esc(fr)+'</div></div>';}
+      el.innerHTML+='<div class="msg assistant"><div class="bubble">'+sanitizeHtml(marked.parse(convertTextTables(expandChartTags(fr))))+e2+'</div></div>';}catch(e){el.innerHTML+='<div class="msg assistant"><div class="bubble">'+esc(fr)+'</div></div>';}
     }else if(!fr&&!sc){el.innerHTML+='<div class="msg assistant"><div class="bubble" style="color:var(--amber)">未生成报告</div></div>';}
     if(!sb)el.scrollTop=el.scrollHeight;
     document.getElementById('quickBar').style.display='flex';lastRecordId=fid;loadSessionInfo();
@@ -770,30 +797,30 @@ async function submitFeedback(){
     var r=await fetch(BASE+'/feedback/submit',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({analysis_history_id:pendingFeedback.record_id,rating:pendingFeedback.rating,reason:t||null})});
     var d=await r.json();closeFeedbackModal();document.getElementById('feedbackText').value='';
     toast((d.stats&&d.stats.text)||d.message||'感谢反馈！');
-  }catch(e){toast('提交失败');}
+  }catch(e){toast('提交失败','error');}
 }
 async function showFeedbackHistory(){
   if(!token){toast('请先登录');return;}
   try{
     var r=await fetch(BASE+'/feedback/history?limit=20',{headers:{'Authorization':'Bearer '+token}});
-    if(!r.ok){toast('加载失败');return;}
+    if(!r.ok){toast('加载失败','error');return;}
     var d=await r.json(),h='<div class="modal-box" style="width:560px;max-width:95%;max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:18px;font-weight:700;color:var(--text)">📝 我的反馈</span>'+(d.total>0?' <span style="font-size:12px;color:var(--muted)">好评率 '+d.helpful_rate+'%</span>':'')+'<button onclick="closeFeedbackHistory()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px">&times;</button></div>';
     if(!d.entries||!d.entries.length)h+='<div style="padding:40px 0;text-align:center;color:var(--muted)">暂无记录</div>';
     else d.entries.forEach(function(e){var ri=e.rating==='helpful'?'👍':'👎',rc=e.rating==='helpful'?'var(--green)':'var(--red)';h+='<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between">'+ri+' <span style="color:'+rc+';font-weight:600">'+(e.rating==='helpful'?'有帮助':'不准确')+'</span> <span style="color:var(--muted);font-size:11px">'+((e.created_at||'').slice(0,10)||'')+'</span></div>'+(e.question?'<div style="font-size:12px;color:var(--muted)">"'+esc(e.question)+'"</div>':'')+'</div>';});
     h+='</div>';
     var ov=document.createElement('div');ov.className='modal-overlay';ov.id='fbHistoryOverlay';ov.style.display='flex';ov.onclick=function(ev){if(ev.target===ov)closeFeedbackHistory();};ov.innerHTML=h;document.body.appendChild(ov);
-  }catch(e){toast('加载失败');console.warn(e);}
+  }catch(e){toast('加载失败','error');console.warn(e);}
 }
 function closeFeedbackHistory(){var el=document.getElementById('fbHistoryOverlay');if(el)el.remove();}
 
 /* Export */
 async function exportPDF(){
-  if(!_lastReportText){toast('无报告');return;}
+  if(!_lastReportText){toast('无报告','error');return;}
   try{
     var r=await fetch(BASE+'/weekly/export',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({report:_lastReportText,title:(_lastQuestionText||'报告').substring(0,40)})});
     if(!r.ok){var e=await r.json();toast(e.detail||'导出失败');return;}
     var b=await r.blob(),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='report.pdf';a.click();URL.revokeObjectURL(u);toast('PDF已下载');
-  }catch(e){toast('导出失败');}
+  }catch(e){toast('导出失败','error');}
 }
 
 /* Copy report (复用 utils.js 中的 copyToClipboard) */
