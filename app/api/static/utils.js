@@ -1,19 +1,6 @@
 /* Enterprise Insight Agent V4 — 工具函数 */
 var BASE = '/api/v1';
-var token = null;          // 全局 token（唯一声明处，避免隐式全局变量）
-
-/* ── ECharts 就绪队列（echarts 在底部最后加载，图表代码等它就绪） ── */
-var _echartsCbs=[],_echartsTimer=null;
-function onEChartsReady(cb){
-  if(window.echarts){cb(window.echarts);return}
-  _echartsCbs.push(cb);
-  if(!_echartsTimer)_echartsTimer=setInterval(function(){
-    if(!window.echarts)return;
-    clearInterval(_echartsTimer);_echartsTimer=null;
-    _echartsCbs.splice(0).forEach(function(fn){fn(window.echarts)});
-  },100);
-}
-setTimeout(function(){if(_echartsTimer){clearInterval(_echartsTimer);_echartsTimer=null;_echartsCbs=[]}},15000);
+var _reportCharts = [];
 
 /* ── 格式化 ── */
 function formatCurrency(v){
@@ -29,8 +16,58 @@ function formatPercent(v){
 }
 
 /* ── 转义 ── */
+function escapeHtml(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function htmlEscape(text){
+  var map={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+  return text.replace(/[&<>"']/g,function(m){return map[m]})
+}
 function jsEscape(s){
   return String(s||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'\\r').replace(/<\/script>/gi,'<\\/script>')
+}
+function tmplEscape(s){return jsEscape(String(s||'')).replace(/\${/g,'\\${')}
+/* ── Supervisor 推理过程面板 ── */
+function buildSupervisorPlan(sp){
+  if(!sp)return'';
+  try{
+    var plan=typeof sp==='string'?JSON.parse(sp):sp;
+    if(!plan||!plan.activated_agents)return'';
+    var agentLabels={
+      sales:'📊 销售分析',
+      crm:'👥 会员分析',
+      finance:'💰 财务分析',
+      inventory:'📦 库存分析',
+      supply_chain:'🚚 供应链分析'
+    };
+    var agents=plan.activated_agents.map(function(a){return'<span style="display:inline-block;font-size:11px;padding:2px 10px;border-radius:10px;background:rgba(99,102,241,.12);color:var(--accent-hover);margin:2px 4px 2px 0">'+(agentLabels[a]||a)+'</span>'}).join('');
+    var reasoning=plan.reasoning||'';
+    var analysisPlan=plan.analysis_plan||'';
+    return '<details class="sup-panel" style="margin-bottom:12px;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0">'+
+      '<summary style="padding:10px 14px;cursor:pointer;color:var(--accent);font-weight:600;font-size:12px">🧠 分析规划 <span style="color:var(--muted);font-weight:400">· 激活 '+plan.activated_agents.length+' 个 Agent</span></summary>'+
+      '<div style="padding:4px 14px 14px">'+
+      (reasoning?'<div style="margin-bottom:8px"><span style="color:var(--muted);font-size:11px">推理</span><p style="margin:4px 0;color:var(--text);line-height:1.6">'+esc(reasoning)+'</p></div>':'')+
+      (analysisPlan?'<div style="margin-bottom:8px"><span style="color:var(--muted);font-size:11px">分析计划</span><p style="margin:4px 0;color:var(--text);line-height:1.6">'+esc(analysisPlan)+'</p></div>':'')+
+      '<div><span style="color:var(--muted);font-size:11px">激活的 Agent</span><div style="margin-top:4px">'+agents+'</div></div>'+
+      '</div></details>'
+  }catch(e){return ''}
+}
+
+/* ── KPI 数字递增动画 ── */
+function animateKPI(el, target, suffix, duration){
+  if(!el)return;
+  var start=0, startTime=null;
+  var dur=duration||400;
+  function step(ts){
+    if(!startTime)startTime=ts;
+    var progress=Math.min((ts-startTime)/dur,1);
+    // easeOutCubic 缓出
+    var eased=1-Math.pow(1-progress,3);
+    var current=Math.round(start+(target-start)*eased);
+    el.textContent=formatCurrency(current)+suffix;
+    if(progress<1)requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step)
+}
+
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
 /* ── UI 反馈 ── */
@@ -188,6 +225,14 @@ function formatAxisValue(v){
   return v>=10000?(v/10000).toFixed(0)+'万':v
 }
 
+/* ── 图表 ── */
+function parseChartParams(encoded){
+  try{
+    var params=JSON.parse(decodeURIComponent(encoded));
+    var dt=params.series?params.series[0]&&params.series[0].data?params.series:null:null;
+    return{type:params.type,title:params.title||'',xData:params.x_data||[],series:params.series||[],height:params.height||400,note:params.note||''}
+  }catch(e){return null}
+}
 function buildEChartsOption(type,config){
   var th=echartsTheme();
   var opt={
@@ -210,29 +255,33 @@ function buildEChartsOption(type,config){
   return opt
 }
 /* ── 图表容器生成（不初始化 ECharts，只生成 div）── */
+function renderCharts(html){
+  /* 返回 HTML + chart-container div，ECharts 在 DOM 挂载后再初始化 */
+  return html
+}
 
-/* ── DOM 挂载后初始化图表（echarts 最后加载，通过 onEChartsReady 就绪回调）── */
+/* ── DOM 挂载后初始化图表（修复：在 detached 元素上 init 导致黑框）── */
 function initChartsInBubble(bubbleEl){
-  onEChartsReady(function(echarts){
-    var containers=bubbleEl.querySelectorAll('.chart-container');
-    if(!containers.length)return;
-    containers.forEach(function(container){
-      var raw=container.getAttribute('data-chart');
-      if(!raw){container.style.display='none';return}
-      try{
-        var params=JSON.parse(raw);
-        if(container._chart){container._chart.resize();return}
-        var opt=buildEChartsOption(params.type,params);
-        var chart=echarts.init(container);
-        chart.setOption(opt);
-        container._chart=chart
-      }catch(e){console.warn('chart init failed:',e);container.style.display='none'}
-    });
-    containers.forEach(function(c){
-      if(c.style.display==='none' || !c.querySelector('canvas')){
-        c.style.display='none'
-      }
-    })
+  var containers=bubbleEl.querySelectorAll('.chart-container');
+  if(!containers.length)return;
+  containers.forEach(function(container){
+    var raw=container.getAttribute('data-chart');
+    if(!raw){container.style.display='none';return}
+    try{
+      var params=JSON.parse(raw);
+      // 已有图表的容器不再重复初始化（历史报告回溯时不会销毁之前的气泡）
+      if(container._chart){container._chart.resize();return}
+      var opt=buildEChartsOption(params.type,params);
+      var chart=echarts.init(container);
+      chart.setOption(opt);
+      container._chart=chart
+    }catch(e){console.warn('chart init failed:',e);container.style.display='none'}
+  });
+  // 初始化失败的图表容器自动隐藏（避免出现看不懂的空框）
+  containers.forEach(function(c){
+    if(c.style.display==='none' || !c.querySelector('canvas')){
+      c.style.display='none'
+    }
   })
 }
 
@@ -245,7 +294,7 @@ function buildTracePanel(ds){
       esc(d.agent||'Agent')+' — 第 '+d.id+' 步：'+
       (d.claim||'')+' <span style="color:var(--muted);font-weight:400">'+
       '（耗时 '+d.execution_time_ms+'ms，返回 '+d.row_count+' 行）</span></div>'+
-      '<div class="trace-sql">'+esc(d.sql||'')+'</div></div>'
+      '<div class="trace-sql">'+escapeHtml(d.sql||'')+'</div></div>'
   });
   html+='</details>';
   return html
@@ -257,6 +306,13 @@ function buildFollowupButtons(qs){
   return'<div class="followup-btns">'+qs.map(function(q){return'<button class="followup-btn" onclick="askFollowup(\''+jsEscape(q)+'\')">'+esc(q)+'</button>'}).join('')+'</div>'
 }
 
+/* ── 杂项 ── */
+function _fmtDate(d){
+  var dt=new Date(d);
+  if(isNaN(dt.getTime()))return d;
+  var pad=function(n){return n<10?'0'+n:n};
+  return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())+' '+pad(dt.getHours())+':'+pad(dt.getMinutes())
+}
 function _calcDateRange(preset){
   var n=new Date();
   switch(preset){
@@ -268,14 +324,10 @@ function _calcDateRange(preset){
   }
 }
 
-/* 全局 resize：统一处理报告 + 看板内嵌图表（带 150ms 防抖） */
-var _resizeTimer;
+/* 全局 resize：统一处理报告 + 看板内嵌图表 */
 window.addEventListener('resize',function(){
-  clearTimeout(_resizeTimer);
-  _resizeTimer=setTimeout(function(){
-    document.querySelectorAll('.chart-container').forEach(function(el){
-      if(el._chart)el._chart.resize()
-    });
-    Object.values(window._dashCharts||{}).forEach(function(c){c&&c.resize()})
-  },150)
+  document.querySelectorAll('.chart-container').forEach(function(el){
+    if(el._chart)el._chart.resize()
+  });
+  Object.values(window._dashCharts||{}).forEach(function(c){c&&c.resize()})
 });

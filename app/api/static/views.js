@@ -119,7 +119,7 @@ async function restoreSession(username){
       if(an)an.style.display=_me.role==='admin'?'':'none';
     });
   }).catch(function(){});
-  try{renderQuickGrid();renderEmptyStatoggleScopeFields();switchTab('dashboard');loadSessionInfo();
+  try{renderQuickGrid();renderEmptyStats();switchTab('dashboard');loadSessionInfo();
     if(!localStorage.getItem('eia_first_visit')){
       localStorage.setItem('eia_first_visit','1');
       setTimeout(function(){
@@ -287,10 +287,10 @@ function renderUserList(){
   document.getElementById('apUserList').innerHTML=html;
 }
 function showAddUserForm(){
-  var h='<div class="admin-form"><label>用户名<input id="nU" class="login-input"></label><label>密码<input id="nP" class="login-input" type="password"></label><label>角色<select id="nR" onchange="toggleScopeFields()"><option value="store_manager">店长</option><option value="regional_manager">区域经理</option><option value="admin">管理员</option></select></label><div id="sf" style="display:none"><div id="ss"><label>门店</label><div id="sc" style="max-height:200px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px"></div></div><div id="rs" style="display:none"><label>区域</label><select id="nRg" class="login-input"></select></div></div></div>';
-  openUserEditModal('添加用户',h,'doAddUser');toggleScopeFields();
+  var h='<div class="admin-form"><label>用户名<input id="nU" class="login-input"></label><label>密码<input id="nP" class="login-input" type="password"></label><label>角色<select id="nR" onchange="ts()"><option value="store_manager">店长</option><option value="regional_manager">区域经理</option><option value="admin">管理员</option></select></label><div id="sf" style="display:none"><div id="ss"><label>门店</label><div id="sc" style="max-height:200px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px"></div></div><div id="rs" style="display:none"><label>区域</label><select id="nRg" class="login-input"></select></div></div></div>';
+  openUserEditModal('添加用户',h,'doAddUser');ts();
 }
-function toggleScopeFields(){
+function ts(){
   var r=document.getElementById('nR').value,sf=document.getElementById('sf');
   if(!sf)return;
   sf.style.display=(r==='store_manager'||r==='regional_manager')?'block':'none';
@@ -352,8 +352,8 @@ function showEditUser(uid){
     // 角色与权限
     '<div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-subtle)">🔑 角色与权限</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">'+
-      '<div><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">角色</label><select id="eR" onchange="toggleEditScope()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><option value="store_manager"'+(u.role==='store_manager'?' selected':'')+'>🏪 店长</option><option value="regional_manager"'+(u.role==='regional_manager'?' selected':'')+'>🌍 区域经理</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>👨‍💼 管理员</option></select></div>'+
-      '<div><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">数据范围</label><select id="eSct" onchange="toggleEditScope()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><option value="all"'+(st==='all'?' selected':'')+'>🌐 全部门店</option><option value="region"'+(st==='region'?' selected':'')+'>🌍 按区域</option><option value="store"'+(st==='store'?' selected':'')+'>🏪 按门店</option></select></div>'+
+      '<div><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">角色</label><select id="eR" onchange="es()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><option value="store_manager"'+(u.role==='store_manager'?' selected':'')+'>🏪 店长</option><option value="regional_manager"'+(u.role==='regional_manager'?' selected':'')+'>🌍 区域经理</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>👨‍💼 管理员</option></select></div>'+
+      '<div><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">数据范围</label><select id="eSct" onchange="es()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"><option value="all"'+(st==='all'?' selected':'')+'>🌐 全部门店</option><option value="region"'+(st==='region'?' selected':'')+'>🌍 按区域</option><option value="store"'+(st==='store'?' selected':'')+'>🏪 按门店</option></select></div>'+
     '</div>'+
     '<div id="eReg"'+(st!=='region'?' style="display:none"':'')+' style="margin-bottom:18px">'+
       '<label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">所属区域</label>'+
@@ -364,9 +364,9 @@ function showEditUser(uid){
       '<div style="max-height:220px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px">'+(_allStores||[]).map(function(s){return '<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:12px;cursor:pointer;transition:background .1s"><input type="checkbox" value="'+s.id+'" class="ecb"'+(u.store_ids&&u.store_ids.indexOf(String(s.id))>=0?' checked':'')+' style="accent-color:var(--accent);width:14px;height:14px"> <span style="color:var(--text)">'+esc(s.name||'门店'+s.id)+'</span></label>';}).join('')+'</div>'+
     '</div></div>';
   openUserEditModal('编辑用户',h,'doEditUser');
-  toggleEditScope();
+  es();
 }
-function toggleEditScope(){
+function es(){
   var role=document.getElementById('eR').value;
   var scopeSec=document.getElementById('eScope');
   if(!scopeSec)return;
@@ -515,7 +515,7 @@ async function newSession(){
     document.getElementById('sessionIdDisplay').textContent=sessionId.substring(0,8)+'...';
     document.getElementById('entityBox').style.display='none';
     document.getElementById('chat').innerHTML='<div class="empty-state" id="emptyState"><div class="greeting-icon">🤖</div><div class="greeting" id="greetingText">有什么经营问题需要分析？</div><div class="greeting-sub" id="greetingSub">5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据</div><div class="quick-stats" id="quickStats"></div><div class="quick-grid" id="quickGrid"></div><p style="font-size:12px;color:var(--muted)">或直接输入问题：</p></div>';
-    renderQuickGrid();renderEmptyStatoggleScopeFields();switchTab('analysis');
+    renderQuickGrid();renderEmptyStats();switchTab('analysis');
   }catch(e){console.warn(e);}
 }
 async function loadSessionInfo(){
