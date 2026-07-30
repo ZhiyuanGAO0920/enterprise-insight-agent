@@ -459,6 +459,7 @@ function renderMonitorView(ov,er){
   var per=_monitorPreset==='prevMonth'?'上月':_monitorPreset==='month'?'本月':_monitorPreset==='7'?'近7天':_monitorPreset==='30'?'近30天':'近'+_monitorDays+'天';
   var pills='';[['7','7天'],['30','30天'],['month','本月'],['prevMonth','上月'],['custom','自定义']].forEach(function(p){pills+='<button class="mq-pill'+(p[0]===_monitorPreset?' active':'')+'" onclick="setMonitorPreset(\''+p[0]+'\')">'+p[1]+'</button>';});
 
+  var _errCn={'timeout':'超时','connection refused':'连接拒绝','deadline exceeded':'超时','refused':'拒绝','connection reset':'连接重置','closed':'连接关闭','eof':'连接断开','reset':'重置','timed out':'超时'};
   var ah='';(ov.agents||[]).forEach(function(a){var c=a.error_rate>5?'err':a.error_rate>2?'warn':'ok',bp=Math.min(a.error_rate*10,100);ah+='<tr><td><div class="mq-agent-cell"><span class="mq-agent-dot '+c+'"></span>'+esc(lm[a.agent]||a.agent)+'</div></td><td>'+a.total_runs+'</td><td>'+a.error_count+'</td><td><div class="mq-bar-wrap"><div class="mq-bar"><div class="mq-bar-fill '+c+'" style="width:'+bp+'%"></div></div><span class="mq-pct '+c+'">'+a.error_rate+'%</span></div></td><td>'+a.avg_ms+'</td><td>'+a.max_ms+'</td></tr>';});
   if(!ah)ah='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">暂无数据</td></tr>';
   var ei='';
@@ -469,7 +470,6 @@ function renderMonitorView(ov,er){
       ei+='<div class="mq-error-item"><span class="mq-error-icon">'+icon+'</span><div class="mq-error-body"><span class="mq-error-time">'+((e.time||'').slice(5,16)||'')+'</span><span class="mq-error-agent-tag">'+esc(lm[e.agent]||e.agent)+'</span><span class="mq-error-msg">'+esc((_errCn[e.error])||e.error||'')+'</span><span class="mq-error-dur">'+(e.elapsed_ms||0)+'ms</span></div></div>';
     });
   }else ei='<div class="mq-error-empty">✅ 无错误记录</div>';
-  var _errCn={'timeout':'超时','connection refused':'连接拒绝','deadline exceeded':'超时','refused':'拒绝','connection reset':'连接重置','closed':'连接关闭','eof':'连接断开','reset':'重置','timed out':'超时'};
   var ch='';
   if(ov.token_trend&&ov.token_trend.length){
     var show=ov.token_trend.slice(-14),dates=[],inS=[],outS=[],costS=[],ti=0,to2=0,tc2=0;
