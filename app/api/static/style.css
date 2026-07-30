@@ -456,7 +456,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .mq-error-item:hover{background:var(--bg)}
 .mq-error-item+.mq-error-item{border-top:1px solid var(--border-subtle)}
 .mq-error-icon{font-size:14px;flex-shrink:0;width:24px;text-align:center}
-.mq-error-body{flex:1;min-width:0;display:flex;align-items:center;gap:14px}
+.mq-error-body{flex:1;min-width:0;display:flex;align-items:center;gap:12px}
 .mq-error-time{font-size:12px;color:var(--muted);white-space:nowrap;width:110px;flex-shrink:0}
 .mq-error-agent-tag{font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(239,68,68,.12);color:var(--semantic-error);white-space:nowrap;width:60px;text-align:center;flex-shrink:0}
 .mq-error-msg{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}

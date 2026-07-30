@@ -8,14 +8,25 @@ var hiddenIds=new Set(),_isAnalyzing=false,_abortController=null;
 var voiceListening=false,voiceRecognition=null;
 var SEMOJIS={supervisor:'🧠',sales_agent:'📊',crm_agent:'👥',finance_agent:'💰',inventory_agent:'📦',supply_chain_agent:'🚚',aggregator:'📊',chart_advisor:'📈',report_agent:'📝',reflection_agent:'✅',save_memory:'📥'};
 
-/* ── 简单前端缓存：切 Tab 避免重复请求 ── */
+/* ── 前端缓存：内存 + sessionStorage（刷新后秒级恢复看板数据） ── */
 var _cache={};
 function _cachedFetch(key,url,ttlMs){
   var now=Date.now();
+  // 内存缓存
   if(_cache[key]&&now-_cache[key].time<ttlMs)return Promise.resolve(_cache[key].data);
+  // sessionStorage 缓存（页面刷新后恢复）
+  if(key==='dashboard'&&!_cache[key]){
+    try{var ss=sessionStorage.getItem('eia_dash');
+      if(ss){var p=JSON.parse(ss);if(now-p.time<60000){_cache[key]=p;return Promise.resolve(p.data)}}
+    }catch(e){}
+  }
   return fetch(url,{headers:{'Authorization':'Bearer '+token}}).then(function(r){
     if(!r.ok){_cache[key]=null;return Promise.reject(r)}
-    return r.json().then(function(d){_cache[key]={data:d,time:now};return d})
+    return r.json().then(function(d){
+      _cache[key]={data:d,time:now};
+      if(key==='dashboard')try{sessionStorage.setItem('eia_dash',JSON.stringify(_cache[key]))}catch(e){}
+      return d
+    })
   });
 }
 function _clearCache(key){delete _cache[key]}
@@ -108,7 +119,7 @@ async function restoreSession(username){
       if(an)an.style.display=_me.role==='admin'?'':'none';
     });
   }).catch(function(){});
-  try{renderQuickGrid();switchTab('dashboard');loadSessionInfo();
+  try{renderQuickGrid();renderEmptyStats();switchTab('dashboard');loadSessionInfo();
     if(!localStorage.getItem('eia_first_visit')){
       localStorage.setItem('eia_first_visit','1');
       setTimeout(function(){
@@ -182,6 +193,7 @@ async function loadDashboard(){
       var kd=function(id,v){var e=document.getElementById(id);if(e)e.textContent=(v||'—');};
       ka('kT',tS);ka('kY',yS);kp('kR',d.week_refund_rate);kd('kA',d.active_stores);kd('kM',d.total_members.toLocaleString());kd('kO',d.recent_orders_24h);
     },100);
+    onEChartsReady(function(echarts){
     var th=echartsTheme();
     if(!_dashCharts.t)_dashCharts.t=echarts.init(document.getElementById('dashTrendChart'));
     _dashCharts.t.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis'},
@@ -225,6 +237,7 @@ async function loadDashboard(){
         yAxis:{type:'category',data:rfData.map(function(d){return d.name;}),axisLabel:{color:'#f1f5f9',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
         series:[{type:'bar',data:rfData.map(function(d){return d.value;}),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'rgba(239,68,68,0.3)'},{offset:1,color:'#ef4444'}])},barMaxWidth:20,label:{show:true,position:'right',formatter:function(p){return p.value+'%';},color:'#fca5a5',fontSize:10,fontWeight:600}}]});
     }
+    });
   }catch(e){toast('看板加载失败');console.warn(e);}
 }
 
@@ -449,7 +462,7 @@ function renderMonitorView(ov,er){
   if(!ah)ah='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">暂无数据</td></tr>';
   var ei='';
   if(er.errors&&er.errors.length){
-    ei='<div class="mq-error-header"><span class="mh-time">时间</span><span class="mh-agent">Agent</span><span class="mh-msg">错误信息</span><span class="mh-dur">耗时</span></div>';
+    ei='<div class="mq-error-header"><span class="mq-error-icon"></span><span class="mh-time">时间</span><span class="mh-agent">Agent</span><span class="mh-msg">错误信息</span><span class="mh-dur">耗时</span></div>';
     er.errors.forEach(function(e){
       var icon=e.error&&e.error.match(/timeout|超时|time.?out/i)?'⏱️':e.error&&e.error.match(/SQL|sql|语法|column|table|relation/i)?'🗃️':'⚠️';
       ei+='<div class="mq-error-item"><span class="mq-error-icon">'+icon+'</span><div class="mq-error-body"><span class="mq-error-time">'+((e.time||'').slice(5,16)||'')+'</span><span class="mq-error-agent-tag">'+esc(lm[e.agent]||e.agent)+'</span><span class="mq-error-msg">'+esc(e.error||'').substring(0,200)+'</span><span class="mq-error-dur">'+(e.elapsed_ms||0)+'ms</span></div></div>';
@@ -496,11 +509,11 @@ async function newSession(){
   if(!token){toast('请先登录');return;}
   try{
     var r=await fetch(BASE+'/session/create',{method:'POST',headers:{'Authorization':'Bearer '+token}});
-    if(!d)return;sessionId=d.session_id;
+    if(!r.ok)return;var d=await r.json();sessionId=d.session_id;
     document.getElementById('sessionIdDisplay').textContent=sessionId.substring(0,8)+'...';
     document.getElementById('entityBox').style.display='none';
-    document.getElementById('chat').innerHTML='<div class="empty-state" id="emptyState"><div class="greeting-icon">🤖</div><div class="greeting" id="greetingText">有什么经营问题需要分析？</div><div class="greeting-sub" id="greetingSub">5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据</div><div class="quick-grid" id="quickGrid"></div><p style="font-size:12px;color:var(--muted)">或直接输入问题：</p></div>';
-    renderQuickGrid();switchTab('analysis');
+    document.getElementById('chat').innerHTML='<div class="empty-state" id="emptyState"><div class="greeting-icon">🤖</div><div class="greeting" id="greetingText">有什么经营问题需要分析？</div><div class="greeting-sub" id="greetingSub">5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据</div><div class="quick-stats" id="quickStats"></div><div class="quick-grid" id="quickGrid"></div><p style="font-size:12px;color:var(--muted)">或直接输入问题：</p></div>';
+    renderQuickGrid();renderEmptyStats();switchTab('analysis');
   }catch(e){console.warn(e);}
 }
 async function loadSessionInfo(){
@@ -588,7 +601,60 @@ async function viewHistoryDetail(id){
     switchTab('analysis');
   }catch(e){console.warn(e);}
 }
+
+var CAP_CARDS=[
+  {icon:"📊",title:"销售分析",desc:"趋势·排名·对比",question:"各门店销售额排名"},
+  {icon:"👥",title:"会员洞察",desc:"增长·留存·画像",question:"会员增长与留存情况"},
+  {icon:"💰",title:"财务诊断",desc:"成本·利润·应收",question:"整体经营分析报告"},
+  {icon:"📦",title:"库存预警",desc:"滞销·周转·缺货",question:"各区域经营对比"},
+  {icon:"🚚",title:"供应链优化",desc:"交期·评级·采购",question:"供应商准时交货率排名"}
+];
+function renderCapabilityCards(){
+  var cc=document.getElementById("capCards");
+  if(!cc)return;
+  cc.innerHTML=CAP_CARDS.map(function(c){
+    var sq=String.fromCharCode(39);
+    return "<div class=\"cap-card\" onclick=\"fillQuestion("+sq+jsEscape(c.question)+sq+")\"><span class=\"cap-card-icon\">"+c.icon+"</span><div class=\"cap-card-text\"><span class=\"cap-card-title\">"+esc(c.title)+"</span><span class=\"cap-card-desc\">"+esc(c.desc)+"</span></div></div>"
+  }).join("");
+}
+function fillQuestion(q){document.getElementById("question").value=q;document.getElementById("question").focus();}
 function renderQuickGrid(){var g=document.getElementById('quickGrid');if(!g)return;var q=getQuickQuestions(localStorage.getItem('eia_user'));g.innerHTML=q.map(function(q){return '<button class="quick-btn" onclick="quickAsk(\''+jsEscape(q.text)+'\')">'+q.icon+' '+esc(q.text)+'</button>';}).join('');}
+function renderEmptyStats(){
+  var qs=document.getElementById("quickStats");
+  if(!qs)return;
+  var dashCached=_cache["dashboard"];
+  if(!dashCached||!dashCached.data){qs.style.display="none";return}
+  var d=dashCached.data;
+  var tS=d.today_sales||0,yS=d.yesterday_sales||0;
+  var sc=yS>0?((tS-yS)/yS*100).toFixed(1):0,up=sc>=0;
+  var greeting="";
+  var h=new Date().getHours();
+  if(h<6)greeting="深夜了";
+  else if(h<9)greeting="早上好";
+  else if(h<12)greeting="上午好";
+  else if(h<14)greeting="中午好";
+  else if(h<18)greeting="下午好";
+  else greeting="晚上好";
+  document.getElementById("greetingText").textContent=greeting+"，今天有什么经营问题需要分析？";
+  qs.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:14px">'+
+    '<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 16px;text-align:center;min-width:100px">'+
+      '<div style="font-size:20px;font-weight:700;color:var(--accent-hover)">'+formatCurrency(tS)+'</div>'+
+      '<div style="font-size:10px;color:var(--muted)">今日销售额</div></div>'+
+    '<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 16px;text-align:center;min-width:100px">'+
+      '<div style="font-size:20px;font-weight:700;color:'+(up?"var(--green)":"var(--red)")+'">'+(up?"↑":"↓")+' '+Math.abs(sc)+'%</div>'+
+      '<div style="font-size:10px;color:var(--muted)">vs 昨日</div></div>'+
+    '<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 16px;text-align:center;min-width:100px">'+
+      '<div style="font-size:20px;font-weight:700;color:var(--text)">'+(d.active_stores||"---")+'</div>'+
+      '<div style="font-size:10px;color:var(--muted)">活跃门店</div></div>'+
+    '<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 16px;text-align:center;min-width:100px">'+
+      '<div style="font-size:20px;font-weight:700;color:var(--text)">'+formatPercent(d.week_refund_rate)+'</div>'+
+      '<div style="font-size:10px;color:var(--muted)">退款率</div></div>'+
+    '<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 16px;text-align:center;min-width:100px">'+
+      '<div style="font-size:20px;font-weight:700;color:var(--text)">'+(d.recent_orders_24h||"---")+'</div>'+
+      '<div style="font-size:10px;color:var(--muted)">近24h订单</div></div>'+
+  '</div>';
+  qs.style.display="block";
+}
 function quickAsk(q){document.getElementById('question').value=q;document.getElementById('btn').click();}
 function askFollowup(q){document.getElementById('question').value=q;document.getElementById('btn').click();}
 
