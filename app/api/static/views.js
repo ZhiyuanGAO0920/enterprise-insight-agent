@@ -293,7 +293,7 @@ async function doAddUser(){
   if(r==='regional_manager'){var rg=document.getElementById('nRg');if(rg)b.region=rg.value;}
   try{
     var res=await fetch(BASE+'/admin/users',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(b)});
-    if(res.ok){closeUserEditModal();await loadAdminData();}else{var e=await res.json();toast(e.detail||'创建失败');}
+    if(res.ok){closeUserEditModal();await loadAdminData();}else{var e=await res.json();toast(typeof e.detail==='string'?e.detail:(e.detail&&e.detail[0]&&e.detail[0].msg)||'创建失败');}
   }catch(e){toast('网络错误');}
 }
 function showEditUser(uid){
@@ -351,7 +351,7 @@ async function doEditUser(uid){
   }
   try{
     var r=await fetch(BASE+'/admin/users/'+uid,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(r.ok){closeUserEditModal();await loadAdminData();}else{var e=await r.json();toast(e.detail||'保存失败');}
+    if(r.ok){closeUserEditModal();await loadAdminData();}else{var e=await r.json();toast(typeof e.detail==='string'?e.detail:(e.detail&&e.detail[0]&&e.detail[0].msg)||'保存失败');}
   }catch(e){toast('网络错误');}
 }
 function _bMU(d,s,e){var u=BASE+'/monitor/overview?days='+Math.min(d,90);if(s)u+='&start_date='+s;if(e)u+='&end_date='+e;return u;}
