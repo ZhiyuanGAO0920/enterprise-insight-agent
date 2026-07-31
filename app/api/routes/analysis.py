@@ -62,6 +62,7 @@ class AnalysisResponse(BaseModel):
 
 class HistoryResponse(BaseModel):
     records: list[dict] = Field(description="历史分析记录列表")
+    total: int = Field(default=0, description="总条数")
     page: int = Field(description="当前页码")
     page_size: int = Field(description="每页条数")
 
@@ -239,7 +240,13 @@ async def get_history(
     """获取当前用户的历史分析记录，按时间倒序分页返回。"""
     offset = (page - 1) * page_size
     records = await get_history_by_user(user["user_id"], limit=page_size, offset=offset)
-    return HistoryResponse(records=records, page=page, page_size=page_size)
+    # V4.5: 查询总条数供前端分页显示
+    from app.database.connection import get_session
+    from sqlalchemy import select, func
+    from app.database.models import AnalysisHistory
+    async with get_session() as s:
+        total = (await s.execute(select(func.count(AnalysisHistory.id)).where(AnalysisHistory.user_id == user["user_id"]))).scalar() or 0
+    return HistoryResponse(records=records, total=total, page=page, page_size=page_size)
 
 
 @router.get("/history/{record_id}", summary="查看历史分析详情")
@@ -399,6 +406,33 @@ async def _stream_graph(
 
     # Flush APM traces (non-blocking)
     await tracer.flush()
+
+    # V4.5: 流式结果写入 Redis 缓存（相同问题 5 分钟内秒回）
+    if report:
+        try:
+            import hashlib as _hashlib
+            _cache_raw = "|".join([
+                str(user_id),
+                "",
+                ",".join(sorted(store_ids)) if store_ids else "",
+                session_id or "",
+                question,
+            ])
+            _cache_key = "analysis:" + _hashlib.md5(_cache_raw.encode()).hexdigest()[:16]
+            from app.database.redis import get_redis
+            _rc = get_redis()
+            await _rc.setex(_cache_key, 300, json.dumps({
+                "record_id": record_id,
+                "report": report,
+                "reflection_passed": reflection_passed,
+                "reflection_feedback": final_state.get("reflection_feedback"),
+                "agent_errors": [],
+                "data_sources": final_state.get("data_sources", []),
+                "followup_questions": final_state.get("followup_questions", []),
+                "supervisor_plan": final_state.get("supervisor_plan"),
+            }, ensure_ascii=False))
+        except Exception:
+            pass  # 缓存写入失败不影响主流程
 
     # Send the final result
     errors = format_agent_errors(final_state.get("agent_errors", []))
