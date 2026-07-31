@@ -156,8 +156,10 @@ async def export_report(
             detail="PDF 导出功能不可用（weasyprint 未安装）。请安装: pip install -e '.[pdf]'",
         )
 
-    # 清理文件名
-    safe_title = "".join(c for c in req.title if c.isalnum() or c in "._- ")[:50]
+    # 清理文件名：header 只允许 latin-1，中文走 RFC 5987 filename* 编码
+    safe_title = "".join(c for c in req.title if c.isalnum() or c in "._- ")[:50].strip() or "report"
+    ascii_name = "".join(c for c in safe_title if ord(c) < 128).strip() or "report"
+    from urllib.parse import quote
     filename = f"{safe_title}.pdf"
 
     logger.info("PDF 导出成功", user_id=user["user_id"], title=req.title[:40])
@@ -166,6 +168,9 @@ async def export_report(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": (
+                f'attachment; filename="{ascii_name}.pdf"; '
+                f"filename*=UTF-8''{quote(filename)}"
+            ),
         },
     )

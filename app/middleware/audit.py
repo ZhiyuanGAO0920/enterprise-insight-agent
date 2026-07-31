@@ -25,7 +25,7 @@ logger = get_logger("eia.audit")
 _audit_tasks: set[asyncio.Task] = set()
 
 # 不需要审计的路径
-AUDIT_SKIP_PATHS = {"/health", "/health/ready", "/static", "/favicon.ico", "/"}
+AUDIT_SKIP_PATHS = {"/health", "/health/ready", "/static", "/favicon.ico", "/", "/share"}
 
 
 async def audit_middleware(request: Request, call_next):

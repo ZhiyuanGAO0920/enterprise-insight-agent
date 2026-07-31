@@ -1,5 +1,30 @@
 # CHANGELOG — V4 修复与优化记录
 
+## V4.6.0 (2026-07-31)
+
+### ✨ 报告分享功能（分享链接 + 长图导出）
+
+| # | 文件 | 说明 |
+|---|------|------|
+| 1 | `alembic/versions/011_add_report_share.py` | 迁移 011：`analysis_history` 新增 `share_token`/`share_expires_at` 列 + 索引 |
+| 2 | `app/api/routes/analysis.py` | 新增 3 个分享接口：`POST /analysis/share`（生成链接，30 天有效）、`GET /analysis/share/{token}`（免登录只读）、`DELETE /analysis/share`（取消分享） |
+| 3 | `app/api/main.py` | 新增 `GET /share/{token}` 只读分享页路由（免登录，no-cache） |
+| 4 | `app/middleware/tenant.py` + `audit.py` | `SKIP_PATHS` 加入 `/share`（分享页免租户/审计中间件） |
+| 5 | `app/api/static/share.html` | 新增只读分享页：免登录渲染报告 + 图表，失效/过期提示 |
+| 6 | `app/api/static/views.js` | 报告按钮条新增「🔗 分享」「🖼️ 长图」；分享优先调起系统分享（Web Share API，恢复 V4.5 重构丢失的 `navigator.share`），降级打开链接弹窗；长图用 html2canvas 导出 PNG |
+| 7 | `app/api/static/html2canvas.min.js` | 新增本地库（1.4.1，零 CDN 惯例） |
+| 8 | `app/api/static/index.html` | 新增 `#shareModal` 分享弹窗 + html2canvas 引用；views.js 版本号 bump 至 v4.50 |
+| 9 | `tests/phase7/test_report_share.py` | 新增 6 条分享接口测试（生成/免登录查看/失效/取消/跨用户 404） |
+
+### 🐛 功能修复
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 10 | `app/api/static/views.js` | 修复流式报告路径缺失「📋 复制」按钮（历史回显路径有，V4.5 重构遗漏，现已两处一致） |
+| 11 | `app/services/pdf_exporter.py` | 修复 PDF 导出在 Windows 不可用：weasyprint 缺系统库时降级到 reportlab 纯 Python 渲染（自动探测微软雅黑/宋体/Noto CJK 字体，带 ToUnicode 映射，中文可复制搜索；无字体时降级 CID 字体） |
+| 12 | `app/api/routes/weekly.py` | 修复 PDF 中文文件名导致 `Content-Disposition` latin-1 编码 500：ASCII 文件名 + RFC 5987 `filename*` 编码 |
+| 13 | `pyproject.toml` | `[pdf]` extra 追加 `reportlab>=4.0`（降级方案依赖） |
+
 ## V4.5.0 (2026-07-29)
 
 ### 🎨 前端架构重构

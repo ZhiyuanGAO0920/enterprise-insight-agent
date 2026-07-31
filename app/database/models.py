@@ -56,6 +56,8 @@ class AnalysisHistory(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     tenant_id = Column(Integer, nullable=True)  # V4: 多租户隔离
     embedding = Column(Vector(1024), nullable=True)  # BGE-M3 嵌入
+    share_token = Column(String(64), nullable=True)  # V4.6: 报告分享 token，未分享为 NULL
+    share_expires_at = Column(DateTime, nullable=True)  # V4.6: 分享链接过期时间
 
 
 # ---------------------------------------------------------------------------

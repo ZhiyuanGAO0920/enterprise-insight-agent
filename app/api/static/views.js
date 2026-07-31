@@ -652,7 +652,9 @@ async function viewHistoryDetail(id){
         '<span class="print-btn" onclick="_copyReport()">📋 复制</span>'+
         '<span class="print-btn" onclick="window.print()">🖨️ 打印</span>'+
         '<span class="share-btn" onclick="downloadMD()">⬇️ Markdown</span>'+
-        '<span class="share-btn" onclick="exportPDF()">📄 PDF</span></div>';
+        '<span class="share-btn" onclick="exportPDF()">📄 PDF</span>'+
+        (d.id?'<span class="share-btn" onclick="openShare('+d.id+')">🔗 分享</span>':'')+
+        '<span class="share-btn" onclick="exportLongImage()">🖼️ 长图</span></div>';
       document.getElementById('chat').innerHTML+='<div class="msg assistant"><div class="bubble">'+sup+rh+trustFooter()+ds+fq+'</div>'+tb+fb+'</div>';
     }else{
       document.getElementById('chat').innerHTML+='<div class="msg assistant"><div class="bubble" style="color:var(--amber)">无报告内容</div></div>';
@@ -796,13 +798,13 @@ async function ask(e){
               var fh;try{fh=sanitizeHtml(marked.parse(convertTextTables(expandChartTags(ctr))));}catch(e){fh=esc(ctr);}
               sd2.innerHTML=fh.replace(/\[FOLLOWUP[^\]]*\]\]/g,'');
               try{
-                sd2.insertAdjacentHTML('afterend',trustFooter());
+                sd2.insertAdjacentHTML('beforeend',trustFooter()); // 信任分级放报告正文内部最下方（与历史回显/非流式渲染一致）
                 var ext='';try{ext=buildSupervisorPlan(fsp);}catch(e){}
                 try{ext+=buildTracePanel(fds);}catch(e){}
                 try{ext+=buildFollowupButtons(ffqs);}catch(e){}
                 try{if(fid)ext+='<div class="feedback-bar"><span>有帮助吗？</span><button class="feedback-btn" onclick="showFeedback(\'helpful\')">👍</button><button class="feedback-btn" onclick="showFeedback(\'bad\')">👎</button></div>';}catch(e){}
                 sd2.insertAdjacentHTML('afterend',ext);
-                sd2.insertAdjacentHTML('afterend','<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px;flex-wrap:wrap">'+(fid?'<span style="font-size:10px;color:var(--muted);margin-right:auto;align-self:center">#'+fid+'</span>':'')+'<span class="print-btn" onclick="window.print()">✂️ 打印</span><span class="print-btn" onclick="downloadMD()">⬇️ MD</span><span class="share-btn" onclick="exportPDF()">📄 PDF</span></div>');
+                sd2.insertAdjacentHTML('afterend','<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px;flex-wrap:wrap">'+(fid?'<span style="font-size:10px;color:var(--muted);margin-right:auto;align-self:center">#'+fid+'</span>':'')+'<span class="print-btn" onclick="_copyReport()">📋 复制</span><span class="print-btn" onclick="window.print()">✂️ 打印</span><span class="print-btn" onclick="downloadMD()">⬇️ MD</span><span class="share-btn" onclick="exportPDF()">📄 PDF</span>'+(fid?'<span class="share-btn" onclick="openShare('+fid+')">🔗 分享</span>':'')+'<span class="share-btn" onclick="exportLongImage()">🖼️ 长图</span></div>');
                 try{sb.scrollIntoView({block:'start',behavior:'smooth'});}catch(e){}
                 initChartsInBubble(sb);_lastReportText=sd2.textContent||'';_lastQuestionText=q||'';
               }catch(e){console.error(e);}
@@ -865,3 +867,74 @@ async function exportPDF(){
 /* Copy report (复用 utils.js 中的 copyToClipboard) */
 
 function _copyReport(){if(_lastReportText) copyToClipboard(_lastReportText);}
+
+/* Share report */
+var _shareRecordId=null;
+function openShare(recordId){
+  if(!recordId){toast('该报告暂不支持分享','error');return;}
+  _shareRecordId=recordId;
+  fetch(BASE+'/analysis/share',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({record_id:recordId})})
+    .then(function(r){if(!r.ok)throw Error('API error');return r.json();})
+    .then(function(d){
+      var url=location.origin+d.url;
+      // V4.6: 支持 Web Share API 时优先调起系统分享（手机端可分享到微信/飞书等）
+      if(navigator.share){
+        var summary=(_lastReportText||'').substring(0,200).trim()+'…';
+        navigator.share({title:(_lastQuestionText||'经营分析报告').substring(0,40),text:summary,url:url})
+          .catch(function(){_showShareModal(url);}); // 取消或失败都回退到链接弹窗
+      }else{
+        _showShareModal(url);
+      }
+    })
+    .catch(function(){toast('生成分享链接失败','error');});
+}
+function _showShareModal(url){
+  var modal=document.getElementById('shareModal'),link=document.getElementById('shareLink'),
+      copyBtn=document.getElementById('copyShareBtn'),revokeBtn=document.getElementById('revokeShareBtn');
+  link.value=url;copyBtn.disabled=false;revokeBtn.style.display='';
+  modal.style.display='flex';
+}
+function copyShareLink(){
+  var link=document.getElementById('shareLink').value;
+  if(!link||link==='生成中...')return;
+  copyToClipboard(link);
+}
+function closeShareModal(){document.getElementById('shareModal').style.display='none';}
+function revokeShare(){
+  if(!_shareRecordId)return;
+  fetch(BASE+'/analysis/share?record_id='+_shareRecordId,{method:'DELETE',headers:{'Authorization':'Bearer '+token}})
+    .then(function(r){if(!r.ok)throw Error('API error');return r.json();})
+    .then(function(){
+      document.getElementById('shareLink').value='已取消分享，原链接已失效';document.getElementById('copyShareBtn').disabled=true;document.getElementById('revokeShareBtn').style.display='none';
+      toast('已取消分享');
+    })
+    .catch(function(){toast('取消失败','error');});
+}
+
+/* Export long image (html2canvas) */
+function exportLongImage(){
+  var bubbles=document.querySelectorAll('#chat .msg.assistant .bubble');
+  var bubble=bubbles[bubbles.length-1];
+  if(!bubble){toast('暂无可导出的报告','error');return;}
+  toast('正在生成长图，请稍候...');
+  var clone=bubble.cloneNode(true);
+  // 图表 canvas 已渲染完成，clone 后移除 loading 占位，避免被截图
+  clone.querySelectorAll('.chart-loading').forEach(function(el){el.remove();});
+  var wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;left:-9999px;top:0;width:780px;background:#fff;z-index:-1;padding:24px';
+  wrap.appendChild(clone);
+  document.body.appendChild(wrap);
+  try{
+    html2canvas(clone,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false})
+      .then(function(canvas){
+        canvas.toBlob(function(blob){
+          var name=(_lastQuestionText||'经营分析报告').substring(0,20).replace(/[\\/:*?"<>|]/g,'').trim()||'经营分析报告';
+          var u=URL.createObjectURL(blob),a=document.createElement('a');
+          a.href=u;a.download='报告_'+name+'.png';a.click();URL.revokeObjectURL(u);
+          toast('长图已导出');
+        },'image/png');
+      })
+      .catch(function(e){console.warn(e);toast('长图导出失败','error');})
+      .finally(function(){wrap.remove();});
+  }catch(e){wrap.remove();toast('长图导出失败','error');}
+}

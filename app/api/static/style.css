@@ -73,8 +73,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .sidebar-nav .nav-item.active:hover{background:var(--accent-hover)}
 .entity-box{font-size:11px;color:var(--muted);background:var(--bg);padding:8px 10px;border-radius:6px;display:none}
 .entity-box .ent{display:inline-block;background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;margin:2px 3px;font-size:10px}
-.history-item{padding:8px 10px;background:var(--bg);border-radius:6px;font-size:12px;cursor:pointer;border:1px solid transparent;margin-bottom:6px}
-.history-item{position:relative}
+.history-item{padding:8px 10px;background:var(--bg);border-radius:6px;font-size:12px;cursor:pointer;border:1px solid transparent;margin-bottom:6px;position:relative}
 .history-item:hover{border-color:var(--accent)}
 .history-item.active{border-color:var(--accent);background:rgba(99,102,241,0.1)}
 .history-item .q{color:var(--text);font-size:12px;font-weight:500;padding-right:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

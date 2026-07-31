@@ -189,6 +189,20 @@ async def root():
     })
 
 
+@app.get("/share/{token}", include_in_schema=False)
+async def share_page(token: str):
+    """报告只读分享页（免登录）。token 由前端 JS 读取后调用 API 校验。"""
+    from fastapi.responses import FileResponse
+    page = _static_dir / "share.html"
+    if not page.exists():
+        raise HTTPException(status_code=404, detail="分享页不存在")
+    return FileResponse(page, headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    })
+
+
 @app.get("/health", tags=["健康检查"], summary="存活检查")
 async def health():
     """检查服务是否存活。返回服务版本号。"""

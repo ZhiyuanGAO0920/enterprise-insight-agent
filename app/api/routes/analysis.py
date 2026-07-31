@@ -8,6 +8,8 @@ GET  /api/analysis/similar        — 向量相似度搜索历史分析
 
 import json
 import asyncio
+import secrets
+from datetime import datetime, timedelta
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -16,6 +18,8 @@ from pydantic import BaseModel, Field
 
 from app.api.dependencies import get_current_user, rate_limit, require_permission
 from app.apm.tracer import AgentTracer, set_tracer
+from app.database.connection import get_session
+from app.database.models import AnalysisHistory
 from app.llm import reset_task_tokens
 from app.auth.rbac import get_user_store_ids
 from app.errors.user_friendly import format_agent_errors
@@ -65,6 +69,10 @@ class HistoryResponse(BaseModel):
     total: int = Field(default=0, description="总条数")
     page: int = Field(description="当前页码")
     page_size: int = Field(description="每页条数")
+
+
+class ShareRequest(BaseModel):
+    record_id: int = Field(..., description="要分享的分析记录 ID")
 
 
 # ---------------------------------------------------------------------------
@@ -259,6 +267,79 @@ async def get_history_record(
     if detail is None:
         raise HTTPException(status_code=404, detail="历史记录不存在")
     return detail
+
+
+# ---------------------------------------------------------------------------
+# 报告分享（只读链接）
+# ---------------------------------------------------------------------------
+
+SHARE_TTL_DAYS = 30  # 分享链接默认有效期
+
+
+@router.post("/share", summary="生成报告分享链接")
+async def create_share_link(
+    payload: ShareRequest,
+    user: dict = Depends(require_permission("history:view")),
+):
+    """为历史分析生成只读分享链接。已有未过期的 token 则复用。
+
+    返回的 url 为相对路径（/share/{token}），前端拼接 origin 使用。
+    """
+    detail = await get_history_detail(payload.record_id, user_id=user["user_id"])
+    if detail is None:
+        raise HTTPException(status_code=404, detail="历史记录不存在")
+
+    now = datetime.now().replace(microsecond=0)
+    expires = now + timedelta(days=SHARE_TTL_DAYS)
+    async with get_session() as session:
+        r = await session.get(AnalysisHistory, payload.record_id)
+        if r is None:
+            raise HTTPException(status_code=404, detail="历史记录不存在")
+        if r.share_token and r.share_expires_at and r.share_expires_at > now:
+            # 已有有效分享，复用
+            token, expires = r.share_token, r.share_expires_at
+        else:
+            token = secrets.token_urlsafe(24)
+            r.share_token = token
+            r.share_expires_at = expires
+            await session.commit()
+    return {"token": token, "url": f"/share/{token}", "expires_at": expires.isoformat()}
+
+
+@router.get("/share/{token}", summary="通过分享链接查看报告（公开只读）")
+async def get_shared_report(token: str):
+    """免登录只读接口：通过 token 返回报告内容。token 不存在或已过期返回 404。"""
+    async with get_session() as session:
+        from sqlalchemy import select
+        r = (await session.execute(select(AnalysisHistory).where(AnalysisHistory.share_token == token))).scalar_one_or_none()
+        if r is None or r.share_expires_at is None or r.share_expires_at < datetime.now().replace(microsecond=0):
+            raise HTTPException(status_code=404, detail="分享链接不存在或已过期")
+        return {
+            "id": r.id,
+            "question": r.question,
+            "report": r.report or "",
+            "reflection_passed": r.reflection_passed,
+            "create_time": r.create_time.isoformat() if r.create_time else None,
+        }
+
+
+@router.delete("/share", summary="取消报告分享")
+async def revoke_share_link(
+    record_id: int = Query(..., description="要取消分享的分析记录 ID"),
+    user: dict = Depends(require_permission("history:view")),
+):
+    """取消分享：清空 share_token，原链接立即失效。"""
+    detail = await get_history_detail(record_id, user_id=user["user_id"])
+    if detail is None:
+        raise HTTPException(status_code=404, detail="历史记录不存在")
+    async with get_session() as session:
+        r = await session.get(AnalysisHistory, record_id)
+        if r is None:
+            raise HTTPException(status_code=404, detail="历史记录不存在")
+        r.share_token = None
+        r.share_expires_at = None
+        await session.commit()
+    return {"ok": True}
 
 
 @router.get("/similar", summary="搜索相似历史分析")

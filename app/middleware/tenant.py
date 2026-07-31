@@ -14,7 +14,7 @@ from app.logging_config import bind_context, get_logger
 
 logger = get_logger("eia.tenant")
 
-TENANT_SKIP_PATHS = {"/health", "/health/ready", "/static", "/favicon.ico", "/", "/docs", "/openapi.json"}
+TENANT_SKIP_PATHS = {"/health", "/health/ready", "/static", "/favicon.ico", "/", "/share", "/docs", "/openapi.json"}
 
 
 async def tenant_middleware(request: Request, call_next):

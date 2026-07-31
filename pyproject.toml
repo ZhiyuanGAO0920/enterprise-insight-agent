@@ -37,6 +37,7 @@ dev = [
 ]
 pdf = [
     "weasyprint>=62.0",
+    "reportlab>=4.0",
 ]
 email = [
     "aiosmtplib>=3.0",

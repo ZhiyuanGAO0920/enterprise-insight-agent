@@ -70,12 +70,30 @@ function animateKPI(el, target, suffix, duration){
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
-/* ── HTML 净化（防御 XSS）：DOMPurify 封装，失败时兜底返回原文 ── */
+/* ── HTML 净化（防御 XSS）：DOMPurify 封装，不可用时 DOM 兜底 ── */
 function sanitizeHtml(html){
   try{
     if(typeof DOMPurify!=='undefined'&&DOMPurify.sanitize)return DOMPurify.sanitize(html);
   }catch(e){}
-  return html;
+  /* 兜底：用浏览器 DOM 解析器移除危险元素和属性，
+     保留合法 HTML（表格/图表容器等）不破坏报告渲染 */
+  var div=document.createElement('div');
+  div.innerHTML=html;
+  // 移除危险标签
+  div.querySelectorAll('script,iframe,object,embed,link,meta,base').forEach(function(el){el.remove();});
+  // 移除所有 on* 事件属性
+  div.querySelectorAll('*').forEach(function(el){
+    for(var i=el.attributes.length-1;i>=0;i--){
+      if(el.attributes[i].name.substr(0,2)==='on')el.removeAttribute(el.attributes[i].name);
+    }
+  });
+  // 移除 javascript: / vbscript: / data: URL
+  div.querySelectorAll('a[href],[src]').forEach(function(el){
+    var h=el.getAttribute('href')||'',s=el.getAttribute('src')||'';
+    if(/^(javascript|vbscript|data):/i.test(h))el.removeAttribute('href');
+    if(/^data:/i.test(s)&&!/^data:image\//i.test(s))el.removeAttribute('src');
+  });
+  return div.innerHTML;
 }
 
 /* ── UI 反馈 ── */

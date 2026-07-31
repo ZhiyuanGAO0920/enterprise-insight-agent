@@ -203,6 +203,21 @@
   </div>
 </div>
 
+<div id="shareModal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3 id="shareTitle">🔗 分享报告</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">任何人获得此链接都可以查看报告（30 天内有效，无需登录）。</p>
+    <div style="display:flex;gap:8px;margin-bottom:4px">
+      <input id="shareLink" readonly style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px" placeholder="点击下方按钮生成分享链接...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeShareModal()">关闭</button>
+      <button class="btn-cancel" id="revokeShareBtn" style="display:none" onclick="revokeShare()">取消分享</button>
+      <button class="btn-submit" id="copyShareBtn" disabled onclick="copyShareLink()">复制链接</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 
 <div class="ap-backdrop" id="apBackdrop" onclick="closeAdminPanel()"></div>
@@ -248,8 +263,9 @@
 <script src="/static/purify.min.js"></script>
 <script src="/static/marked.min.js"></script>
 <script src="/static/utils.js?v=4.33"></script>
-<script src="/static/views.js?v=4.42"></script>
+<script src="/static/views.js?v=4.50"></script>
 <script src="/static/app.js?v=4.29"></script>
 <script src="/static/echarts.min.js"></script>
+<script src="/static/html2canvas.min.js"></script>
 </body>
 </html>

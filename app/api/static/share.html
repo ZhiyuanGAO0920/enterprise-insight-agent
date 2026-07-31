@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>报告分享 - 企业洞察 Agent</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body{margin:0;background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#1e293b}
+  .sh-header{background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;padding:28px 20px;text-align:center}
+  .sh-brand{font-size:14px;opacity:.9;margin-bottom:6px}
+  .sh-title{font-size:20px;font-weight:700}
+  .sh-container{max-width:860px;margin:24px auto 48px;padding:0 16px}
+  .sh-question{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:16px;font-size:15px}
+  .sh-question .lbl{font-size:11px;color:#94a3b8;margin-bottom:6px}
+  .sh-report{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px 28px}
+  .sh-report .msg.assistant .bubble{background:transparent;border:none;box-shadow:none;padding:0;width:100%}
+  .sh-error{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:48px 20px;text-align:center;color:#64748b}
+  .sh-error .icon{font-size:40px;margin-bottom:12px}
+  .sh-footer{max-width:860px;margin:0 auto 40px;padding:0 16px;font-size:11px;color:#94a3b8;text-align:center;line-height:1.8}
+  /* 打印时只保留报告正文 */
+  @media print{.sh-header,.sh-question,.sh-footer{display:none}.sh-report{border:none;padding:0}}
+</style>
+</head>
+<body>
+
+<div class="sh-header">
+  <div class="sh-brand">📊 企业洞察 Agent · 智能经营分析</div>
+  <div class="sh-title">经营分析报告分享</div>
+</div>
+
+<div class="sh-container">
+  <div class="sh-question" id="shQuestion" style="display:none">
+    <div class="lbl">📝 分析问题</div>
+    <div id="shQuestionText"></div>
+  </div>
+  <div id="shBody">
+    <div class="sh-error">
+      <div class="icon">⏳</div>
+      <div>正在加载报告...</div>
+    </div>
+  </div>
+</div>
+
+<div class="sh-footer">
+  本报告由企业洞察 Agent 基于多 Agent 协作自动生成，仅供经营决策参考，数据与结论以实际业务为准。
+  <br>© 企业洞察 Agent · AI 生成内容符合《生成式人工智能服务管理暂行办法》
+</div>
+
+<script src="/static/purify.min.js"></script>
+<script src="/static/marked.min.js"></script>
+<script src="/static/utils.js"></script>
+<script src="/static/echarts.min.js"></script>
+<script>
+(function(){
+  var token=location.pathname.split('/').filter(Boolean).pop()||'';
+  if(!token){showError('无效的分享链接');return;}
+  fetch(BASE+'/analysis/share/'+encodeURIComponent(token),{headers:{'Accept':'application/json'}})
+    .then(function(r){
+      if(!r.ok)throw Error('not found');
+      return r.json();
+    })
+    .then(function(d){
+      var q=document.getElementById('shQuestion');
+      document.getElementById('shQuestionText').textContent=d.question||'';
+      q.style.display='';
+      var wrap=document.createElement('div');wrap.className='sh-report';
+      var msg=document.createElement('div');msg.className='msg assistant';
+      var bubble=document.createElement('div');bubble.className='bubble';
+      var html='';
+      try{html=sanitizeHtml(marked.parse(convertTextTables(expandChartTags(d.report||''))));}catch(e){html=d.report||'';}
+      bubble.innerHTML=html;
+      msg.appendChild(bubble);
+      wrap.appendChild(msg);
+      document.getElementById('shBody').innerHTML='';
+      document.getElementById('shBody').appendChild(wrap);
+      // 图表懒加载就绪后初始化
+      try{initChartsInBubble(wrap);}catch(e){}
+      document.title=(d.question||'经营分析报告').substring(0,30)+' - 报告分享';
+    })
+    .catch(function(){showError('分享链接不存在或已过期');});
+
+  function showError(msg){
+    document.getElementById('shBody').innerHTML=
+      '<div class="sh-error"><div class="icon">🔗</div><div>'+msg+'</div>'+
+      '<div style="margin-top:16px;font-size:12px;color:#94a3b8">如有疑问，请联系报告分享者重新生成链接</div></div>';
+    document.getElementById('shQuestion').style.display='none';
+  }
+})();
+</script>
+</body>
+</html>
