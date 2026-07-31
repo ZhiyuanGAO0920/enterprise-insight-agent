@@ -111,8 +111,11 @@ def after_aggregation(state: AnalysisState) -> str:
 
     V4 修复：当所有 Agent 失败导致 aggregator_summary 为空时，
     仍路由到 report_agent 以生成错误说明报告（而非静默跳到 END）。
+    V4.5: simple 查询型问题跳过 chart_advisor（省一次 LLM 调用）。
     """
     if state.get("aggregator_summary"):
+        if state.get("query_type") == "simple":
+            return "report_agent"  # 简单查询不需要图表
         return "chart_advisor"
     # V4: 优雅降级 —— 有错误时让 report_agent 生成 fallback 报告
     if state.get("agent_errors"):
@@ -134,8 +137,12 @@ def after_reflection(state: AnalysisState) -> str:
 
 
 def after_report(state: AnalysisState) -> str:
-    """从报告路由：如果有输出，前往反思；否则跳到记忆。"""
+    """从报告路由：如果有输出，前往反思；否则跳到记忆。
+    V4.5: simple 查询型问题跳过 reflection（省一次 LLM 调用）。
+    """
     if state.get("report"):
+        if state.get("query_type") == "simple":
+            return "save_memory"
         return "reflection_agent"
     return "save_memory"
 
@@ -187,7 +194,7 @@ def build_graph() -> StateGraph:
     builder.add_conditional_edges("aggregator", after_aggregation, {"chart_advisor": "chart_advisor", END: END})
     builder.add_edge("chart_advisor", "report_agent")
 
-    # ---- 报告 Agent → 反思 Agent ----
+    # ---- 报告 Agent → 反思 Agent（simple 查询直接保存） ----
     builder.add_conditional_edges(
         "report_agent",
         after_report,

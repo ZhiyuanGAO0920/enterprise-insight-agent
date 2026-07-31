@@ -51,6 +51,12 @@ logger = get_logger("eia.agent.supervisor")
 # 路由决策的结构化输出 schema
 # ---------------------------------------------------------------------------
 
+# V4.5: 简单查询识别关键词（LLM 兜底用）
+SIMPLE_QUERY_KEYWORDS = [
+    "排名", "Top", "top", "前三", "前五", "前十", "最多", "最高", "最低",
+    "门店", "哪家", "哪个", "多少", "销售额", "退款率", "占比",
+]
+
 SUPERVISOR_SCHEMA = {
     "type": "function",
     "function": {
@@ -73,8 +79,13 @@ SUPERVISOR_SCHEMA = {
                     "type": "string",
                     "description": "Brief plan for the analysis",
                 },
+                "query_type": {
+                    "type": "string",
+                    "enum": ["simple", "comprehensive"],
+                    "description": "simple=数据查询型（如排名/Top N/单一指标），可直接输出结果；comprehensive=需要完整分析报告",
+                },
             },
-            "required": ["activated_agents", "reasoning", "analysis_plan"],
+            "required": ["activated_agents", "reasoning", "analysis_plan", "query_type"],
         },
     },
 }
@@ -142,7 +153,7 @@ async def supervisor_agent_node(state: AnalysisState) -> dict:
                         "analysis_plan": _parsed.get("analysis_plan", ""),
                     }
                 except Exception:
-                    args = {"activated_agents": ["sales", "crm", "finance", "inventory", "supply_chain"], "reasoning": "Fallback (JSON parse error)", "analysis_plan": "Activate all agents"}
+                    args = {"activated_agents": ["sales", "crm", "finance", "inventory", "supply_chain"], "reasoning": "Fallback (JSON parse error)", "analysis_plan": "Activate all agents", "query_type": "comprehensive"}
             else:
                 args = {
                     "activated_agents": ["sales", "crm", "finance", "inventory", "supply_chain"],
@@ -166,6 +177,7 @@ async def supervisor_agent_node(state: AnalysisState) -> dict:
 
         return {
             "activated_agents": args["activated_agents"],
+            "query_type": args.get("query_type", "comprehensive"),
             "supervisor_plan": json.dumps(args, ensure_ascii=False),
         }
 
@@ -174,5 +186,6 @@ async def supervisor_agent_node(state: AnalysisState) -> dict:
         logger.error("执行失败，激活全部 Agent 兜底", error=str(e))
         return {
             "activated_agents": ["sales", "crm", "finance", "inventory", "supply_chain"],
+            "query_type": "comprehensive",
             "agent_errors": [{"agent": "supervisor", "error": str(e)}],
         }

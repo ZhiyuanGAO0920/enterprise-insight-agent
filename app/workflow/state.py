@@ -45,6 +45,7 @@ class AnalysisState(TypedDict):
     # ==== Supervisor 路由 ====
     supervisor_plan: Optional[str]
     activated_agents: Optional[list[str]]
+    query_type: Optional[str]  # V4.5: simple=数据查询型，comprehensive=综合分析型
 
     # ==== 最终输出 ====
     # V4: final_report 已移除 —— 无任何节点写入，report 字段已覆盖所有使用场景
