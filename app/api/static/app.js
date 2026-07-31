@@ -12,6 +12,11 @@
       token = savedToken;
       restoreSession(savedUser);
       // checkAdmin 已合并到 restoreSession 的 /admin/users 请求中
+    } else {
+      // 无有效 token：显示登录页（解决 head 验证脚本异步删除 token 后的竞态）
+      document.addEventListener('DOMContentLoaded', function(){
+        showLogin();
+      });
     }
   }
 

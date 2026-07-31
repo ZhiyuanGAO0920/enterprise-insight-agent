@@ -23,7 +23,7 @@
      页面加载时首先展示，点击「进入系统」后淡出到登录界面
      ====================================================================== -->
 <div id="introOverlay" class="intro-overlay">
-  <script>!function(){var t=localStorage.getItem("eia_token"),u=localStorage.getItem("eia_user");if(t&&u){var io=document.getElementById("introOverlay");if(io)io.innerHTML='<div class="loading-app" style="position:relative;z-index:10;text-align:center;padding-top:40vh"><div class="loading-spinner" style="width:36px;height:36px;margin:0 auto 20px;border:3px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite"></div><div style="font-size:15px;color:#94a3b8;letter-spacing:1px">正在加载...</div></div>';}}();</script>
+  <script>!function(){var t=localStorage.getItem("eia_token"),u=localStorage.getItem("eia_user");if(t&&u){var io=document.getElementById("introOverlay");if(io)io.innerHTML='<div class="loading-app" style="position:relative;z-index:10;text-align:center;padding-top:40vh"><div class="loading-spinner" style="width:36px;height:36px;margin:0 auto 20px;border:3px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite"></div><div style="font-size:15px;color:#94a3b8;letter-spacing:1px">正在加载...</div></div>';}}();setTimeout(function(){var io=document.getElementById("introOverlay");if(io&&io.style.display!=="none"&&!localStorage.getItem("eia_token")&&typeof window.showLogin==="function")window.showLogin();},5000);</script>
   <div class="intro-bg-grid"></div>
   <div class="intro-glow"></div>
   <div class="intro-particles" id="introParticles"></div>
