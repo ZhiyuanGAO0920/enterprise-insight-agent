@@ -226,6 +226,13 @@ async def dashboard_overview(
     else:
         results["total_members"] = 0
 
+    # --- 近 24 小时订单数（滚动 24h，非自然日）---
+    results["recent_orders_24h"] = int(await _safe_scalar(
+        f"SELECT COUNT(*) FROM orders "
+        f"WHERE create_time >= NOW() - INTERVAL '24 hours' {sf}",
+        sp,
+    ))
+
     # --- 近 30 天每日销售额趋势 ---
     trend_dates, trend_values = await _safe_rows(
         f"SELECT TO_CHAR(create_time,'MM-DD') AS day, SUM(amount) AS daily "

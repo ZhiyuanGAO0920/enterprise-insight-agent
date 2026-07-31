@@ -33,6 +33,8 @@ def test_settings_defaults():
     os.environ["DATABASE_URL"] = "postgresql+asyncpg://localhost/test"
     os.environ["DATABASE_URL_SYNC"] = "postgresql+psycopg2://localhost/test"
     os.environ["JWT_SECRET_KEY"] = "test-secret"
+    # 隔离 .env 中的 REDIS_URL（本机配置 6381），确保断言的是代码默认值
+    os.environ["REDIS_URL"] = "redis://localhost:6379/0"
 
     from app.config import get_settings
 

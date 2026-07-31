@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 
-echo EIA V4 — Quick Start
+echo EIA V4 - Quick Start
 echo.
 
 REM Start Docker

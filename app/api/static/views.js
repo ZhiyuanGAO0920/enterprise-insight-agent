@@ -5,7 +5,7 @@ var _monitorDays=30,_monitorPreset='30',_monitorStartDate='',_monitorEndDate='';
 var _allUsers=[],_allStores=[],_allRegions=[];
 var sessionId=null,lastRecordId=null,pendingFeedback=null,_lastReportText='',_lastQuestionText='';
 var dismissedIds=(function(){try{return new Set(JSON.parse(localStorage.getItem('eia_dismissed')||'[]'));}catch(e){return new Set();}})();
-var hiddenIds=new Set(),_isAnalyzing=false,_abortController=null;
+var hiddenIds=new Set(),_isAnalyzing=false,_abortController=null,_sseParseErrs=0;
 var voiceListening=false,voiceRecognition=null;
 var SEMOJIS={supervisor:'🧠',sales_agent:'📊',crm_agent:'👥',finance_agent:'💰',inventory_agent:'📦',supply_chain_agent:'🚚',aggregator:'📊',chart_advisor:'📈',report_agent:'📝',reflection_agent:'✅',save_memory:'📥'};
 
@@ -176,6 +176,7 @@ document.addEventListener('click',function(e){
       if(action==='edit')showEditUser(uid);
       else if(action==='delete')deleteUser(uid,a.getAttribute('data-uname'));
       else if(action==='reset-pw')resetPassword(uid);
+      else if(action==='impersonate')impersonateUser(uid,a.getAttribute('data-uname'));
     }
     return;
   }
@@ -309,7 +310,7 @@ function renderUserList(){
   function sn(ids){if(!ids||!ids.length)return '';return ids.map(function(id){return sm[String(id)]||'#'+id;}).filter(Boolean).join('、');}
   var html=f.map(function(u){
     var sids=u.store_ids||u.stores||[],st=u.scope_type==='all'?'全部门店':u.scope_type==='region'?u.region||'区域':sids.length>3?sids.length+'家门店':(sn(sids)||'—');
-    return '<tr data-uid="'+u.id+'"><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+(u.role==='admin'?'<span class="badge admin-badge">管理员</span>':u.role==='regional_manager'?'<span class="badge region-badge">区域经理</span>':'<span class="badge store-badge">店长</span>')+'</td><td>'+st+'</td><td>'+(u.is_active===false?'<span class="badge inactive">禁用</span>':'<span class="badge admin-badge">启用</span>')+'</td><td><a class="action-link" data-action="edit">编辑</a><a class="action-link danger" data-action="delete" data-uname="'+jsEscape(u.username)+'">删除</a><a class="action-link" data-action="reset-pw">重置密码</a></td></tr>';
+    return '<tr data-uid="'+u.id+'"><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+(u.role==='admin'?'<span class="badge admin-badge">管理员</span>':u.role==='regional_manager'?'<span class="badge region-badge">区域经理</span>':'<span class="badge store-badge">店长</span>')+'</td><td>'+st+'</td><td>'+(u.is_active===false?'<span class="badge inactive">禁用</span>':'<span class="badge admin-badge">启用</span>')+'</td><td><a class="action-link" data-action="edit">编辑</a><a class="action-link" data-action="impersonate" data-uname="'+jsEscape(u.username)+'">模拟</a><a class="action-link danger" data-action="delete" data-uname="'+jsEscape(u.username)+'">删除</a><a class="action-link" data-action="reset-pw">重置密码</a></td></tr>';
   }).join('');
   document.getElementById('apUserList').innerHTML=html;
 }
@@ -437,6 +438,33 @@ async function doEditUser(uid){
       errEl.style.display='block';
     }
   }catch(e){errEl.textContent='网络错误，请重试';errEl.style.display='block';}
+}
+/* V4.5 重构时丢失的管理功能，2026-07-31 恢复（views.js:177-178 事件委托仍引用） */
+async function deleteUser(uid,uname){
+  if(!confirm('确定删除用户 '+uname+' 吗？此操作不可撤销。'))return;
+  try{
+    var r=await fetch(BASE+'/admin/users/'+uid,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+    if(r.ok){toast('已删除');_clearCache("admin");await loadAdminData(true);}
+    else{var e=await r.json();toast((typeof e.detail==='string'?e.detail:'删除失败')||'删除失败','error');}
+  }catch(e){toast('网络错误','error');}
+}
+async function resetPassword(uid){
+  var np=prompt('输入新密码（至少6位）：','123456');
+  if(!np||np.length<6)return;
+  try{
+    var r=await fetch(BASE+'/admin/users/'+uid+'/reset-password',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({new_password:np})});
+    if(r.ok){toast('密码已重置');}
+    else{var e=await r.json();toast((typeof e.detail==='string'?e.detail:'重置失败')||'重置失败','error');}
+  }catch(e){toast('网络错误','error');}
+}
+async function impersonateUser(uid,uname){
+  if(!confirm('将以 '+uname+' 的权限查询"我可以访问的门店列表"，确认？'))return;
+  try{
+    var r=await fetch(BASE+'/admin/impersonate/'+uid,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({question:'查询我可以访问的门店列表'})});
+    var d=await r.json();
+    var storeCount=d.store_count==='全部'?'全部门店':d.store_count+' 家门店';
+    alert('👤 '+d.target_user+' 的数据范围：'+storeCount+'\n\n'+(d.report||'无报告').slice(0,500));
+  }catch(e){toast('模拟失败: '+e,'error');}
 }
 function buildMonitorUrl(d,s,e){var u=BASE+'/monitor/overview?days='+Math.min(d,90);if(s)u+='&start_date='+s;if(e)u+='&end_date='+e;return u;}
 function loadMonitorOverview(){
@@ -625,7 +653,7 @@ async function viewHistoryDetail(id){
         '<span class="print-btn" onclick="window.print()">🖨️ 打印</span>'+
         '<span class="share-btn" onclick="downloadMD()">⬇️ Markdown</span>'+
         '<span class="share-btn" onclick="exportPDF()">📄 PDF</span></div>';
-      document.getElementById('chat').innerHTML+='<div class="msg assistant"><div class="bubble">'+sup+rh+ds+fq+'</div>'+tb+fb+'</div>';
+      document.getElementById('chat').innerHTML+='<div class="msg assistant"><div class="bubble">'+sup+rh+trustFooter()+ds+fq+'</div>'+tb+fb+'</div>';
     }else{
       document.getElementById('chat').innerHTML+='<div class="msg assistant"><div class="bubble" style="color:var(--amber)">无报告内容</div></div>';
     }
@@ -708,6 +736,15 @@ function stopVoice(){
   var q=document.getElementById('question').value.trim();if(q)document.getElementById('btn').click();
 }
 
+/* 报告信任分级（合规标注，V4.5 重构时丢失，2026-07-31 恢复） */
+function trustFooter(){
+  return '<div style="display:flex;align-items:center;gap:6px;margin-top:14px;margin-bottom:6px"><span style="font-size:14px">🛡️</span><span style="font-weight:600;color:var(--text)">本报告信任分级</span></div>'+
+    '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:2px"><span style="color:var(--green);font-weight:600;white-space:nowrap">✅ 数据层</span><span style="color:var(--muted)">数据直接来自您的数据库，每条结论可点击 <span style="color:var(--accent)">📊 查看SQL</span> 追溯原始查询，可信度极高</span></div>'+
+    '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:2px"><span style="color:var(--amber);font-weight:600;white-space:nowrap">⚠️ 分析层</span><span style="color:var(--muted)">趋势判断和原因分析由 AI 基于数据推理生成，建议结合业务经验判断</span></div>'+
+    '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:2px"><span style="color:var(--accent);font-weight:600;white-space:nowrap">💡 建议层</span><span style="color:var(--muted)">经营建议为 AI 参考性输出，执行前请结合实际情况进行人工复核</span></div>'+
+    '<div style="margin-top:6px;font-size:10px;color:var(--muted);text-align:right">本报告由 AI 自动生成 · 符合《生成式人工智能服务管理暂行办法》</div>';
+}
+
 /* Chat SSE */
 function stopAnalysis(){
   if(_abortController){_abortController.abort();_abortController=null;}
@@ -759,6 +796,7 @@ async function ask(e){
               var fh;try{fh=sanitizeHtml(marked.parse(convertTextTables(expandChartTags(ctr))));}catch(e){fh=esc(ctr);}
               sd2.innerHTML=fh.replace(/\[FOLLOWUP[^\]]*\]\]/g,'');
               try{
+                sd2.insertAdjacentHTML('afterend',trustFooter());
                 var ext='';try{ext=buildSupervisorPlan(fsp);}catch(e){}
                 try{ext+=buildTracePanel(fds);}catch(e){}
                 try{ext+=buildFollowupButtons(ffqs);}catch(e){}
@@ -776,7 +814,7 @@ async function ask(e){
     var pm2=document.getElementById('pM');if(pm2)pm2.remove();
     if(sb){}else if(fr){
       try{var e2='';try{e2=buildSupervisorPlan(fsp);}catch(e){}try{e2+=buildTracePanel(fds);}catch(e){}try{e2+=buildFollowupButtons(ffqs);}catch(e){}
-      el.innerHTML+='<div class="msg assistant"><div class="bubble">'+sanitizeHtml(marked.parse(convertTextTables(expandChartTags(fr))))+e2+'</div></div>';}catch(e){el.innerHTML+='<div class="msg assistant"><div class="bubble">'+esc(fr)+'</div></div>';}
+      el.innerHTML+='<div class="msg assistant"><div class="bubble">'+sanitizeHtml(marked.parse(convertTextTables(expandChartTags(fr))))+trustFooter()+e2+'</div></div>';}catch(e){el.innerHTML+='<div class="msg assistant"><div class="bubble">'+esc(fr)+trustFooter()+'</div></div>';}
     }else if(!fr&&!sc){el.innerHTML+='<div class="msg assistant"><div class="bubble" style="color:var(--amber)">未生成报告</div></div>';}
     if(!sb)el.scrollTop=el.scrollHeight;
     document.getElementById('quickBar').style.display='flex';lastRecordId=fid;loadSessionInfo();

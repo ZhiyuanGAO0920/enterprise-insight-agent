@@ -1,7 +1,8 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
 REM =============================================================================
-REM deploy.bat — Enterprise Insight Agent V4 一键部署 (Windows)
+REM deploy.bat - Enterprise Insight Agent V4 一键部署 (Windows)
 REM =============================================================================
 REM Usage: deploy.bat
 REM =============================================================================
@@ -9,7 +10,7 @@ REM ============================================================================
 cd /d "%~dp0"
 
 echo ========================================
-echo  Enterprise Insight Agent V4 — 一键部署
+echo  Enterprise Insight Agent V4 - 一键部署
 echo ========================================
 echo.
 
@@ -46,9 +47,9 @@ if not exist .env (
     echo.
     echo ========================================
     echo  Please edit .env and fill in:
-    echo    DEEPSEEK_API_KEY   — your DeepSeek API key
-    echo    JWT_SECRET_KEY     — a random string
-    echo    POSTGRES_PASSWORD  — a strong database password
+    echo    DEEPSEEK_API_KEY   - your DeepSeek API key
+    echo    JWT_SECRET_KEY     - a random string
+    echo    POSTGRES_PASSWORD  - a strong database password
     echo ========================================
     echo.
     echo After editing, re-run: deploy.bat

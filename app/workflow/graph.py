@@ -191,7 +191,7 @@ def build_graph() -> StateGraph:
     builder.add_edge("supply_chain_agent", "aggregator")
 
     # ---- 聚合器 → 图表顾问 → 报告 Agent（V3 管线） ----
-    builder.add_conditional_edges("aggregator", after_aggregation, {"chart_advisor": "chart_advisor", END: END})
+    builder.add_conditional_edges("aggregator", after_aggregation, {"chart_advisor": "chart_advisor", "report_agent": "report_agent", END: END})
     builder.add_edge("chart_advisor", "report_agent")
 
     # ---- 报告 Agent → 反思 Agent（simple 查询直接保存） ----
