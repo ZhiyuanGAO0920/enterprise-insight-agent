@@ -1,0 +1,68 @@
+.t-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.t-tag--medium {
+  font-size: 24rpx;
+}
+
+.t-tag--large {
+  font-size: 28rpx;
+  padding: 8rpx 24rpx;
+}
+
+.t-tag--default.t-tag--dark {
+  background: #E5E5EA;
+  color: #1D1D1F;
+}
+
+.t-tag--primary.t-tag--dark {
+  background: #1A73E8;
+  color: #FFFFFF;
+}
+
+.t-tag--success.t-tag--dark {
+  background: #30D158;
+  color: #FFFFFF;
+}
+
+.t-tag--warning.t-tag--dark {
+  background: #FF9500;
+  color: #FFFFFF;
+}
+
+.t-tag--danger.t-tag--dark {
+  background: #FF3B30;
+  color: #FFFFFF;
+}
+
+.t-tag--default.t-tag--light {
+  background: rgba(0, 0, 0, 0.05);
+  color: #1D1D1F;
+}
+
+.t-tag--primary.t-tag--light {
+  background: rgba(26, 115, 232, 0.1);
+  color: #1A73E8;
+}
+
+.t-tag--success.t-tag--light {
+  background: rgba(48, 209, 88, 0.1);
+  color: #30D158;
+}
+
+.t-tag--warning.t-tag--light {
+  background: rgba(255, 149, 0, 0.1);
+  color: #FF9500;
+}
+
+.t-tag--danger.t-tag--light {
+  background: rgba(255, 59, 48, 0.1);
+  color: #FF3B30;
+}

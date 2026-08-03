@@ -1,0 +1,59 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/bind/bind",
+    "pages/home/home",
+    "pages/chat/chat",
+    "pages/mine/mine"
+  ],
+  "subpackages": [
+    {
+      "root": "pages_ai",
+      "name": "ai",
+      "pages": ["report-full/report-full"]
+    },
+    {
+      "root": "pages_share",
+      "name": "share",
+      "pages": ["share/share"]
+    }
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTitleText": "企业经营助手",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F5F5F7"
+  },
+  "tabBar": {
+    "color": "#86868B",
+    "selectedColor": "#1A73E8",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/chat/chat",
+        "text": "AI 助手"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的"
+      }
+    ]
+  },
+  "usingComponents": {
+    "t-icon": "/miniprogram_npm/tdesign-miniprogram/icon/index",
+    "t-tag": "/miniprogram_npm/tdesign-miniprogram/tag/index"
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于提供附近门店分析"
+    }
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

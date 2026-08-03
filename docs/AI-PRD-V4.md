@@ -1,6 +1,6 @@
 # AI产品需求文档（AI-PRD）— Enterprise Insight Agent V4
 
-> **文档版本**：v1.0
+> **文档版本**：v1.2（V4.6）
 > **适用场景**：AI驱动的B端产品 — 连锁零售企业 Multi-Agent 经营分析平台
 > **与传统PRD区别**：本章在传统PRD基础上，新增「AI能力定义」「效果评估」「成本模型」等AI特有章节
 
@@ -11,6 +11,8 @@
 | 版本 | 日期 | 修改人 | 修改内容 |
 |-----|------|--------|---------|
 | v1.0 | 2026-06-11 | 高志远 | 基于V4代码基线创建 |
+| v1.1 | 2026-07-30 | 高志远 | 同步 V4.5 数据：11 节点 / 39 端点 / 177 测试 / 11 迁移 |
+| v1.2 | 2026-07-31 | 高志远 | 同步 V4.6 数据：11 节点 / 46 端点 / 183 测试 / 12 迁移 / 报告分享功能 |
 
 ---
 
@@ -38,7 +40,7 @@ V4 系统用自然语言对话的方式，让老板直接问"华东区域本周�
 **包含范围（In Scope）**：
 
 - [x] 5 个业务领域 Agent：销售、CRM、财务、库存、供应链
-- [x] 10 节点 LangGraph 编排：Supervisor → 并行 Agent → Aggregator → Chart → Report → Reflection → Memory
+- [x] 11 节点 LangGraph 编排：Supervisor → 并行 Agent → Aggregator → Chart → Report → Reflection → Memory
 - [x] 自然语言输入，结构化 Markdown 报告 + ECharts 图表输出
 - [x] 多轮对话上下文 + 追问建议
 - [x] RBAC 权限 + 门店行级安全
@@ -619,7 +621,7 @@ Satisfaction = (👍 次数) / (👍 + 👎 次数)
 - [x] **成本在预算内**：单次典型成本 ¥0.034 ≤ ¥0.05
 - [x] **多租户隔离验证通过**：跨租户数据不可访问
 - [x] **审计日志完整**：所有 API 操作可追溯
-- [x] **137 条测试通过**：`pytest tests/ -v` 115 passed + 22 skipped
+- [x] **192 条测试**：`pytest tests/ -v`（190 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复）
 
 ---
 
@@ -765,7 +767,7 @@ Satisfaction = (👍 次数) / (👍 + 👎 次数)
 | 启动指南 | `docs/启动指南.md` | Docker/手动部署 |
 | 升级指南 | `UPGRADE.md` | 版本升级与回滚 |
 | 商业思考 | `docs/商业思考.md` | 定价/GTM/市场规模 |
-| Prompt 迭代日志 | `docs/Prompt迭代日志.md` | 5 次 Prompt 迭代记录 |
+| Prompt 迭代日志 | `docs/Prompt迭代日志.md` | 9 次 Prompt 迭代记录 |
 | Bad Case 复盘 | `docs/BadCase复盘.md` | 3 个 AI 犯错复盘案例 |
 | 离线评估脚本 | `tests/run_eval.py` | 102 条测试集自动评估 |
 

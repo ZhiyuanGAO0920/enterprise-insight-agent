@@ -27,6 +27,10 @@ class FeedbackStatsResponse(BaseModel):
     breakdown: dict = Field(default={}, description="各评分分类统计")
 
 
+class ContactFeedbackRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=500, description="意见反馈内容")
+
+
 @router.post("/submit", summary="提交反馈")
 async def submit_feedback(
     req: FeedbackRequest,
@@ -90,6 +94,33 @@ async def submit_feedback(
             "text": f"平台好评率 {helpful_rate}%（共 {total_fb} 条反馈），您的反馈帮助我们持续改进！" if total_fb > 1 else "您的反馈是我们改进的动力！",
         },
     }
+
+
+@router.post("/contact", summary="提交自由文本意见反馈")
+async def contact_feedback(
+    req: ContactFeedbackRequest,
+    user: dict = Depends(get_current_user),
+):
+    """提交不关联具体分析记录的意见反馈（移动端"意见反馈"入口）。
+
+    写入 user_feedback 表：analysis_history_id 为 NULL，rating='contact' 区分来源。
+    表结构无需迁移（analysis_history_id 可空，rating 为 VARCHAR(10)）。
+    """
+    settings = get_settings()
+    if not settings.feature_feedback:
+        return {"status": "disabled", "message": "反馈功能未启用", "enabled": False}
+
+    async with get_session() as session:
+        await session.execute(
+            text("""
+                INSERT INTO user_feedback (analysis_history_id, user_id, rating, reason)
+                VALUES (NULL, :uid, 'contact', :content)
+            """),
+            {"uid": user["user_id"], "content": req.content},
+        )
+        await session.commit()
+
+    return {"status": "ok", "message": "感谢您的反馈！"}
 
 
 @router.get("/history", summary="获取我的反馈历史")

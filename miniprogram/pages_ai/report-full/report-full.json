@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "分析报告",
+  "usingComponents": {
+    "chart-render": "/components/chart-render/chart-render"
+  }
+}

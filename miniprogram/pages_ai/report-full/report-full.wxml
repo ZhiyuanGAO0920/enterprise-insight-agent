@@ -1,0 +1,148 @@
+<view class="report-container">
+  <!-- 报告内容 -->
+  <scroll-view class="report-scroll" scroll-y scroll-top="{{scrollTop}}">
+    <view class="report-header-section">
+      <view class="rpt-title">{{reportTitle}}</view>
+    </view>
+
+    <view class="report-body">
+      <block wx:for="{{reportSections}}" wx:key="id">
+        <!-- H1 -->
+        <view wx:if="{{item.type === 'h1'}}" class="rpt-h1">{{item.text}}</view>
+        <!-- H2 -->
+        <view wx:elif="{{item.type === 'h2'}}" class="rpt-h2">{{item.text}}</view>
+        <!-- H3 -->
+        <view wx:elif="{{item.type === 'h3'}}" class="rpt-h3">{{item.text}}</view>
+        <!-- 段落 -->
+        <view wx:elif="{{item.type === 'paragraph'}}" class="rpt-p">{{item.text}}</view>
+        <!-- 列表 -->
+        <view wx:elif="{{item.type === 'list'}}" class="rpt-list">
+          <view class="rpt-li" wx:for="{{item.items}}" wx:for-item="li" wx:key="index">
+            <text class="bullet">•</text>
+            <text>{{li}}</text>
+          </view>
+        </view>
+        <!-- 表格（第一行作表头） -->
+        <view wx:elif="{{item.type === 'table'}}" class="rpt-table">
+          <view class="rpt-tr rpt-head">
+            <view class="rpt-th" wx:for="{{item.header}}" wx:key="index">{{item}}</view>
+          </view>
+          <view class="rpt-tr" wx:for="{{item.rows}}" wx:for-item="row" wx:key="index">
+            <view class="rpt-td" wx:for="{{row}}" wx:for-item="cell" wx:key="index">{{cell}}</view>
+          </view>
+        </view>
+        <!-- 引用 -->
+        <view wx:elif="{{item.type === 'quote'}}" class="rpt-quote">{{item.text}}</view>
+      </block>
+    </view>
+
+    <!-- 数据图表（自绘 canvas 组件） -->
+    <view class="chart-section" wx:if="{{reportCharts.length > 0}}">
+      <view class="rpt-h2">📊 数据图表</view>
+      <view
+        class="chart-item"
+        wx:for="{{reportCharts}}"
+        wx:key="index"
+      >
+        <chart-render option="{{item}}"></chart-render>
+        <view class="chart-note" wx:if="{{item.note}}">{{item.note}}</view>
+      </view>
+    </view>
+
+    <view class="report-footer">
+      <view class="footer-divider"></view>
+      <view class="footer-text">本报告由 AI 经营分析助手生成</view>
+    </view>
+  </scroll-view>
+
+  <!-- 操作栏 -->
+  <view class="action-bar">
+    <view class="action-btn" bindtap="handleCopy">
+      <text class="action-icon">📋</text>
+      <text>复制</text>
+    </view>
+    <view class="action-btn" bindtap="handleShare">
+      <text class="action-icon">📤</text>
+      <text>分享</text>
+    </view>
+    <view class="action-btn" bindtap="openFeedback">
+      <text class="action-icon">⭐</text>
+      <text>评价</text>
+    </view>
+  </view>
+
+  <!-- 反馈弹窗 -->
+  <view class="feedback-modal {{showFeedback ? 'show' : ''}}">
+    <view class="modal-mask" bindtap="closeFeedback"></view>
+    <view class="modal-content">
+      <view class="modal-title">评价这份报告</view>
+      <view class="rating-stars">
+        <view
+          class="star {{feedbackRating >= 1 ? 'active' : ''}}"
+          data-rating="1"
+          bindtap="setRating"
+        >★</view>
+        <view
+          class="star {{feedbackRating >= 2 ? 'active' : ''}}"
+          data-rating="2"
+          bindtap="setRating"
+        >★</view>
+        <view
+          class="star {{feedbackRating >= 3 ? 'active' : ''}}"
+          data-rating="3"
+          bindtap="setRating"
+        >★</view>
+        <view
+          class="star {{feedbackRating >= 4 ? 'active' : ''}}"
+          data-rating="4"
+          bindtap="setRating"
+        >★</view>
+        <view
+          class="star {{feedbackRating >= 5 ? 'active' : ''}}"
+          data-rating="5"
+          bindtap="setRating"
+        >★</view>
+      </view>
+      <view class="rating-text" wx:if="{{feedbackRating > 0}}">
+        <text wx:if="{{feedbackRating === 1}}">非常差</text>
+        <text wx:elif="{{feedbackRating === 2}}">较差</text>
+        <text wx:elif="{{feedbackRating === 3}}">一般</text>
+        <text wx:elif="{{feedbackRating === 4}}">不错</text>
+        <text wx:elif="{{feedbackRating === 5}}">非常好</text>
+      </view>
+      <!-- 快捷原因（BadCase 回流素材） -->
+      <view class="reason-section" wx:if="{{feedbackRating > 0}}">
+        <view class="reason-title">哪里需要改进？</view>
+        <view class="reason-list">
+          <view
+            class="reason-chip {{feedbackReason === '数据不准' ? 'active' : ''}}"
+            data-reason="数据不准"
+            bindtap="setFeedbackReason"
+          >数据不准</view>
+          <view
+            class="reason-chip {{feedbackReason === '图表看不懂' ? 'active' : ''}}"
+            data-reason="图表看不懂"
+            bindtap="setFeedbackReason"
+          >图表看不懂</view>
+          <view
+            class="reason-chip {{feedbackReason === '建议太空泛' ? 'active' : ''}}"
+            data-reason="建议太空泛"
+            bindtap="setFeedbackReason"
+          >建议太空泛</view>
+          <view
+            class="reason-chip {{feedbackReason === '其他' ? 'active' : ''}}"
+            data-reason="其他"
+            bindtap="setFeedbackReason"
+          >其他</view>
+        </view>
+      </view>
+      <view class="modal-actions">
+        <view class="modal-btn cancel" bindtap="closeFeedback">取消</view>
+        <view class="modal-btn confirm" bindtap="submitFeedback">提交</view>
+      </view>
+      <view class="success-tip" wx:if="{{feedbackSubmitted}}">
+        感谢您的反馈！
+      </view>
+    </view>
+  </view>
+</view>

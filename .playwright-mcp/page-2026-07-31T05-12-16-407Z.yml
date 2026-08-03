@@ -1,0 +1,12 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]: 📊 企业洞察 Agent · 智能经营分析
+    - generic [ref=e4]: 经营分析报告分享
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: 📝 分析问题
+      - generic [ref=e8]: 测试问题
+    - generic [ref=e12]:
+      - heading "测试报告" [level=2] [ref=e13]
+      - paragraph [ref=e14]: 结论：销售平稳。
+  - generic [ref=e15]: 本报告由企业洞察 Agent 基于多 Agent 协作自动生成，仅供经营决策参考，数据与结论以实际业务为准。 © 企业洞察 Agent · AI 生成内容符合《生成式人工智能服务管理暂行办法》

@@ -17,7 +17,7 @@ DB_DSN = os.environ.get("DATABASE_URL", "postgresql+asyncpg://admin:admin123@loc
 
 
 async def feed(target_date: datetime):
-    """为 target_date 生成 80-150 笔随机订单（如已有则跳过）。"""
+    """为 target_date 生成 50-200 笔随机订单（如已有则跳过）。"""
     conn = await asyncpg.connect(DB_DSN)
     try:
         cnt = await conn.fetchval(
@@ -35,7 +35,7 @@ async def feed(target_date: datetime):
         sids = [s["id"] for s in stores]
         mids = [m["id"] for m in members]
 
-        num = random.randint(80, 150)
+        num = random.randint(50, 200)
         batch = []
         for _ in range(num):
             sid = random.choice(sids)

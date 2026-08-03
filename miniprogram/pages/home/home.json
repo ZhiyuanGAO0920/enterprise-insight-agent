@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "今日经营",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {}
+}

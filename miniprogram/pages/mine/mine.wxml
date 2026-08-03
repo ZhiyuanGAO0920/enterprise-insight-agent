@@ -1,0 +1,41 @@
+<view class="mine-container">
+  <view class="profile-card">
+    <view class="avatar">{{userInfo ? userInfo.username[0] : 'U'}}</view>
+    <view class="user-info">
+      <view class="username">{{userInfo ? userInfo.username : '未登录'}}</view>
+      <view class="user-desc">企业经营助手 Demo 用户</view>
+    </view>
+  </view>
+
+  <view class="stat-card">
+    <view class="stat-item">
+      <view class="stat-value">{{statReports}}</view>
+      <view class="stat-label">分析报告</view>
+    </view>
+    <view class="stat-item">
+      <view class="stat-value">V1.0</view>
+      <view class="stat-label">版本</view>
+    </view>
+  </view>
+
+  <view class="menu-list">
+    <view
+      class="menu-item"
+      wx:for="{{menuItems}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="handleMenu"
+    >
+      <view class="menu-icon">{{item.icon}}</view>
+      <view class="menu-info">
+        <view class="menu-title">{{item.title}}</view>
+        <view class="menu-desc">{{item.desc}}</view>
+      </view>
+      <view class="menu-arrow">→</view>
+    </view>
+  </view>
+
+  <view class="logout-section">
+    <view class="logout-btn" bindtap="handleLogout">退出登录</view>
+  </view>
+</view>

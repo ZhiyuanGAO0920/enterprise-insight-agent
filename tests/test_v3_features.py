@@ -575,3 +575,20 @@ def test_feedback_request_validation():
     # Invalid rating should raise validation error
     with pytest.raises(Exception):
         FeedbackRequest(analysis_history_id=1, rating="invalid_rating")
+
+
+def test_contact_feedback_request_validation():
+    """ContactFeedbackRequest (移动端意见反馈) should validate content."""
+    from app.api.routes.feedback import ContactFeedbackRequest
+
+    # Valid content
+    req = ContactFeedbackRequest(content="希望增加环比分析")
+    assert req.content == "希望增加环比分析"
+
+    # Empty content should raise validation error
+    with pytest.raises(Exception):
+        ContactFeedbackRequest(content="")
+
+    # Over-length content should raise validation error
+    with pytest.raises(Exception):
+        ContactFeedbackRequest(content="长" * 501)

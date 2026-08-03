@@ -1,0 +1,68 @@
+- generic [ref=e48]:
+  - complementary [ref=e49]:
+    - heading "智能经营分析" [level=1] [ref=e50]
+    - paragraph [ref=e52]: ● 就绪
+    - navigation [ref=e88]:
+      - button "📊 经营看板" [ref=e89] [cursor=pointer]
+      - button "💬 分析对话" [ref=e90] [cursor=pointer]
+      - button "📝 历史记录" [ref=e91] [cursor=pointer]
+      - button "📋 质量监控" [ref=e92] [cursor=pointer]
+      - button "⚙️ 系统管理" [ref=e93] [cursor=pointer]
+    - separator [ref=e53]
+    - button "＋ 新建会话" [ref=e54] [cursor=pointer]
+    - paragraph [ref=e55]: 会话 ID：未创建
+    - generic [ref=e56]: 大模型：DeepSeek
+  - generic [ref=e57]:
+    - generic [ref=e58]:
+      - heading "企业智能经营分析平台" [level=2] [ref=e59]
+      - generic [ref=e60]:
+        - generic [ref=e61]: v4.0
+        - button "a admin ▾" [ref=e95] [cursor=pointer]:
+          - generic [ref=e96]: a
+          - generic [ref=e97]: admin
+          - generic [ref=e98]: ▾
+    - generic [ref=e99]:
+      - generic [ref=e100]:
+        - generic [ref=e101]: 中午好
+        - generic [ref=e102]: admin
+        - generic [ref=e103]: 数据更新于 12:06
+      - generic [ref=e104]:
+        - generic [ref=e105]:
+          - generic [ref=e106]: 今日销售额
+          - generic [ref=e107]: ¥1.3万
+          - generic [ref=e108]: ↑ 20.6% vs 昨日
+        - generic [ref=e109]:
+          - generic [ref=e110]: 昨日销售额
+          - generic [ref=e111]: ¥1.1万
+          - generic [ref=e112]: 基线对比
+        - generic [ref=e113]:
+          - generic [ref=e114]: 退款率（近7天）
+          - generic [ref=e115]: 2.1%
+          - generic [ref=e116]: ✅ 正常
+        - generic [ref=e117]:
+          - generic [ref=e118]: 活跃门店
+          - generic [ref=e119]: "100"
+          - generic [ref=e120]: 近7天有订单
+        - generic [ref=e121]:
+          - generic [ref=e122]: 会员总数
+          - generic [ref=e123]: 5,000
+          - generic [ref=e124]: 累计注册
+        - generic [ref=e125]:
+          - generic [ref=e126]: 近24小时订单
+          - generic [ref=e127]: "177"
+          - generic [ref=e128]: 笔
+      - generic [ref=e129]:
+        - heading "📈 销售额趋势（近30天）" [level=3] [ref=e131]
+        - generic [ref=e135]:
+          - heading "🌍 各区域销售占比（近30天）" [level=3] [ref=e136]
+          - generic [ref=e137]:
+            - button "华东" [ref=e138] [cursor=pointer]
+            - button "华北" [ref=e139] [cursor=pointer]
+            - button "华南" [ref=e140] [cursor=pointer]
+            - button "华中" [ref=e141] [cursor=pointer]
+            - button "西南" [ref=e142] [cursor=pointer]
+            - button "西北" [ref=e143] [cursor=pointer]
+            - button "东北" [ref=e144] [cursor=pointer]
+      - generic [ref=e148]:
+        - heading "🏪 门店销售额 Top 10（近30天）" [level=3] [ref=e150]
+        - heading "🔄 门店退款率 Top 10（近30天）" [level=3] [ref=e155]

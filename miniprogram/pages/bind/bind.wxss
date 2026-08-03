@@ -1,0 +1,67 @@
+.bind-container {
+  padding: 48rpx 40rpx;
+}
+
+.form-section {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 48rpx 40rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.section-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1D1D1F;
+  margin-bottom: 12rpx;
+}
+
+.section-desc {
+  font-size: 26rpx;
+  color: #86868B;
+  margin-bottom: 48rpx;
+}
+
+.form-group {
+  margin-bottom: 32rpx;
+}
+
+.form-label {
+  font-size: 28rpx;
+  color: #1D1D1F;
+  margin-bottom: 12rpx;
+  font-weight: 500;
+}
+
+.form-input {
+  background: #F5F5F7;
+  border-radius: 12rpx;
+  padding: 24rpx 28rpx;
+  font-size: 30rpx;
+  color: #1D1D1F;
+}
+
+.error-msg {
+  color: #FF3B30;
+  font-size: 26rpx;
+  margin: 24rpx 0;
+  padding: 16rpx 24rpx;
+  background: rgba(255, 59, 48, 0.1);
+  border-radius: 12rpx;
+}
+
+.submit-btn {
+  background: #1A73E8;
+  color: #FFFFFF;
+  border-radius: 16rpx;
+  height: 96rpx;
+  line-height: 96rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  margin-top: 48rpx;
+  border: none;
+}
+
+.submit-btn::after {
+  border: none;
+}

@@ -11,7 +11,7 @@
 [![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL%2016%20%2B%20pgvector-blue.svg)](https://www.postgresql.org/)
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20TS-61dafb.svg)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Deploy-Docker%20One--Click-2496ed.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-177%20pass%20%7C%200%20fail-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-190%20pass%20%7C%202%20fail-brightgreen.svg)](tests/)
 [![Prompt](https://img.shields.io/badge/Prompt-V4.5%20%22Data%E2%86%92Insight%E2%86%92Action%22-orange.svg)](prompts/yaml/report.yaml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -238,7 +238,7 @@ enterprise-insight-agent-v4/
 ├── web/                    # 🆕 React 18 + TypeScript 前端
 ├── prompts/                # Prompt 模板（Python + YAML）
 ├── scripts/                # 🆕 部署/备份/验证/离线镜像脚本
-├── tests/                  # 137 条测试用例
+├── tests/                  # 192 条测试用例
 ├── alembic/                # 7 个数据库迁移版本
 ├── docs/                   # 14 份产品/技术文档
 ├── ollama-models/          # 🆕 预打包 BGE-M3 模型目录
@@ -335,7 +335,7 @@ WECOM_WEBHOOK_URL=                  # 企业微信机器人 webhook
 
 ```bash
 pytest tests/ -v --ignore=tests/test_e2e.py
-# 177 passed, 0 failed
+# 190 passed, 2 failed (LLM API 连接环境)
 ```
 
 > 22 条 skipped 需要真实 PostgreSQL / Redis / DeepSeek API 环境。

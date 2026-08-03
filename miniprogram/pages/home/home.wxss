@@ -1,0 +1,483 @@
+.home-container {
+  min-height: 100vh;
+  background: #F2F2F7;
+  padding-bottom: 180rpx;
+}
+
+/* 问候栏 */
+.greeting-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 48rpx 32rpx 24rpx;
+}
+
+.greeting-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1C1C1E;
+}
+
+.date-text {
+  font-size: 26rpx;
+  color: #8E8E93;
+  font-weight: 500;
+}
+
+/* 视图切换 */
+.view-switch {
+  display: flex;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 16rpx;
+  padding: 6rpx;
+  margin: 0 32rpx 24rpx;
+}
+
+.switch-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  font-size: 28rpx;
+  color: #8E8E93;
+  border-radius: 12rpx;
+  font-weight: 500;
+  transition: all 0.25s;
+}
+
+.switch-item.active {
+  background: #FFFFFF;
+  color: #1A73E8;
+  font-weight: 600;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+}
+
+/* 告警卡片 */
+.alert-section {
+  padding: 0 32rpx;
+  margin-bottom: 16rpx;
+}
+
+.alert-card {
+  display: flex;
+  align-items: center;
+  background: #FFF9E6;
+  border-radius: 20rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 12rpx;
+  border-left: 6rpx solid #FF9500;
+  box-shadow: 0 2rpx 16rpx rgba(255, 149, 0, 0.1);
+}
+
+.alert-card.alert-high {
+  background: #FFF5F5;
+  border-left-color: #FF3B30;
+  box-shadow: 0 2rpx 16rpx rgba(255, 59, 48, 0.1);
+}
+
+.alert-icon {
+  font-size: 36rpx;
+  margin-right: 16rpx;
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1C1C1E;
+  margin-bottom: 4rpx;
+}
+
+.alert-action {
+  font-size: 24rpx;
+  color: #FF9500;
+  font-weight: 500;
+}
+
+.alert-card.alert-high .alert-action {
+  color: #FF3B30;
+}
+
+/* 指标卡片 */
+.metric-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin: 0 32rpx 16rpx;
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+
+.metric-card.half {
+  flex: 1;
+  margin: 0;
+  padding: 28rpx;
+}
+
+.metric-row {
+  display: flex;
+  gap: 16rpx;
+  padding: 0 32rpx;
+  margin-bottom: 16rpx;
+}
+
+.metric-label {
+  font-size: 26rpx;
+  color: #8E8E93;
+  margin-bottom: 12rpx;
+  font-weight: 500;
+}
+
+.metric-value {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: #1C1C1E;
+  letter-spacing: -1rpx;
+}
+
+.metric-value.small {
+  font-size: 44rpx;
+}
+
+.metric-unit {
+  font-size: 24rpx;
+  color: #8E8E93;
+  margin-left: 4rpx;
+}
+
+.metric-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  padding: 6rpx 12rpx;
+  border-radius: 8rpx;
+  margin-top: 12rpx;
+}
+
+.metric-change.text-green {
+  background: rgba(48, 209, 88, 0.12);
+  color: #30D158;
+}
+
+.metric-change.text-red {
+  background: rgba(255, 59, 48, 0.12);
+  color: #FF3B30;
+}
+
+.metric-change.text-gray {
+  background: rgba(0, 0, 0, 0.05);
+  color: #8E8E93;
+}
+
+.money-symbol {
+  font-size: 32rpx;
+  opacity: 0.6;
+  margin-right: 4rpx;
+}
+
+/* 趋势图 */
+.trend-card,
+.top-stores-card,
+.regions-card,
+.refund-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 28rpx 32rpx;
+  margin: 0 32rpx 16rpx;
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1C1C1E;
+  margin-bottom: 24rpx;
+}
+
+.trend-placeholder {
+  height: 200rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.trend-bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 8rpx;
+  gap: 8rpx;
+}
+
+.bar {
+  flex: 1;
+  background: linear-gradient(180deg, #1A73E8 0%, #4A9AF5 100%);
+  border-radius: 4rpx 4rpx 0 0;
+  min-height: 4rpx;
+}
+
+.trend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 20rpx;
+  color: #8E8E93;
+  margin-top: 16rpx;
+}
+
+/* 趋势峰值提示 */
+.trend-peak {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #1A73E8;
+  font-weight: 600;
+}
+
+/* 条目点击反馈 + 箭头 */
+.tap-feedback {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 12rpx;
+}
+
+.item-arrow {
+  font-size: 32rpx;
+  color: #C7C7CC;
+  margin-left: 12rpx;
+  line-height: 1;
+}
+
+/* 数据更新时间 */
+.updated-at {
+  text-align: center;
+  font-size: 22rpx;
+  color: #C7C7CC;
+  padding: 8rpx 0 24rpx;
+}
+
+/* 门店列表 */
+.store-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.store-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.04);
+}
+
+.store-item:last-child {
+  border-bottom: none;
+}
+
+.store-rank {
+  width: 44rpx;
+  height: 44rpx;
+  background: linear-gradient(135deg, #1A73E8 0%, #4A9AF5 100%);
+  color: #FFFFFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 700;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.store-name {
+  flex: 1;
+  font-size: 28rpx;
+  color: #1C1C1E;
+  font-weight: 500;
+}
+
+.store-value {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1C1C1E;
+}
+
+/* 快捷入口 */
+.ask-entry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1A73E8 0%, #4A9AF5 100%);
+  border-radius: 24rpx;
+  padding: 28rpx 32rpx;
+  margin: 0 32rpx 24rpx;
+  box-shadow: 0 8rpx 32rpx rgba(26, 115, 232, 0.3);
+}
+
+.ask-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.ask-text {
+  flex: 1;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.ask-arrow {
+  font-size: 32rpx;
+  color: #FFFFFF;
+  opacity: 0.8;
+}
+
+/* 看板网格：2×2 卡片（显式行结构，不依赖 flex gap / calc，兼容性稳） */
+.overview-grid {
+  display: flex;
+  flex-direction: column;
+  padding: 0 32rpx;
+  margin-bottom: 16rpx;
+}
+
+.overview-row {
+  display: flex;
+  margin-bottom: 16rpx;
+}
+
+.overview-row:last-child {
+  margin-bottom: 0;
+}
+
+.overview-cell {
+  flex: 1;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.04);
+  margin-right: 16rpx;
+}
+
+.overview-cell:last-child {
+  margin-right: 0;
+}
+
+.cell-value {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #1C1C1E;
+  margin-bottom: 8rpx;
+  letter-spacing: -0.5rpx;
+}
+
+.cell-label {
+  font-size: 24rpx;
+  color: #8E8E93;
+  font-weight: 500;
+}
+
+/* 区域列表 */
+.region-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.region-item {
+  display: flex;
+  align-items: center;
+}
+
+.region-name {
+  width: 120rpx;
+  font-size: 26rpx;
+  color: #1C1C1E;
+  font-weight: 500;
+}
+
+.region-bar-wrap {
+  flex: 1;
+  height: 24rpx;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 12rpx;
+  margin: 0 16rpx;
+  overflow: hidden;
+}
+
+.region-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #1A73E8 0%, #4A9AF5 100%);
+  border-radius: 12rpx;
+  transition: width 0.3s;
+}
+
+.region-value {
+  width: 140rpx;
+  font-size: 26rpx;
+  text-align: right;
+  color: #1C1C1E;
+  font-weight: 600;
+}
+
+/* 退款列表 */
+.refund-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.refund-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.04);
+}
+
+.refund-item:last-child {
+  border-bottom: none;
+}
+
+.refund-name {
+  font-size: 28rpx;
+  color: #1C1C1E;
+  font-weight: 500;
+}
+
+.refund-rate {
+  font-size: 28rpx;
+  font-weight: 700;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.text-green { color: #30D158; }
+.text-red { color: #FF3B30; }
+.text-orange { color: #FF9500; }
+.text-blue { color: #1A73E8; }
+
+/* 骨架屏 */
+.skeleton-wrap {
+  padding: 32rpx;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.04) 25%, rgba(0, 0, 0, 0.08) 50%, rgba(0, 0, 0, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.skeleton-header {
+  height: 80rpx;
+  width: 50%;
+}
+
+.skeleton-card {
+  height: 180rpx;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

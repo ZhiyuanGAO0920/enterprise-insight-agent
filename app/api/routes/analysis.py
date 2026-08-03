@@ -6,6 +6,7 @@ GET  /api/analysis/history        — 查看用户历史分析记录
 GET  /api/analysis/similar        — 向量相似度搜索历史分析
 """
 
+import hashlib
 import json
 import asyncio
 import secrets
@@ -31,6 +32,37 @@ from app.workflow.state import AnalysisState
 
 router = APIRouter(prefix="/analysis", tags=["经营分析"])
 logger = get_logger("eia.api.analysis")
+
+# ---------------------------------------------------------------------------
+# 分析结果缓存（V3.1 引入；V4.6 增加流式缓存快速通道）
+# ---------------------------------------------------------------------------
+
+CACHE_TTL_SEC = 1800  # 分析结果缓存有效期（30 分钟；demo 预热重问题需 10 分钟级余量）
+
+
+def _analysis_cache_key(
+    user_id: int | str,
+    tenant_id: str,
+    store_ids: list[str],
+    session_id: str | None,
+    question: str,
+) -> str:
+    """构建分析结果缓存键。
+
+    键含 user_id + tenant_id + store_ids + session_id + question，
+    确保不同用户/门店权限/会话上下文的相同提问不会被错误命中。
+    V4.6：流式快速通道使用 session_id="" 的别名键——同一用户/门店范围内
+    的相同首次提问（不依赖会话上下文）可跨会话共享结果。
+    """
+    store_ids_key = ",".join(sorted(store_ids)) if store_ids else ""
+    raw = "|".join([
+        str(user_id),
+        str(tenant_id or ""),
+        store_ids_key,
+        session_id or "",
+        question,
+    ])
+    return "analysis:" + hashlib.md5(raw.encode()).hexdigest()[:16]
 
 
 # ---------------------------------------------------------------------------
@@ -98,17 +130,8 @@ async def analyze(
     # ── V3.1: 分析结果缓存 ──
     # 缓存键包含 user_id + tenant_id + store_ids + session_id + question
     # 确保不同用户/门店权限/会话上下文的相同提问不会被错误命中
-    import hashlib
     store_ids = await get_user_store_ids(user["user_id"])
-    store_ids_key = ",".join(sorted(store_ids)) if store_ids else ""
-    cache_raw = "|".join([
-        str(user["user_id"]),
-        str(user.get("tenant_id", "")),
-        store_ids_key,
-        req.session_id or "",
-        req.question,
-    ])
-    cache_key = "analysis:" + hashlib.md5(cache_raw.encode()).hexdigest()[:16]
+    cache_key = _analysis_cache_key(user["user_id"], user.get("tenant_id", ""), store_ids, req.session_id, req.question)
     redis = None
     try:
         from app.database.redis import get_redis
@@ -229,10 +252,25 @@ async def analyze(
         supervisor_plan=_supervisor_plan,
     )
 
-    # ── V3.1: 写入分析结果缓存（5 分钟 TTL）──
+    # ── V3.1: 写入分析结果缓存（30 分钟 TTL）──
     if redis is not None:
         try:
-            await redis.setex(cache_key, 300, response.model_dump_json())
+            _payload_obj = json.loads(response.model_dump_json())
+            # V4.6: 记录实际执行节点，供缓存重放精确还原进度条（避免全 11 步闪烁）
+            try:
+                _plan = state.get("supervisor_plan") or ""
+                _agents = (json.loads(_plan) or {}).get("activated_agents", []) if isinstance(_plan, str) else (_plan or {}).get("activated_agents", [])
+                _completed = ["supervisor"] + list(_agents) + ["aggregator", "report_agent", "save_memory"]
+                if state.get("query_type") != "simple":
+                    _completed += ["chart_advisor", "reflection_agent"]
+                _payload_obj["completed_nodes"] = _completed
+            except Exception:
+                pass  # 推导失败不影响主流程（重放时走启发式兜底）
+            payload = json.dumps(_payload_obj, ensure_ascii=False)
+            await redis.setex(cache_key, CACHE_TTL_SEC, payload)
+            # V4.6: 同时写入无 session 的别名键，供流式端点（键不含 session）命中
+            alias_key = _analysis_cache_key(user["user_id"], user.get("tenant_id", ""), store_ids, "", req.question)
+            await redis.setex(alias_key, CACHE_TTL_SEC, payload)
         except Exception:
             pass  # 缓存写入失败不影响主流程
 
@@ -387,6 +425,53 @@ NODE_PROGRESS_MESSAGES = {
 }
 
 
+# V4.6: 缓存重放每步最短展示时长（与 _stream_graph 内 _MIN_PHASE_DISPLAY_SEC 一致，
+# 11 步约 7 秒，画面自然且保留「流式进度」演示卖点）
+_CACHE_REPLAY_STEP_SEC = 0.6
+
+
+def _replay_nodes(cached: dict) -> list[str]:
+    """推导缓存报告实际执行过的节点，用于精确还原进度条（而非全 11 步）。
+
+    优先使用写入时记录的 completed_nodes；旧缓存（无该字段）则从
+    supervisor_plan.activated_agents + reflection 标记推导：
+    - 简单查询（无质检）：supervisor → 激活 Agent → aggregator → report → save_memory
+    - 分析型（reflection_passed/feedback 存在）：追加 chart_advisor / reflection_agent
+    """
+    order = list(NODE_LABELS.keys())
+    nodes = cached.get("completed_nodes")
+    if nodes:
+        return [n for n in order if n in nodes]
+    try:
+        plan = json.loads(cached.get("supervisor_plan") or "{}")
+        agents = plan.get("activated_agents", [])
+    except Exception:
+        agents = []
+    selected = {"supervisor", "aggregator", "report_agent", "save_memory"} | set(agents)
+    if cached.get("reflection_passed") or cached.get("reflection_feedback"):
+        selected |= {"chart_advisor", "reflection_agent"}
+    return [n for n in order if n in selected]
+
+
+async def _replay_cached_stream(cached: dict):
+    """V4.6: 缓存命中时快速重放 SSE 事件流（无需重新调用 LLM）。
+
+    只亮起实际执行过的节点（与真实链路一致），最后推送 done 事件
+    携带缓存报告（含图表标记，前端渲染路径与真实流程完全一致）。
+    """
+    for node in _replay_nodes(cached):
+        label = NODE_LABELS[node]
+        msg = NODE_PROGRESS_MESSAGES.get(node, "")
+        yield f"data: {json.dumps({'type': 'phase', 'node': node, 'status': 'start', 'label': label, 'message': msg}, ensure_ascii=False)}\n\n"
+        await asyncio.sleep(_CACHE_REPLAY_STEP_SEC)
+        yield f"data: {json.dumps({'type': 'step', 'node': node, 'status': 'done', 'label': label})}\n\n"
+    errors = [
+        {"agent": e.get("agent", "unknown"), "error": str(e.get("error", ""))[:200], "user_message": e.get("user_message", ""), "icon": e.get("icon", "")}
+        for e in (cached.get("agent_errors") or [])
+    ]
+    yield f"data: {json.dumps({'type': 'done', 'report': cached.get('report') or '', 'errors': errors, 'reflection_passed': cached.get('reflection_passed', False), 'record_id': cached.get('record_id'), 'data_sources': cached.get('data_sources', []), 'followup_questions': cached.get('followup_questions', []), 'supervisor_plan': cached.get('supervisor_plan')}, ensure_ascii=False)}\n\n"
+
+
 async def _stream_graph(
     question: str,
     user_id: int | None,
@@ -488,21 +573,10 @@ async def _stream_graph(
     # Flush APM traces (non-blocking)
     await tracer.flush()
 
-    # V4.5: 流式结果写入 Redis 缓存（相同问题 5 分钟内秒回）
+    # V4.5/V4.6: 流式结果写入 Redis 缓存（相同问题 30 分钟内秒回）
     if report:
         try:
-            import hashlib as _hashlib
-            _cache_raw = "|".join([
-                str(user_id),
-                "",
-                ",".join(sorted(store_ids)) if store_ids else "",
-                session_id or "",
-                question,
-            ])
-            _cache_key = "analysis:" + _hashlib.md5(_cache_raw.encode()).hexdigest()[:16]
-            from app.database.redis import get_redis
-            _rc = get_redis()
-            await _rc.setex(_cache_key, 300, json.dumps({
+            _cache_payload = json.dumps({
                 "record_id": record_id,
                 "report": report,
                 "reflection_passed": reflection_passed,
@@ -511,7 +585,13 @@ async def _stream_graph(
                 "data_sources": final_state.get("data_sources", []),
                 "followup_questions": final_state.get("followup_questions", []),
                 "supervisor_plan": final_state.get("supervisor_plan"),
-            }, ensure_ascii=False))
+                "completed_nodes": sorted(_started_nodes),  # V4.6: 实际执行节点，重放精确还原进度条
+            }, ensure_ascii=False)
+            from app.database.redis import get_redis
+            _rc = get_redis()
+            await _rc.setex(_analysis_cache_key(user_id, "", store_ids or [], session_id, question), CACHE_TTL_SEC, _cache_payload)
+            # V4.6: 无 session 别名键，供流式缓存快速通道跨会话命中
+            await _rc.setex(_analysis_cache_key(user_id, "", store_ids or [], "", question), CACHE_TTL_SEC, _cache_payload)
         except Exception:
             pass  # 缓存写入失败不影响主流程
 
@@ -552,6 +632,29 @@ async def analyze_stream(
     浏览器可用 EventSource 接收，前端进度条实时展示 9 步分析状态。
     """
     store_ids = await get_user_store_ids(user["user_id"])
+
+    # ── V4.6: 缓存命中快速通道 ──
+    # 相同问题（同用户/租户/门店范围）10 分钟内直接重放缓存报告，不触发 LLM。
+    # 键不含 session_id：不同会话中的首次提问可共享结果；多轮追问跳过（避免丢失会话上下文）。
+    cached: dict | None = None
+    try:
+        if not req.session_id or not await ContextManager(req.session_id).is_followup(req.question):
+            from app.database.redis import get_redis
+            _hit = await get_redis().get(
+                _analysis_cache_key(user["user_id"], user.get("tenant_id", ""), store_ids, "", req.question)
+            )
+            if _hit:
+                cached = json.loads(_hit)
+    except Exception:
+        cached = None  # 缓存不可用/异常 → 走完整分析链路
+    if cached and cached.get("report"):
+        logger.info("流式缓存命中，快速重放", question=req.question[:80])
+        return StreamingResponse(
+            _replay_cached_stream(cached),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        )
+
     # V4.5: SSE 流式超时保护（420s，与 /analyze 同步端点一致）
     async def _timeout_wrapper():
         try:

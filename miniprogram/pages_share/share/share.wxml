@@ -1,0 +1,52 @@
+<view class="share-container">
+  <block wx:if="{{loading}}">
+    <view class="loading-wrap">
+      <view class="loading-spinner"></view>
+      <view class="loading-text">加载分享内容中...</view>
+    </view>
+  </block>
+
+  <block wx:elif="{{isExpired}}">
+    <view class="expired-wrap">
+      <view class="expired-icon">⏰</view>
+      <view class="expired-title">链接已失效</view>
+      <view class="expired-desc">分享链接有效期为 30 天，已过期</view>
+      <view class="expired-action" bindtap="goChat">创建新的分析 →</view>
+    </view>
+  </block>
+
+  <block wx:elif="{{error}}">
+    <view class="error-wrap">
+      <view class="error-icon">❌</view>
+      <view class="error-title">加载失败</view>
+      <view class="expired-desc">请检查网络或链接是否正确</view>
+      <view class="expired-action" bindtap="goChat">返回首页</view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="share-card">
+      <view class="share-badge">📋 AI 经营分析</view>
+      <view class="share-question" wx:if="{{shareQuestion}}">{{shareQuestion}}</view>
+      <view class="share-conclusion {{expanded ? 'expanded' : ''}}">{{conclusion}}</view>
+      <view class="share-expand" bindtap="toggleExpand" wx:if="{{conclusion.length > 120}}">
+        {{expanded ? '收起 ▲' : '展开全文 ▼'}}
+      </view>
+      <view class="share-meta">
+        <view class="share-time" wx:if="{{generatedAt}}">生成于 {{generatedAt}}</view>
+        <view class="share-quality {{reflectionPassed ? 'pass' : 'fail'}}" wx:if="{{reflectionPassed !== null}}">
+          {{reflectionPassed ? '✅ 质检通过' : '⚠️ 质检未通过'}}
+        </view>
+      </view>
+    </view>
+
+    <view class="cta-section">
+      <view class="cta-btn" bindtap="goChat">深入查看完整分析 →</view>
+    </view>
+
+    <view class="login-prompt" wx:if="{{!isLoggedIn}}">
+      <view class="prompt-text">登录查看更多历史分析</view>
+      <view class="prompt-btn" bindtap="goLogin">立即登录</view>
+    </view>
+  </block>
+</view>

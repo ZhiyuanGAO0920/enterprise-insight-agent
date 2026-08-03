@@ -9,7 +9,7 @@
 面向连锁零售的 Multi-Agent AI 经营分析平台。10 个 Agent 协作，用户用自然语言提问，60 秒内获得含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
-**状态**：V4.2，111 条核心测试通过 / 0 失败，GitHub 开源
+**状态**：V4.6.0，192 条测试（190 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复），GitHub 开源
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商
 
 ---
@@ -56,13 +56,13 @@ Save Memory（pgvector 1024 维，BGE-M3 本地 Embedding）
 ```
 app/
 ├── agents/          # 11 个 Agent 节点（含 supervisor, 5 领域, aggregator, chart, report, reflection, memory）
-├── api/routes/      # 11 个路由组，36 个端点
+├── api/routes/      # 11 个路由组，46 个端点
 │   ├── analysis.py  # /analyze + /analyze-stream（SSE）
 │   ├── dashboard.py # /today-summary + /overview
 │   ├── alerts.py    # /check（n8n 定时触发 + 飞书/钉钉/企微通知）
 │   └── weekly.py    # /generate + /export（PDF）
 ├── auth/            # JWT + RBAC + RLS（行级安全）
-├── database/        # 17 ORM 模型，8 版 Alembic 迁移
+├── database/        # 17 ORM 模型，12 版 Alembic 迁移
 ├── middleware/       # 🆕 audit.py（审计日志） + tenant.py（多租户）
 ├── services/        # notification.py + pdf_exporter.py
 ├── tools/           # sql_runner.py（RLS 注入），prompt_loader.py（3 级 fallback）
@@ -136,8 +136,8 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 - 三版本同时运行：V2(8000) / V3(8001) / V4(8002)
 - PostgreSQL: `localhost:15432`，admin / admin123（Docker）
 - Redis: `localhost:6381`（Docker）
-- n8n: `http://localhost:5678`（Docker）
+- n8n: `http://localhost:5680`（Docker）
 - 启动：双击 `重启服务.bat` 或 `uvicorn app.api.main:app --port 8002 --reload`
 - 热重载 Prompt：`POST /api/v1/prompts/reload`
-- 测试：`pytest tests/ -v`（155 条）
-- 数据库迁移：`alembic upgrade head`（当前 8 个版本）
+- 测试：`pytest tests/ -v`（192 条）
+- 数据库迁移：`alembic upgrade head`（当前 13 个版本）

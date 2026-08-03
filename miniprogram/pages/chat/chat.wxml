@@ -1,0 +1,166 @@
+<view class="chat-container">
+  <!-- 消息区域 -->
+  <scroll-view class="message-area" scroll-y scroll-into-view="{{scrollTarget}}">
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{messages.length === 0 && !loading}}">
+      <view class="empty-icon">💬</view>
+      <view class="empty-title">问我任何经营问题</view>
+      <view class="empty-desc">点击下方问题快速开始</view>
+      <view class="suggestion-list">
+        <view class="suggestion-item" data-question="这个月销售下滑的原因是什么？" bindtap="onSuggestionTap">
+          <view class="suggestion-icon">📊</view>
+          <text>这个月销售下滑的原因是什么？</text>
+        </view>
+        <view class="suggestion-item" data-question="哪些门店需要重点关注？" bindtap="onSuggestionTap">
+          <view class="suggestion-icon">🏪</view>
+          <text>哪些门店需要重点关注？</text>
+        </view>
+        <view class="suggestion-item" data-question="退款率最高的门店是哪些？" bindtap="onSuggestionTap">
+          <view class="suggestion-icon">📦</view>
+          <text>退款率最高的门店是哪些？</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 消息列表 -->
+    <view class="message-list" wx:if="{{messages.length > 0}}">
+      <view
+        class="message-item {{item.role}}"
+        wx:for="{{messages}}"
+        wx:key="index"
+      >
+        <view class="message-avatar">
+          <text wx:if="{{item.role === 'user'}}">👤</text>
+          <text wx:else>🤖</text>
+        </view>
+        <view class="message-bubble">
+          <view class="message-time">{{item.time}}</view>
+          <view class="message-content">{{item.content}}</view>
+        </view>
+      </view>
+      <!-- AI 报告渲染 -->
+      <view class="report-section" wx:if="{{reportContent.length > 0}}">
+        <view class="report-header">
+          <view class="report-title">📋 {{reportTitle || '分析报告'}}</view>
+          <view class="report-full-link" bindtap="viewReport">查看完整 →</view>
+        </view>
+        <view class="report-preview">{{reportContent}}</view>
+        <view class="followup-section" wx:if="{{followupQuestions.length > 0}}">
+          <view class="followup-title">💡 你可能还想问</view>
+          <view class="followup-list">
+            <view
+              class="followup-item"
+              wx:for="{{followupQuestions}}"
+              wx:key="index"
+              data-question="{{item}}"
+              bindtap="onSuggestionTap"
+            >{{item}}</view>
+          </view>
+        </view>
+        <view class="report-actions">
+          <view class="action-btn" bindtap="viewReport">完整报告</view>
+          <view class="action-btn" bindtap="toggleHistory">历史记录</view>
+        </view>
+      </view>
+      <!-- 进度指示（胶囊式：当前步骤 + 计数，点开展示 5 步明细） -->
+      <view class="progress-section" wx:if="{{showProgress}}">
+        <view class="progress-capsule" bindtap="toggleProgressDetail">
+          <view class="capsule-step-icon">
+            <text wx:if="{{currentStepIndex >= 0}}">{{progressSteps[currentStepIndex].icon}}</text>
+            <text wx:else>⏳</text>
+          </view>
+          <view class="capsule-info">
+            <view class="capsule-label">
+              <text wx:if="{{currentStepIndex >= 0}}">正在{{progressSteps[currentStepIndex].label}}</text>
+              <text wx:else>正在分析您的问题…</text>
+            </view>
+            <view class="capsule-count">
+              <text>{{currentStepIndex >= 0 ? currentStepIndex + 1 : 1}}/{{progressSteps.length}}</text>
+              <text wx:if="{{waitSeconds > 3}}"> · ⏱ {{waitSeconds}}s</text>
+            </view>
+          </view>
+          <view class="capsule-arrow {{showProgressDetail ? 'open' : ''}}">⌄</view>
+        </view>
+
+        <view class="progress-list" wx:if="{{showProgressDetail}}">
+          <view
+            class="progress-step {{stepStatus[index]}}"
+            wx:for="{{progressSteps}}"
+            wx:key="key"
+            wx:for-index="index"
+          >
+            <view class="step-icon">
+              <text wx:if="{{stepStatus[index] === 'done'}}">✅</text>
+              <text wx:elif="{{stepStatus[index] === 'running'}}">⏳</text>
+              <text wx:else>{{item.icon}}</text>
+            </view>
+            <view class="step-label">{{item.label}}</view>
+          </view>
+        </view>
+        <view class="abort-btn" bindtap="stopGeneration" wx:if="{{loading && streamEnabled}}">
+          <text>⏹ 停止生成</text>
+        </view>
+      </view>
+      <view class="loading-dots" wx:if="{{loading && !showProgress}}">
+        <text class="dot">●</text>
+        <text class="dot">●</text>
+        <text class="dot">●</text>
+      </view>
+      <view id="msg-bottom"></view>
+    </view>
+  </scroll-view>
+
+  <!-- 历史记录抽屉 -->
+  <view class="history-drawer {{showHistory ? 'show' : ''}}" catchtouchmove="true">
+    <view class="drawer-mask" bindtap="toggleHistory"></view>
+    <view class="drawer-content">
+      <view class="drawer-header">
+        <view class="drawer-title">历史对话</view>
+        <view class="drawer-clear" bindtap="clearHistory">清空</view>
+      </view>
+      <scroll-view class="drawer-list" scroll-y>
+        <view
+          class="history-item"
+          wx:for="{{historySessions}}"
+          wx:key="session_id"
+          data-index="{{index}}"
+          bindtap="loadSession"
+        >
+          <view class="history-title">{{item.title}}</view>
+          <view class="history-time">{{item.time}}</view>
+          <view class="history-question">{{item.question}}</view>
+        </view>
+        <view class="history-empty" wx:if="{{historySessions.length === 0}}">
+          <text>暂无历史记录</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 输入栏 -->
+  <view class="input-bar">
+    <view class="input-wrap">
+      <input
+        class="question-input"
+        placeholder="问我任何经营问题..."
+        value="{{question}}"
+        bindinput="onInputQuestion"
+        confirm-type="send"
+        bindconfirm="handleAsk"
+        disabled="{{loading}}"
+      />
+      <view class="send-btn {{question ? 'active' : ''}}" bindtap="handleAsk">
+        <text>发送</text>
+      </view>
+      <view class="history-btn" bindtap="toggleHistory">
+        <text>🕐</text>
+      </view>
+      <view class="stop-btn" wx:if="{{loading}}" bindtap="stopGeneration">
+        <text>⏹</text>
+      </view>
+      <view class="full-btn" wx:if="{{reportContent.length > 0 && !loading}}" bindtap="viewReport">
+        <text>📋</text>
+      </view>
+    </view>
+  </view>
+</view>

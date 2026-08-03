@@ -1,0 +1,192 @@
+<wxs src="../../utils/format.wxs" module="fmt" />
+<view class="home-container">
+  <block wx:if="{{loading}}">
+    <view class="skeleton-wrap">
+      <view class="skeleton skeleton-header"></view>
+      <view class="skeleton skeleton-card"></view>
+      <view class="skeleton skeleton-card"></view>
+      <view class="skeleton skeleton-card"></view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="greeting-bar">
+      <view class="greeting-text">{{greeting}}，{{username}}</view>
+      <view class="date-text">{{currentDate}}</view>
+    </view>
+
+    <view class="view-switch">
+      <view
+        class="switch-item {{viewType === 'summary' ? 'active' : ''}}"
+        data-view="summary"
+        bindtap="switchView"
+      >今日快报</view>
+      <view
+        class="switch-item {{viewType === 'overview' ? 'active' : ''}}"
+        data-view="overview"
+        bindtap="switchView"
+      >经营看板</view>
+    </view>
+
+    <!-- 今日快报视图 -->
+    <block wx:if="{{viewType === 'summary'}}">
+      <view class="alert-section" wx:if="{{alertItems.length > 0}}">
+        <view
+          class="alert-card alert-{{item.level}}"
+          wx:for="{{alertItems}}"
+          wx:key="id"
+          data-query="{{item.query}}"
+          bindtap="goChat"
+        >
+          <view class="alert-icon">⚠️</view>
+          <view class="alert-content">
+            <view class="alert-title">{{item.title}}</view>
+            <view class="alert-action">点击分析 →</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="metric-card">
+        <view class="metric-label">今日销售额</view>
+        <view class="metric-value">
+          <text class="money-symbol">¥</text>
+          <text class="money-value">{{fmt.money(todaySales)}}</text>
+        </view>
+        <view class="metric-change {{salesChangeDir === 'up' ? 'text-green' : 'text-red'}}" wx:if="{{salesChange !== 0}}">
+          <text wx:if="{{salesChangeDir === 'up'}}">↑</text>
+          <text wx:else>↓</text>
+          <text>{{salesChange}}% 较昨日</text>
+        </view>
+        <view class="metric-change text-gray" wx:else>持平</view>
+      </view>
+
+      <view class="metric-row">
+        <view class="metric-card half">
+          <view class="metric-label">营业门店</view>
+          <view class="metric-value small">{{fmt.comma(activeStores)}}</view>
+          <view class="metric-unit">家</view>
+        </view>
+        <view class="metric-card half">
+          <view class="metric-label">会员总量（累计）</view>
+          <view class="metric-value small">{{fmt.comma(membersTotal)}}</view>
+          <view class="metric-unit">人</view>
+        </view>
+      </view>
+
+      <view class="trend-card">
+        <view class="card-title">近 7 天销售额</view>
+        <view class="trend-placeholder">
+          <view class="trend-bars">
+            <view
+              class="bar"
+              wx:for="{{trendValues}}"
+              wx:key="index"
+              style="height: {{item > 0 ? (item / trendMax * 100) : 0}}%"
+            ></view>
+          </view>
+          <view class="trend-labels">
+            <text wx:for="{{trendDates}}" wx:key="index">{{item}}</text>
+          </view>
+          <view class="trend-peak" wx:if="{{peakLabel}}">📈 峰值 {{peakLabel}} · ¥{{fmt.money(peakValue)}}</view>
+        </view>
+      </view>
+
+      <view class="top-stores-card">
+        <view class="card-title">销售额 Top5 门店</view>
+        <view class="store-list">
+          <view
+            class="store-item"
+            hover-class="tap-feedback"
+            wx:for="{{topStores}}"
+            wx:key="index"
+            data-query="{{item}}为什么销售额这么高"
+            bindtap="goChat"
+          >
+            <view class="store-rank">{{index + 1}}</view>
+            <view class="store-name">{{item}}</view>
+            <view class="store-value">¥{{fmt.money(topStoreValues[index])}}</view>
+            <view class="item-arrow">›</view>
+          </view>
+        </view>
+      </view>
+      <view class="ask-entry" bindtap="goChat" data-query="今日经营概况分析">
+        <text class="ask-icon">💬</text>
+        <text class="ask-text">有疑问？问 AI 助手</text>
+        <text class="ask-arrow">→</text>
+      </view>
+    </block>
+
+    <view class="updated-at">更新于 {{updatedAt}}</view>
+
+    <!-- 经营看板视图 -->
+    <block wx:if="{{viewType === 'overview'}}">
+      <view class="overview-grid">
+        <view class="overview-row">
+          <view class="overview-cell">
+            <view class="cell-value">{{refundRate}}%</view>
+            <view class="cell-label">7 日退款率</view>
+          </view>
+          <view class="overview-cell">
+            <view class="cell-value {{salesChangeDir === 'up' ? 'text-green' : 'text-red'}}">
+              {{salesChange}}%
+            </view>
+            <view class="cell-label">较昨日</view>
+          </view>
+        </view>
+        <view class="overview-row">
+          <view class="overview-cell">
+            <view class="cell-value">{{regionCount}}</view>
+            <view class="cell-label">覆盖区域</view>
+          </view>
+          <view class="overview-cell">
+            <view class="cell-value {{alertStoreCount > 0 ? 'text-red' : 'text-green'}}">{{alertStoreCount}}</view>
+            <view class="cell-label">退款预警门店</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="regions-card" wx:if="{{regions.length > 0}}">
+        <view class="card-title">区域销售占比</view>
+        <view class="region-list">
+          <view
+            class="region-item"
+            hover-class="tap-feedback"
+            wx:for="{{regions}}"
+            wx:key="index"
+            data-query="{{item}}区域销售情况分析"
+            bindtap="goChat"
+          >
+            <view class="region-name">{{item}}</view>
+            <view class="region-bar-wrap">
+              <view
+                class="region-bar"
+                style="width: {{(regionValues[index] > 0 && regionValues[0] > 0) ? (regionValues[index] / regionValues[0] * 100) : 0}}%"
+              ></view>
+            </view>
+            <view class="region-value">¥{{fmt.money(regionValues[index])}}</view>
+            <view class="item-arrow">›</view>
+          </view>
+        </view>
+      </view>
+      <view class="refund-card" wx:if="{{topRefundStores.length > 0}}">
+        <view class="card-title">退款率最高门店</view>
+        <view class="refund-list">
+          <view
+            class="refund-item"
+            hover-class="tap-feedback"
+            wx:for="{{topRefundStores}}"
+            wx:key="index"
+            data-query="{{item}}退款率为什么这么高"
+            bindtap="goChat"
+          >
+            <view class="refund-name">{{item}}</view>
+            <view class="refund-rate {{topRefundValues[index] > 10 ? 'text-red' : topRefundValues[index] > 5 ? 'text-orange' : 'text-green'}}">
+              {{topRefundValues[index]}}%
+            </view>
+            <view class="item-arrow">›</view>
+          </view>
+        </view>
+      </view>
+    </block>
+  </block>
+</view>

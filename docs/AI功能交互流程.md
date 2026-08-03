@@ -70,19 +70,24 @@
 ### 正常流程
 
 ```
-登录成功 → 默认进入「📊 经营看板」Tab
+登录成功 → 默认进入「📊 经营看板」页面
+  │
+  ├─ 侧边栏 5 个导航项：看板/对话/历史/监控/系统管理
+  │   ├─ 账户操作移至 Header 右上角下拉菜单
+  │   └─ 角色信息显示在用户菜单中
   │
   ├─ GET /api/v1/dashboard/overview
   │   ├─ 6 个 KPI 卡片：今日销售额（含环比↑↓）、昨日销售额、退款率、活跃门店、会员总数、区域覆盖
+  │   │   └─ KPI 数字带递增动画（从 0 到目标值 easeOut）
+  │   │   └─ 数据时效指示器「数据更新于 HH:mm」
   │   ├─ 近 30 天销售趋势折线图（渐变面积填充）
   │   ├─ 各区域销售占比环形图
-  │   └─ 门店销售额 Top 10（横向柱状图 + 排名表格）
+  │   ├─ 门店销售额 Top 10（横向柱状图 + 排名表格）
+  │   └─ 退款率 Top 10 柱状图（新增）
   │
   ├─ Redis 缓存 5 分钟，按 user_id + store_ids 分键
   │
-  └─ 用户可切换 Tab
-      ├─ 「📊 经营看板」→ 显示看板，隐藏聊天
-      └─ 「💬 分析对话」→ 显示聊天，隐藏看板
+  └─ 侧边栏图标切换页面视图
 ```
 
 ### 异常流程
@@ -130,6 +135,7 @@
   │       │
   │       ├─ phase(start): 进度步骤亮起（蓝色 active），标题更新
   │       │   "🧠 正在规划任务..."
+  │       │   "🧠 推理过程"（V4.5 新增折叠面板，展示 Supervisor 激活的 Agent 和推理原因）
   │       │   "📊 正在查询销售数据..."
   │       │   "👥 正在查询会员数据..."
   │       │   ...
@@ -146,16 +152,17 @@
   │       │
   │       └─ done: 最终结果（审核已通过）
   │           ├─ report: 完整报告（含 [CHART:...] 标记）
-  │           ├─ data_sources: SQL 溯源数据
+  │           ├─ data_sources: SQL 溯源数据（V4.5 恢复展示，含展开/折叠）
   │           ├─ followup_questions: 追问建议（LLM 生成 + 规则兜底）
+  │           ├─ reflection_feedback: 质检反馈详情（V4.2 新增）
   │           └─ record_id: 分析记录 ID（用于反馈）
   │
   ├─ 移除进度面板 → 渐进展示报告
   │   ├─ 报告内容按 40~50 块逐步渲染（约 2 秒渐入效果）
   │   ├─ 展示完成后自动滚动到报告顶部，方便从头阅读
-  │   ├─ 操作栏：📋 复制 / 📤 分享 / 📄 PDF / 🖨️ 打印
-  │   ├─ 💡 追问按钮（基于报告关键词规则生成，100% 展示）
-  │   └─ 👍👎 反馈按钮
+  │   ├─ 操作栏：📋 复制 / 🖨️ 打印 / ⬇️ Markdown / 📄 PDF
+  │   ├─ 💡 追问按钮（基于报告关键词规则生成，100% 展示，V4.4 规则兜底）
+  │   └─ 👍👎 反馈按钮（点击后展示平台好评率）
   │
   └─ 按钮恢复为蓝色「提问」
 ```
@@ -345,8 +352,12 @@ Supervisor Agent（规划）
 用户点击 👍/👎 → 弹出反馈弹窗
   │
   ├─ 输入反馈原因（可选）
-  └─ POST /api/v1/feedback/submit
-      └─ { analysis_history_id, rating, reason }
+  ├─ POST /api/v1/feedback/submit
+  │   └─ { analysis_history_id, rating, reason }
+  └─ 提交成功后展示当前平台好评率（V4.5 新增）
+  
+查看反馈历史：POST /api/v1/feedback/history（V4.5 新增）
+  └─ 弹窗展示过往反馈记录列表
 ```
 
 ### 历史记录
@@ -469,9 +480,13 @@ Level 5: DB 不可用
 | `/api/v1/analysis/analyze` | POST | Bearer | 分析（非流式 + 缓存） |
 | `/api/v1/analysis/analyze-stream` | POST | Bearer | 分析（SSE 流式） |
 | `/api/v1/analysis/history` | GET | Bearer | 历史记录 |
+| `/api/v1/analysis/history/{id}` | GET | Bearer | 历史详情 |
+| `/api/v1/dashboard/overview` | GET | Bearer | 看板概览（趋势/区域/排名）|
 | `/api/v1/weekly/export` | POST | Bearer | PDF 导出 |
 | `/api/v1/alerts/check` | POST | Webhook Secret | 异常检测 |
+| `/api/v1/admin/users` | GET/POST | Bearer | 用户管理 CRUD |
+| `/api/v1/feedback/history` | POST | Bearer | 反馈历史 |
 
 ---
 
-*最后更新：2026-06-12 | V4.0*
+*最后更新：2026-07-30 | V4.5*

@@ -1,0 +1,222 @@
+- generic [ref=f4e2]:
+  - complementary [ref=f4e3]:
+    - heading "智能经营分析" [level=1] [ref=f4e4]
+    - paragraph [ref=f4e6]: ● 就绪
+    - navigation [ref=f4e7]:
+      - button "📊 经营看板" [ref=f4e8] [cursor=pointer]
+      - button "💬 分析对话" [ref=f4e9] [cursor=pointer]
+      - button "📝 历史记录" [active] [ref=f4e10] [cursor=pointer]
+      - button "📋 质量监控" [ref=f4e42] [cursor=pointer]
+      - button "⚙️ 系统管理" [ref=f4e43] [cursor=pointer]
+    - separator [ref=f4e11]
+    - button "＋ 新建会话" [ref=f4e12] [cursor=pointer]
+    - paragraph [ref=f4e13]: 会话 ID：未创建
+    - generic [ref=f4e14]: 大模型：DeepSeek
+  - generic [ref=f4e15]:
+    - generic [ref=f4e16]:
+      - heading "企业智能经营分析平台" [level=2] [ref=f4e17]
+      - generic [ref=f4e18]:
+        - generic [ref=f4e19]: v4.0
+        - button "a admin ▾" [ref=f4e21] [cursor=pointer]:
+          - generic [ref=f4e22]: a
+          - generic [ref=f4e23]: admin
+          - generic [ref=f4e24]: ▾
+    - generic [ref=f4e87]:
+      - generic [ref=f4e88]:
+        - generic [ref=f4e89]:
+          - heading "📝 历史记录" [level=2] [ref=f4e90]
+          - generic [ref=f4e91]: 580 条
+        - generic [ref=f4e92]:
+          - textbox "搜索历史问题..." [ref=f4e93]
+          - button "🗑️ 清除全部" [ref=f4e94] [cursor=pointer]
+      - generic [ref=f4e95]:
+        - generic [ref=f4e96] [cursor=pointer]:
+          - generic [ref=f4e97]: ✅
+          - generic [ref=f4e98]:
+            - generic [ref=f4e99]: 测试问题
+            - generic [ref=f4e100]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e101]:
+              - generic [ref=f4e102]: 📅 2026-07-31
+              - generic [ref=f4e103]: 通过检查
+        - generic [ref=f4e104] [cursor=pointer]:
+          - generic [ref=f4e105]: ✅
+          - generic [ref=f4e106]:
+            - generic [ref=f4e107]: 测试问题
+            - generic [ref=f4e108]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e109]:
+              - generic [ref=f4e110]: 📅 2026-07-31
+              - generic [ref=f4e111]: 通过检查
+        - generic [ref=f4e112] [cursor=pointer]:
+          - generic [ref=f4e113]: ✅
+          - generic [ref=f4e114]:
+            - generic [ref=f4e115]: test
+            - generic [ref=f4e116]: 由于您发送的是测试消息「test」，各分析Agent均已完成响应，但未触发实际的数据查询与分析。以下说明本次测试结果： --- ✅ 系统测试结果 Agent 响应状态 可执行分析方向
+            - generic [ref=f4e117]:
+              - generic [ref=f4e118]: 📅 2026-07-31
+              - generic [ref=f4e119]: 通过检查
+        - generic [ref=f4e120] [cursor=pointer]:
+          - generic [ref=f4e121]: ✅
+          - generic [ref=f4e122]:
+            - generic [ref=f4e123]: 测试问题
+            - generic [ref=f4e124]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e125]:
+              - generic [ref=f4e126]: 📅 2026-07-31
+              - generic [ref=f4e127]: 通过检查
+        - generic [ref=f4e128] [cursor=pointer]:
+          - generic [ref=f4e129]: ✅
+          - generic [ref=f4e130]:
+            - generic [ref=f4e131]: 测试问题
+            - generic [ref=f4e132]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e133]:
+              - generic [ref=f4e134]: 📅 2026-07-31
+              - generic [ref=f4e135]: 通过检查
+        - generic [ref=f4e136] [cursor=pointer]:
+          - generic [ref=f4e137]: ✅
+          - generic [ref=f4e138]:
+            - generic [ref=f4e139]: 测试问题
+            - generic [ref=f4e140]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e141]:
+              - generic [ref=f4e142]: 📅 2026-07-31
+              - generic [ref=f4e143]: 通过检查
+        - generic [ref=f4e144] [cursor=pointer]:
+          - generic [ref=f4e145]: ✅
+          - generic [ref=f4e146]:
+            - generic [ref=f4e147]: 测试问题
+            - generic [ref=f4e148]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e149]:
+              - generic [ref=f4e150]: 📅 2026-07-31
+              - generic [ref=f4e151]: 通过检查
+        - generic [ref=f4e152] [cursor=pointer]:
+          - generic [ref=f4e153]: ✅
+          - generic [ref=f4e154]:
+            - generic [ref=f4e155]: 测试问题
+            - generic [ref=f4e156]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e157]:
+              - generic [ref=f4e158]: 📅 2026-07-31
+              - generic [ref=f4e159]: 通过检查
+        - generic [ref=f4e160] [cursor=pointer]:
+          - generic [ref=f4e161]: ✅
+          - generic [ref=f4e162]:
+            - generic [ref=f4e163]: 测试问题
+            - generic [ref=f4e164]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e165]:
+              - generic [ref=f4e166]: 📅 2026-07-31
+              - generic [ref=f4e167]: 通过检查
+        - generic [ref=f4e168] [cursor=pointer]:
+          - generic [ref=f4e169]: ✅
+          - generic [ref=f4e170]:
+            - generic [ref=f4e171]: 测试问题
+            - generic [ref=f4e172]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e173]:
+              - generic [ref=f4e174]: 📅 2026-07-31
+              - generic [ref=f4e175]: 通过检查
+        - generic [ref=f4e176] [cursor=pointer]:
+          - generic [ref=f4e177]: ✅
+          - generic [ref=f4e178]:
+            - generic [ref=f4e179]: 测试问题
+            - generic [ref=f4e180]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e181]:
+              - generic [ref=f4e182]: 📅 2026-07-31
+              - generic [ref=f4e183]: 通过检查
+        - generic [ref=f4e184] [cursor=pointer]:
+          - generic [ref=f4e185]: ✅
+          - generic [ref=f4e186]:
+            - generic [ref=f4e187]: 测试问题
+            - generic [ref=f4e188]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e189]:
+              - generic [ref=f4e190]: 📅 2026-07-31
+              - generic [ref=f4e191]: 通过检查
+        - generic [ref=f4e192] [cursor=pointer]:
+          - generic [ref=f4e193]: ✅
+          - generic [ref=f4e194]:
+            - generic [ref=f4e195]: 测试问题
+            - generic [ref=f4e196]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e197]:
+              - generic [ref=f4e198]: 📅 2026-07-31
+              - generic [ref=f4e199]: 通过检查
+        - generic [ref=f4e200] [cursor=pointer]:
+          - generic [ref=f4e201]: ✅
+          - generic [ref=f4e202]:
+            - generic [ref=f4e203]: 测试问题
+            - generic [ref=f4e204]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e205]:
+              - generic [ref=f4e206]: 📅 2026-07-31
+              - generic [ref=f4e207]: 通过检查
+        - generic [ref=f4e208] [cursor=pointer]:
+          - generic [ref=f4e209]: ✅
+          - generic [ref=f4e210]:
+            - generic [ref=f4e211]: 测试问题
+            - generic [ref=f4e212]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e213]:
+              - generic [ref=f4e214]: 📅 2026-07-31
+              - generic [ref=f4e215]: 通过检查
+        - generic [ref=f4e216] [cursor=pointer]:
+          - generic [ref=f4e217]: ✅
+          - generic [ref=f4e218]:
+            - generic [ref=f4e219]: 测试问题
+            - generic [ref=f4e220]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e221]:
+              - generic [ref=f4e222]: 📅 2026-07-31
+              - generic [ref=f4e223]: 通过检查
+        - generic [ref=f4e224] [cursor=pointer]:
+          - generic [ref=f4e225]: ✅
+          - generic [ref=f4e226]:
+            - generic [ref=f4e227]: 测试问题
+            - generic [ref=f4e228]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e229]:
+              - generic [ref=f4e230]: 📅 2026-07-31
+              - generic [ref=f4e231]: 通过检查
+        - generic [ref=f4e232] [cursor=pointer]:
+          - generic [ref=f4e233]: ✅
+          - generic [ref=f4e234]:
+            - generic [ref=f4e235]: 测试问题
+            - generic [ref=f4e236]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e237]:
+              - generic [ref=f4e238]: 📅 2026-07-31
+              - generic [ref=f4e239]: 通过检查
+        - generic [ref=f4e240] [cursor=pointer]:
+          - generic [ref=f4e241]: ✅
+          - generic [ref=f4e242]:
+            - generic [ref=f4e243]: 测试问题
+            - generic [ref=f4e244]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e245]:
+              - generic [ref=f4e246]: 📅 2026-07-31
+              - generic [ref=f4e247]: 通过检查
+        - generic [ref=f4e248] [cursor=pointer]:
+          - generic [ref=f4e249]: ✅
+          - generic [ref=f4e250]:
+            - generic [ref=f4e251]: 测试问题
+            - generic [ref=f4e252]: 测试报告 结论：销售平稳。
+            - generic [ref=f4e253]:
+              - generic [ref=f4e254]: 📅 2026-07-31
+              - generic [ref=f4e255]: 通过检查
+        - generic [ref=f4e256]:
+          - button "1" [ref=f4e257] [cursor=pointer]
+          - button "2" [ref=f4e258] [cursor=pointer]
+          - button "3" [ref=f4e259] [cursor=pointer]
+          - button "4" [ref=f4e260] [cursor=pointer]
+          - button "5" [ref=f4e261] [cursor=pointer]
+          - button "6" [ref=f4e262] [cursor=pointer]
+          - button "7" [ref=f4e263] [cursor=pointer]
+          - button "8" [ref=f4e264] [cursor=pointer]
+          - button "9" [ref=f4e265] [cursor=pointer]
+          - button "10" [ref=f4e266] [cursor=pointer]
+          - button "11" [ref=f4e267] [cursor=pointer]
+          - button "12" [ref=f4e268] [cursor=pointer]
+          - button "13" [ref=f4e269] [cursor=pointer]
+          - button "14" [ref=f4e270] [cursor=pointer]
+          - button "15" [ref=f4e271] [cursor=pointer]
+          - button "16" [ref=f4e272] [cursor=pointer]
+          - button "17" [ref=f4e273] [cursor=pointer]
+          - button "18" [ref=f4e274] [cursor=pointer]
+          - button "19" [ref=f4e275] [cursor=pointer]
+          - button "20" [ref=f4e276] [cursor=pointer]
+          - button "21" [ref=f4e277] [cursor=pointer]
+          - button "22" [ref=f4e278] [cursor=pointer]
+          - button "23" [ref=f4e279] [cursor=pointer]
+          - button "24" [ref=f4e280] [cursor=pointer]
+          - button "25" [ref=f4e281] [cursor=pointer]
+          - button "26" [ref=f4e282] [cursor=pointer]
+          - button "27" [ref=f4e283] [cursor=pointer]
+          - button "28" [ref=f4e284] [cursor=pointer]
+          - button "29" [ref=f4e285] [cursor=pointer]

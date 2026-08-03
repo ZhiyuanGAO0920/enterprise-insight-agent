@@ -287,3 +287,22 @@ class AuditLog(Base):
     elapsed_ms = Column(Integer, nullable=True, comment="请求处理耗时（毫秒）")
     trace_id = Column(String(12), nullable=True, comment="全链路追踪 ID，关联分析请求", index=True)
     created_at = Column(DateTime, default=_utcnow, index=True)
+
+
+# ---------------------------------------------------------------------------
+# V4.6: 微信小程序登录绑定
+# ---------------------------------------------------------------------------
+
+class UserWechatBinding(Base):
+    """微信小程序用户绑定 —— openid 与系统用户的映射。
+
+    微信一键登录后首次绑定系统账号，后续可直接微信登录。
+    """
+
+    __tablename__ = "user_wechat_bindings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    openid = Column(String(128), unique=True, nullable=False, comment="微信 openid")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="系统用户 ID")
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)

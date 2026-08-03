@@ -48,6 +48,33 @@ async def _set_cache(key: str, value: dict, ttl: int = CACHE_TTL) -> None:
 # ── 参数化查询辅助函数 ──
 
 
+async def _safe_scalar(sql: str, params: dict | None = None, default=0.0):
+    """执行标量查询，返回单个值。"""
+    from app.database.connection import get_session
+    from sqlalchemy import text
+    try:
+        async with get_session() as session:
+            r = await session.execute(text(sql), params or {})
+            val = r.scalar_one()
+            return round(float(val), 2) if val is not None else default
+    except Exception:
+        return default
+
+
+async def _safe_rows(sql: str, params: dict | None = None):
+    """执行多行查询，返回 (col0_list, col1_list)。"""
+    from app.database.connection import get_session
+    from sqlalchemy import text
+    try:
+        async with get_session() as session:
+            r = await session.execute(text(sql), params or {})
+            rows = r.fetchall()
+            cols = [list(x) for x in zip(*rows)] if rows else [[], []]
+            return cols[0] if len(cols) > 0 else [], cols[1] if len(cols) > 1 else []
+    except Exception:
+        return [], []
+
+
 def _build_store_params(store_ids: list[str] | None, column: str = "store_id") -> tuple[str, dict]:
     """构建参数化的门店过滤条件。
 
@@ -105,12 +132,13 @@ async def today_summary(
     import asyncio
 
     # Group A: orders 表独立聚合（使用 sf/sp）
+    member_sql = "SELECT COUNT(*) FROM member" if store_ids is None else "SELECT 0"
     group_a = asyncio.gather(
         _safe_scalar(f"SELECT COALESCE(SUM(amount), 0) FROM orders WHERE create_time >= CURRENT_DATE AND create_time < CURRENT_DATE + INTERVAL '1 day' {sf}", sp),
         _safe_scalar(f"SELECT COALESCE(SUM(amount), 0) FROM orders WHERE create_time >= CURRENT_DATE - INTERVAL '1 day' AND create_time < CURRENT_DATE {sf}", sp),
         _safe_scalar(f"SELECT CASE WHEN SUM(amount) > 0 THEN ROUND(CAST(SUM(refund_amount)*100.0/SUM(amount) AS numeric),1) ELSE 0 END FROM orders WHERE create_time >= CURRENT_DATE - INTERVAL '7 days' {sf}", sp),
         _safe_scalar(f"SELECT COUNT(DISTINCT store_id) FROM orders WHERE create_time >= CURRENT_DATE - INTERVAL '7 days' {sf}", sp),
-        _safe_scalar("SELECT COUNT(*) FROM member" if store_ids is None else "SELECT 0"),
+        _safe_scalar(member_sql),
         _safe_rows(f"SELECT TO_CHAR(create_time,'MM-DD') AS day, SUM(amount) AS daily FROM orders WHERE create_time >= CURRENT_DATE - INTERVAL '30 days' {sf} GROUP BY TO_CHAR(create_time,'MM-DD') ORDER BY MIN(create_time)", sp),
     )
 
@@ -162,30 +190,6 @@ async def dashboard_overview(
     cached = await _get_cached(cache_key)
     if cached:
         return _enrich_response(cached, username)
-
-    from app.database.connection import get_session
-    from sqlalchemy import text
-
-    async def _safe_scalar(sql: str, params: dict | None = None, default=0.0):
-        """执行标量查询，返回单个值。"""
-        try:
-            async with get_session() as session:
-                r = await session.execute(text(sql), params or {})
-                val = r.scalar_one()
-                return round(float(val), 2) if val is not None else default
-        except Exception:
-            return default
-
-    async def _safe_rows(sql: str, params: dict | None = None):
-        """执行多行查询，返回 (col0_list, col1_list)。"""
-        try:
-            async with get_session() as session:
-                r = await session.execute(text(sql), params or {})
-                rows = r.fetchall()
-                cols = [list(x) for x in zip(*rows)] if rows else [[], []]
-                return cols[0] if len(cols) > 0 else [], cols[1] if len(cols) > 1 else []
-        except Exception:
-            return [], []
 
     results = {}
     sf, sp = _build_store_params(store_ids, "store_id")  # orders.store_id

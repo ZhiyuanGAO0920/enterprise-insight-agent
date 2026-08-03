@@ -1,0 +1,36 @@
+// utils/format.wxs — WXML 模板内可用的格式化函数
+// 注意：WXS 是独立于 JS 的语法子集，不支持 ES6+、Number()/String() 函数调用、toLocaleString
+// 只使用：parseFloat / isNaN / 字符串方法 / 手写千分位
+
+// 金额千分位格式化，≥1 万显示"x.x万"
+function money(val) {
+  var n = parseFloat(val);
+  if (isNaN(n)) return '0';
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+  return comma(n);
+}
+
+// 手写千分位（WXS 不支持 toLocaleString）
+function comma(val) {
+  var n = parseFloat(val);
+  if (isNaN(n)) return '0';
+  var s = '' + n;
+  var parts = s.split('.');
+  var int = parts[0];
+  var neg = int.charAt(0) === '-';
+  if (neg) int = int.slice(1);
+  var out = '';
+  var cnt = 0;
+  for (var i = int.length - 1; i >= 0; i--) {
+    out = int.charAt(i) + out;
+    cnt++;
+    if (cnt % 3 === 0 && i > 0) out = ',' + out;
+  }
+  if (neg) out = '-' + out;
+  return parts.length > 1 ? out + '.' + parts[1] : out;
+}
+
+module.exports = {
+  money: money,
+  comma: comma,
+};

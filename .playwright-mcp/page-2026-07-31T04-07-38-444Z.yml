@@ -1,0 +1,45 @@
+- generic [ref=e48]:
+  - complementary [ref=e49]:
+    - heading "智能经营分析" [level=1] [ref=e50]
+    - paragraph [ref=e52]: ● 就绪
+    - navigation [ref=e88]:
+      - button "📊 经营看板" [ref=e89] [cursor=pointer]
+      - button "💬 分析对话" [active] [ref=e90] [cursor=pointer]
+      - button "📝 历史记录" [ref=e91] [cursor=pointer]
+      - button "📋 质量监控" [ref=e92] [cursor=pointer]
+      - button "⚙️ 系统管理" [ref=e93] [cursor=pointer]
+    - separator [ref=e53]
+    - button "＋ 新建会话" [ref=e54] [cursor=pointer]
+    - paragraph [ref=e55]: 会话 ID：未创建
+    - generic [ref=e56]: 大模型：DeepSeek
+  - generic [ref=e57]:
+    - generic [ref=e58]:
+      - heading "企业智能经营分析平台" [level=2] [ref=e59]
+      - generic [ref=e60]:
+        - generic [ref=e61]: v4.0
+        - button "a admin ▾" [ref=e95] [cursor=pointer]:
+          - generic [ref=e96]: a
+          - generic [ref=e97]: admin
+          - generic [ref=e98]: ▾
+    - generic [ref=e63]:
+      - generic [ref=e64]: 🤖
+      - generic [ref=e65]: 有什么经营问题需要分析？
+      - generic [ref=e159]:
+        - button "📊 各门店销售额排名" [ref=e160] [cursor=pointer]
+        - button "📈 近30天销售趋势" [ref=e161] [cursor=pointer]
+        - button "🔄 退款率最高的门店" [ref=e162] [cursor=pointer]
+        - button "👥 会员增长与留存情况" [ref=e163] [cursor=pointer]
+        - button "📋 整体经营分析报告" [ref=e164] [cursor=pointer]
+        - button "🌍 各区域经营对比" [ref=e165] [cursor=pointer]
+      - paragraph [ref=e66]: 💡 支持文字或 🎤 语音输入，AI 将在 60 秒内生成诊断报告
+    - generic [ref=e166]:
+      - button "📊 门店排名" [ref=e167] [cursor=pointer]
+      - button "📈 销售趋势" [ref=e168] [cursor=pointer]
+      - button "🔄 退款率" [ref=e169] [cursor=pointer]
+      - button "👥 会员分析" [ref=e170] [cursor=pointer]
+      - button "📋 整体分析" [ref=e171] [cursor=pointer]
+      - button "🌍 区域对比" [ref=e172] [cursor=pointer]
+    - generic [ref=e68]:
+      - textbox "输入经营问题，例如：分析华东区最近一周的销售趋势..." [ref=e69]
+      - button "🎤" [ref=e70] [cursor=pointer]
+      - button "提问" [ref=e71] [cursor=pointer]

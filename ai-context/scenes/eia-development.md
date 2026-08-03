@@ -15,7 +15,7 @@ metadata:
 面向连锁零售的 Multi-Agent AI 经营分析平台。用户用自然语言提问，系统 60 秒内输出含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
-**状态**：V4，155 条测试通过 / 0 失败，GitHub 开源
+**状态**：V4.6.0，192 条测试（190 通过 / 2 失败——LLM API 连接环境问题），GitHub 开源
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商
 
 ---
@@ -120,7 +120,7 @@ workflows/n8n-templates/
 
 ## 评估体系（AI 质量三层）
 
-1. **离线评估集**：20 条标准问题，每次 Prompt 修改后自动运行
+1. **离线评估集**：102 条标准问题（50 查询 + 38 分析 + 14 边界，覆盖 5 领域 + 综合 + 边界），每次 Prompt 修改后自动运行
 2. **Reflection 在线质检**：4 维度，每次分析后自动执行
 3. **用户反馈闭环**：👍👎 按钮，写入 `user_feedback` 表驱动 Prompt 迭代
 
@@ -133,8 +133,8 @@ workflows/n8n-templates/
 - Redis: `localhost:6381`
 - n8n: `http://localhost:5678`
 - 启动：`uvicorn app.api.main:app --port 8002 --reload`
-- 测试：`pytest tests/ -v`（155 条）
-- 迁移：`alembic upgrade head`（当前 8 版）
+- 测试：`pytest tests/ -v`（192 条）
+- 迁移：`alembic upgrade head`（当前 13 版）
 
 ---
 

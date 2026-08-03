@@ -1,0 +1,139 @@
+/* app.wxss — 全局样式 */
+page {
+  /* ── 视觉 Token（新页面样式一律引用，禁止硬编码散值） ── */
+  --color-primary: #1A73E8;
+  --color-success: #30D158;
+  --color-danger: #FF3B30;
+  --color-warning: #FF9500;
+  --color-text: #1C1C1E;
+  --color-text-secondary: #8E8E93;
+  --color-bg: #F5F5F7;
+  --radius-sm: 12rpx;
+  --radius-md: 16rpx;
+  --radius-lg: 24rpx;
+  /* ────────────────────────────────────────────── */
+
+  background-color: #F5F5F7;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 28rpx;
+  color: #1D1D1F;
+  line-height: 1.5;
+}
+
+.container {
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1D1D1F;
+  margin-bottom: 16rpx;
+}
+
+.card-subtitle {
+  font-size: 24rpx;
+  color: #86868B;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #FFFFFF;
+  border-radius: var(--radius-md);
+  padding: 24rpx 48rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  border: none;
+}
+
+.btn-primary::after {
+  border: none;
+}
+
+.btn-secondary {
+  background: #F0F0F3;
+  color: #1D1D1F;
+  border-radius: 12rpx;
+  padding: 24rpx 48rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  border: none;
+}
+
+.btn-secondary::after {
+  border: none;
+}
+
+.text-green {
+  color: #30D158;
+}
+
+.text-red {
+  color: #FF3B30;
+}
+
+.text-orange {
+  color: #FF9500;
+}
+
+.text-blue {
+  color: #1A73E8;
+}
+
+.text-gray {
+  color: #86868B;
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.mt-16 { margin-top: 16rpx; }
+.mt-24 { margin-top: 24rpx; }
+.mt-32 { margin-top: 32rpx; }
+.mb-16 { margin-bottom: 16rpx; }
+.mb-24 { margin-bottom: 24rpx; }
+
+.skeleton {
+  background: linear-gradient(90deg, #F0F0F3 25%, #E5E5EA 50%, #F0F0F3 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 12rpx;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

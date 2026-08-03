@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # --- Server ---
     server_port: int = 8002  # V4 default（V2:8000, V3:8001）
 
+    # --- WeChat Mini Program ---
+    wechat_appid: str = ""
+    wechat_secret: str = ""
+
     # --- CORS ---
     cors_origins: str = "http://localhost:5173,http://localhost:3000"  # 逗号分隔，"*" 表示全部允许（仅开发）
 

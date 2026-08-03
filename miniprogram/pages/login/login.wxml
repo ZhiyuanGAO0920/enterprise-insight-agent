@@ -1,0 +1,28 @@
+<view class="login-container">
+  <view class="login-header">
+    <view class="logo">🏢</view>
+    <view class="app-title">企业经营助手</view>
+    <view class="app-subtitle">AI 驱动的经营分析平台</view>
+  </view>
+
+  <view class="login-form">
+    <button
+      class="wechat-btn"
+      bindtap="handleWechatLogin"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >微信一键登录</button>
+
+    <view class="bind-link" bindtap="goBind">
+      <text>首次使用？点击绑定系统账号</text>
+    </view>
+
+    <view class="agreement" bindtap="showAgreement">
+      <text>登录即代表同意《用户协议》与《隐私政策》</text>
+    </view>
+  </view>
+
+  <view class="login-footer">
+    <text class="footer-text">Demo 版本 · 数据仅供演示</text>
+  </view>
+</view>

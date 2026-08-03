@@ -1,0 +1,3 @@
+<view class="t-tag t-tag--{{theme}} t-tag--{{variant}} t-tag--{{size}}">
+  <slot></slot>
+</view>

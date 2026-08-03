@@ -1,0 +1,40 @@
+<view class="bind-container">
+  <view class="form-section">
+    <view class="section-title">绑定系统账号</view>
+    <view class="section-desc">首次使用微信登录需绑定已有系统账号</view>
+
+    <view class="form-group">
+      <view class="form-label">账号</view>
+      <input
+        class="form-input"
+        placeholder="请输入账号"
+        value="{{username}}"
+        data-field="username"
+        bindinput="onInput"
+      />
+    </view>
+
+    <view class="form-group">
+      <view class="form-label">密码</view>
+      <input
+        class="form-input"
+        placeholder="请输入密码"
+        password="{{true}}"
+        value="{{password}}"
+        data-field="password"
+        bindinput="onInput"
+      />
+    </view>
+
+    <view class="error-msg" wx:if="{{errorMsg}}">{{errorMsg}}</view>
+
+    <button
+      class="submit-btn"
+      bindtap="handleBind"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      绑定并登录
+    </button>
+  </view>
+</view>

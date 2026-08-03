@@ -1,0 +1,95 @@
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 0 48rpx;
+  background: linear-gradient(180deg, #F2F2F7 0%, #FFFFFF 100%);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 100rpx;
+}
+
+.logo {
+  width: 140rpx;
+  height: 140rpx;
+  background: linear-gradient(135deg, #1A73E8 0%, #4A9AF5 100%);
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 72rpx;
+  margin: 0 auto 32rpx;
+  box-shadow: 0 12rpx 40rpx rgba(26, 115, 232, 0.25);
+}
+
+.app-title {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #1C1C1E;
+  margin-bottom: 12rpx;
+  letter-spacing: -0.5rpx;
+}
+
+.app-subtitle {
+  font-size: 28rpx;
+  color: #8E8E93;
+  font-weight: 500;
+}
+
+.login-form {
+  width: 100%;
+  background: #FFFFFF;
+  border-radius: 28rpx;
+  padding: 48rpx 40rpx;
+  box-shadow: 0 4rpx 32rpx rgba(0, 0, 0, 0.08);
+}
+
+.wechat-btn {
+  background: #07C160;
+  color: #FFFFFF;
+  border-radius: 18rpx;
+  height: 104rpx;
+  line-height: 104rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  padding: 0; /* 覆盖原生 button 默认左右 padding，保证文字真正居中 */
+  border: none;
+  box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.25);
+}
+
+.wechat-btn::after {
+  border: none;
+}
+
+.wechat-btn[disabled] {
+  opacity: 0.6;
+}
+
+.bind-link {
+  text-align: center;
+  margin-top: 32rpx;
+  font-size: 28rpx;
+  color: #8E8E93;
+}
+
+.agreement {
+  text-align: center;
+  margin-top: 24rpx;
+  font-size: 24rpx;
+  color: #B0B0B8;
+  text-decoration: underline;
+}
+
+.login-footer {
+  margin-top: 80rpx;
+  text-align: center;
+}
+
+.footer-text {
+  font-size: 24rpx;
+  color: #8E8E93;
+}

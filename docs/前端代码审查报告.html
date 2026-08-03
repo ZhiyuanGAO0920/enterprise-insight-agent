@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前端代码审查报告 — Enterprise Insight Agent V4</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1a2332;--card:#1e293b;--border:#334155;
+  --text:#f1f5f9;--muted:#94a3b8;--dim:#64748b;
+  --accent:#6366f1;--accent-light:#818cf8;
+  --red:#ef4444;--amber:#f59e0b;--green:#22c55e;--blue:#3b82f6;
+  --p0:#dc2626;--p1:#f59e0b;--p2:#3b82f6;--p3:#64748b;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;font-size:15px}
+.container{max-width:1100px;margin:0 auto;padding:40px 24px 80px}
+
+/* Header */
+.report-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:1px solid var(--border)}
+.report-header h1{font-size:32px;font-weight:800;letter-spacing:-0.5px;margin-bottom:8px;background:linear-gradient(135deg,#818cf8,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.report-header .subtitle{font-size:15px;color:var(--muted)}
+.report-meta{display:flex;gap:24px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.report-meta-item{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.report-meta-item strong{color:var(--text)}
+
+/* Score Dashboard */
+.score-board{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:48px}
+.score-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center}
+.score-card .score-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.score-card .score-value{font-size:32px;font-weight:800;letter-spacing:-1px}
+.score-card .score-sub{font-size:11px;margin-top:4px}
+.score-good .score-value{color:var(--green)}
+.score-warn .score-value{color:var(--amber)}
+.score-bad .score-value{color:var(--red)}
+.score-info .score-value{color:var(--blue)}
+
+/* Section */
+.section{margin-bottom:40px}
+.section-title{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:700;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid var(--border)}
+.section-title .icon{font-size:24px}
+.section-title .count{font-size:13px;color:var(--muted);font-weight:400;margin-left:auto}
+
+/* Issue Card */
+.issue{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:16px;transition:border-color .2s}
+.issue:hover{border-color:var(--accent)}
+.issue-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+.issue-badge{display:inline-flex;align-items:center;justify-content:center;width:36px;height:24px;border-radius:6px;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px}
+.badge-p0{background:rgba(220,38,38,.15);color:var(--p0)}
+.badge-p1{background:rgba(245,158,11,.15);color:var(--p1)}
+.badge-p2{background:rgba(59,130,246,.15);color:var(--p2)}
+.badge-p3{background:rgba(100,116,139,.15);color:var(--p3)}
+.issue-title{font-size:16px;font-weight:600;flex:1}
+.issue-location{font-size:12px;color:var(--dim);font-family:'SF Mono','Consolas',monospace;margin-top:2px}
+.issue-desc{font-size:14px;color:var(--muted);line-height:1.8;margin-bottom:12px}
+.issue-desc strong{color:var(--text)}
+
+/* Code Block */
+.code-block{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin:10px 0;overflow-x:auto;font-family:'SF Mono','Consolas','Monaco',monospace;font-size:12.5px;line-height:1.6}
+.code-block .line{display:block}
+.code-block .comment{color:#6a9955}
+.code-block .keyword{color:#c586c0}
+.code-block .string{color:#ce9178}
+.code-block .fn{color:#dcdcaa}
+.code-block .var{color:#9cdcfe}
+.code-block .num{color:#b5cea8}
+.code-block .op{color:#d4d4d4}
+.code-block .highlight{background:rgba(245,158,11,.15);display:inline;padding:2px 4px;border-radius:3px}
+.code-block .del{background:rgba(239,68,68,.12);display:inline;padding:2px 4px;border-radius:3px;text-decoration:line-through;opacity:.7}
+.code-block .add{background:rgba(34,197,94,.12);display:inline;padding:2px 4px;border-radius:3px}
+
+/* Fix Suggestion */
+.fix{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:14px 18px;margin-top:12px}
+.fix-label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--green);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px}
+
+/* Stats Grid */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0}
+.stat-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
+.stat-item .stat-val{font-size:24px;font-weight:700;color:var(--accent-light)}
+.stat-item .stat-lbl{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* Summary Table */
+.summary-table{width:100%;border-collapse:collapse;font-size:13px;margin:16px 0}
+.summary-table th{text-align:left;padding:10px 14px;background:var(--surface);color:var(--muted);font-weight:600;font-size:12px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.3px}
+.summary-table td{padding:10px 14px;border-bottom:1px solid var(--border)}
+.summary-table tr:hover{background:var(--surface)}
+.summary-table .sev{font-weight:700}
+.summary-table .sev.p0{color:var(--p0)}
+.summary-table .sev.p1{color:var(--p1)}
+.summary-table .sev.p2{color:var(--p2)}
+.summary-table .sev.p3{color:var(--p3)}
+
+/* Callout */
+.callout{background:rgba(99,102,241,.08);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:16px 20px;margin:20px 0}
+.callout-title{font-size:14px;font-weight:600;color:var(--accent-light);margin-bottom:6px}
+
+/* Responsive */
+@media(max-width:768px){
+  .score-board{grid-template-columns:repeat(2,1fr)}
+  .stats-grid{grid-template-columns:1fr}
+  .container{padding:20px 16px 60px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ========== Header ========== -->
+<div class="report-header">
+  <h1>前端代码审查报告</h1>
+  <div class="subtitle">Enterprise Insight Agent V4 — 原生 HTML/CSS/JS + ECharts 5</div>
+  <div class="report-meta">
+    <div class="report-meta-item">📅 <strong>2026-07-30</strong></div>
+    <div class="report-meta-item">📁 <strong>5 文件 / 2,133 行</strong></div>
+    <div class="report-meta-item">🎨 <strong>UI Designer 审查</strong></div>
+  </div>
+</div>
+
+<!-- ========== Score Board ========== -->
+<div class="score-board">
+  <div class="score-card score-warn">
+    <div class="score-label">安全</div>
+    <div class="score-value">C+</div>
+    <div class="score-sub">3 个 P0 问题</div>
+  </div>
+  <div class="score-card score-warn">
+    <div class="score-label">性能</div>
+    <div class="score-value">B</div>
+    <div class="score-sub">5 个优化项</div>
+  </div>
+  <div class="score-card score-warn">
+    <div class="score-label">代码质量</div>
+    <div class="score-value">B-</div>
+    <div class="score-sub">8 个重构项</div>
+  </div>
+  <div class="score-card score-bad">
+    <div class="score-label">可访问性</div>
+    <div class="score-value">D</div>
+    <div class="score-sub">系统性缺失</div>
+  </div>
+</div>
+
+<!-- ========== Overview ========== -->
+<div class="section">
+  <div class="section-title"><span class="icon">📋</span> 审查概览</div>
+  <div class="stats-grid">
+    <div class="stat-item"><div class="stat-val">3</div><div class="stat-lbl">P0 严重问题</div></div>
+    <div class="stat-item"><div class="stat-val">6</div><div class="stat-lbl">P1 重要问题</div></div>
+    <div class="stat-item"><div class="stat-val">11</div><div class="stat-lbl">P2 建议优化</div></div>
+  </div>
+
+  <table class="summary-table">
+    <thead><tr><th>优先级</th><th>维度</th><th>问题</th><th>文件</th></tr></thead>
+    <tbody>
+      <tr><td class="sev p0">P0</td><td>安全</td><td>客户端硬编码演示密码</td><td>app.js:71</td></tr>
+      <tr><td class="sev p0">P0</td><td>安全</td><td>innerHTML 大量拼接用户内容（XSS 风险）</td><td>app.js 全文</td></tr>
+      <tr><td class="sev p0">P0</td><td>安全</td><td>onclick 内联事件 + jsEscape 注入</td><td>app.js:285,306</td></tr>
+      <tr><td class="sev p1">P1</td><td>性能</td><td>ECharts 实例未销毁（内存泄漏）</td><td>app.js:487</td></tr>
+      <tr><td class="sev p1">P1</td><td>性能</td><td>resize 事件监听器重复注册</td><td>app.js:487, utils.js:328</td></tr>
+      <tr><td class="sev p1">P1</td><td>代码质量</td><td>函数过长（ask() 70行、loadDashboard() 80行）</td><td>app.js</td></tr>
+      <tr><td class="sev p1">P1</td><td>代码质量</td><td>全局变量泛滥（20+ 个全局 var）</td><td>app.js:1-9</td></tr>
+      <tr><td class="sev p1">P1</td><td>CSS</td><td>内联样式绕过 Design Token 系统</td><td>app.js 全文</td></tr>
+      <tr><td class="sev p1">P1</td><td>可访问性</td><td>无 ARIA 标签 / 无键盘导航</td><td>index.html 全文</td></tr>
+      <tr><td class="sev p2">P2</td><td>性能</td><td>innerHTML 大块替换而非局部更新</td><td>app.js:179,490</td></tr>
+      <tr><td class="sev p2">P2</td><td>代码质量</td><td>重复代码（错误元素创建逻辑 x2）</td><td>app.js:316-321,384-389</td></tr>
+      <tr><td class="sev p2">P2</td><td>代码质量</td><td>变量命名不一致（sr2, r2, d, ds, fq）</td><td>app.js:702-704</td></tr>
+      <tr><td class="sev p2">P2</td><td>CSS</td><td>重复的 @media 块（768px 出现 4 次）</td><td>style.css</td></tr>
+      <tr><td class="sev p2">P2</td><td>CSS</td><td>Design Token 新旧别名并存，增加维护成本</td><td>style.css:52-60</td></tr>
+      <tr><td class="sev p2">P2</td><td>UX</td><td>无加载骨架屏、无错误重试</td><td>app.js</td></tr>
+      <tr><td class="sev p2">P2</td><td>UX</td><td>Toast 2.5s 消失过快</td><td>utils.js:76</td></tr>
+      <tr><td class="sev p2">P2</td><td>代码质量</td><td>var 全局使用，未用 const/let</td><td>全文</td></tr>
+      <tr><td class="sev p2">P2</td><td>性能</td><td>无防抖的搜索输入</td><td>app.js:539</td></tr>
+      <tr><td class="sev p2">P2</td><td>可访问性</td><td>自定义下拉菜单无键盘支持</td><td>app.js:151</td></tr>
+      <tr><td class="sev p2">P2</td><td>可访问性</td><td>模态框无焦点陷阱</td><td>app.js:305</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ========== P0: Security ========== -->
+<div class="section">
+  <div class="section-title"><span class="icon">🔒</span> P0 — 安全问题 <span class="count">3 项</span></div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p0">P0</span>
+      <div>
+        <div class="issue-title">客户端硬编码演示账号密码</div>
+        <div class="issue-location">app.js:71 — fillUser() / utils.js:122 — getQuickQuestions()</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      <strong>fillUser()</strong> 函数将三个演示账号的明文密码直接写在客户端 JS 中，任何人 F12 即可看到。同样，<strong>getQuickQuestions()</strong> 通过用户名硬编码角色映射（admin/zhangsan/lisi），将业务逻辑暴露在前端。
+    </div>
+    <div class="code-block">
+<span class="comment">// app.js:71 — 密码明文暴露在客户端</span>
+<span class="keyword">function</span> <span class="fn">fillUser</span>(u){
+  <span class="keyword">var</span> m={<span class="highlight">'admin':'admin123','zhangsan':'123456','lisi':'123456'</span>};
+  document.getElementById(<span class="string">'loginUser'</span>).value=u;
+  document.getElementById(<span class="string">'loginPass'</span>).value=m[u]||<span class="string">''</span>;
+}
+
+<span class="comment">// utils.js:122 — 前端硬编码角色判断</span>
+<span class="keyword">var</span> roleMap={<span class="highlight">'admin':'admin','zhangsan':'regional_manager','lisi':'store_manager'</span>};
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 修复建议</div>
+      <div class="issue-desc">
+        1. 移除 <code>fillUser()</code> 函数及所有快捷登录按钮，演示环境可通过环境变量注入而非硬编码<br>
+        2. 角色 → 快捷问题映射应由后端 <code>/auth/login</code> 返回 <code>role</code> 字段后动态选择，而非前端猜用户名<br>
+        3. 如果需要演示快捷填充，至少在生产环境通过构建变量 <code>DEV_MODE</code> 条件编译
+      </div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p0">P0</span>
+      <div>
+        <div class="issue-title">innerHTML 大量拼接用户/LLM 生成内容（XSS）</div>
+        <div class="issue-location">app.js:285,490,599,731,751 + views.js 全文</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      报告内容由 LLM 生成后通过 <strong>marked.parse()</strong> 转为 HTML 再 <strong>innerHTML</strong> 注入。虽然 <code>marked</code> 默认不做 XSS 过滤，攻击者若通过 prompt 注入让 LLM 输出 <code>&lt;img onerror=...&gt;</code> 标签，将直接在用户浏览器执行。<code>esc()</code> 仅用于纯文本字段，Markdown 渲染路径完全绕过了转义。
+    </div>
+    <div class="code-block">
+<span class="comment">// app.js:731 — LLM 输出直接 marked.parse + innerHTML，无 sanitize</span>
+<span class="keyword">var</span> fh;
+<span class="keyword">try</span>{
+  fh=<span class="fn">marked.parse</span>(<span class="fn">convertTextTables</span>(<span class="fn">expandChartTags</span>(ctr)));
+}<span class="keyword">catch</span>(e){fh=<span class="fn">esc</span>(ctr);}
+sd2.<span class="highlight">innerHTML</span>=fh.replace(<span class="string">/\[FOLLOWUP[^\]]*\]\]/g</span>,<span class="string">''</span>);
+
+<span class="comment">// app.js:285 — 用户名直接拼入 innerHTML（虽有 esc 但路径复杂）</span>
+<span class="keyword">var</span> html=f.<span class="fn">map</span>(<span class="keyword">function</span>(u){
+  <span class="keyword">return</span> <span class="string">'&lt;tr&gt;...&lt;td&gt;'</span>+<span class="fn">esc</span>(u.username)+<span class="string">'&lt;/td&gt;...'</span>
+}).<span class="fn">join</span>(<span class="string">''</span>);
+document.getElementById(<span class="string">'apUserList'</span>).<span class="highlight">innerHTML</span>=html;
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 修复建议</div>
+      <div class="issue-desc">
+        1. 引入 <strong>DOMPurify</strong>（~7KB gzip），在 <code>marked.parse()</code> 后统一 <code>DOMPurify.sanitize(html)</code><br>
+        2. 配置 <code>marked</code> 的 sanitizer 选项，或升级 marked v5+ 启用内置 sanitize<br>
+        3. 对 <code>expandChartTags</code> 生成的 <code>data-chart</code> 属性做白名单校验（当前只 try-catch JSON.parse）<br>
+        4. 长期方案：用 <code>textContent</code> + <code>createElement</code> 替代大段 innerHTML 拼接
+      </div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p0">P0</span>
+      <div>
+        <div class="issue-title">onclick 内联事件 + jsEscape 字符串注入</div>
+        <div class="issue-location">app.js:285,306,619 + index.html:52-154</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      所有动态生成的 HTML 都通过 <code>onclick="fn('...')"</code> 内联事件绑定，参数由 <code>jsEscape()</code> 转义后拼入字符串。<code>jsEscape</code> 虽然处理了引号和换行，但如果 <code>jsEscape</code> 有遗漏（如反引号、unicode 转义），就会产生 XSS。此外，index.html 中有 <strong>20+ 个内联 onclick</strong>，违反 CSP 策略。
+    </div>
+    <div class="code-block">
+<span class="comment">// app.js:285 — onclick 内联 + jsEscape 拼接</span>
+<span class="string">'&lt;a class="action-link danger" onclick="deleteUser('</span>+u.id+<span class="string">',\''</span>+<span class="fn">jsEscape</span>(u.username)+<span class="string">'\')"&gt;删除&lt;/a&gt;'</span>
+
+<span class="comment">// utils.js:306 — 追问按钮同样内联</span>
+<span class="keyword">return</span> <span class="string">'&lt;button class="followup-btn" onclick="askFollowup(\''</span>+<span class="fn">jsEscape</span>(q)+<span class="string">'\')"&gt;'</span>+<span class="fn">esc</span>(q)+<span class="string">'&lt;/button&gt;'</span>
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 修复建议</div>
+      <div class="issue-desc">
+        1. 改用 <strong>事件委托</strong>：在父容器上 <code>addEventListener('click', handler)</code>，通过 <code>data-*</code> 属性传参<br>
+        2. 示例：<code>&lt;button data-action="delete" data-uid="5" data-uname="admin"&gt;</code> + <code>e.target.dataset</code> 读取<br>
+        3. 这样可以启用 CSP <code>script-src 'self'</code>，彻底杜绝内联脚本
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== P1: Performance & Quality ========== -->
+<div class="section">
+  <div class="section-title"><span class="icon">⚡</span> P1 — 性能与代码质量 <span class="count">6 项</span></div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p1">P1</span>
+      <div>
+        <div class="issue-title">ECharts 实例未销毁 + resize 监听器重复注册（内存泄漏）</div>
+        <div class="issue-location">app.js:480-488 (loadMonitorOverview) / utils.js:328</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      <strong>renderMonitorView()</strong> 每次调用都在 <code>setTimeout</code> 中 <code>echarts.init(el)</code> 创建新实例，但从不 <code>chart.dispose()</code>。同时 <code>window.addEventListener('resize', function(){ c.resize(); })</code> 每次渲染都注册新的监听器，导致旧实例的 resize 回调堆积。切换日期范围 5 次后，页面上可能有 5 个隐藏的 ECharts 实例 + 5 个 resize 监听器同时运行。
+    </div>
+    <div class="code-block">
+<span class="comment">// app.js:480 — 每次渲染都创建新实例，从不销毁</span>
+setTimeout(<span class="keyword">function</span>(){
+  <span class="keyword">var</span> el=document.getElementById(<span class="string">'mTC'</span>);<span class="keyword">if</span>(!el)<span class="keyword">return</span>;
+  <span class="keyword">var</span> c=<span class="fn">echarts.init</span>(el);  <span class="comment">// ← 每次都是 new</span>
+  c.<span class="fn">setOption</span>({...});
+  <span class="highlight">window.addEventListener('resize',function(){c.resize();});</span>  <span class="comment">// ← 每次都注册！</span>
+},100);
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 修复建议</div>
+      <div class="issue-desc">
+        1. 在 <code>renderMonitorView</code> 开头检查并销毁旧实例：<code>if(window._monitorChart){window._monitorChart.dispose()}</code><br>
+        2. resize 监听器只注册一次（放在模块顶层），内部引用当前实例<br>
+        3. Dashboard 的 <code>_dashCharts</code> 已用 "if not exists then init" 模式，监控图表应对齐此模式
+      </div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p1">P1</span>
+      <div>
+        <div class="issue-title">函数过长，职责不单一</div>
+        <div class="issue-location">app.js — ask() 70行 / loadDashboard() 80行 / renderMonitorView() 55行</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      <strong>ask()</strong> 函数在一个 async 体内完成了：UI 状态切换 → 进度条渲染 → SSE 连接 → 流式解析 → token 累积 → Markdown 渲染 → 图表初始化 → 追问按钮 → 反馈栏 → 工具栏 → 错误处理。这些职责应拆分为独立函数。<strong>loadDashboard()</strong> 把 KPI 渲染、数字动画、4 个 ECharts 图表的 option 构建全部塞在一个函数里。
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 修复建议</div>
+      <div class="issue-desc">
+        <strong>ask() 拆分示例：</strong><br>
+        &nbsp;&nbsp;• <code>showQuestionBubble(q)</code> — 渲染用户消息<br>
+        &nbsp;&nbsp;• <code>showProgressSteps()</code> — 渲染进度条<br>
+        &nbsp;&nbsp;• <code>connectSSE(q, sessionId, controller)</code> — SSE 连接与读取<br>
+        &nbsp;&nbsp;• <code>handleSSEEvent(ev, state)</code> — 事件分发<br>
+        &nbsp;&nbsp;• <code>renderReport(content, metadata)</code> — 报告渲染<br>
+        &nbsp;&nbsp;• <code>finalizeAnalysis(state)</code> — 收尾清理<br><br>
+        <strong>loadDashboard() 拆分示例：</strong><br>
+        &nbsp;&nbsp;• <code>renderKPIs(d)</code> / <code>renderTrendChart(d)</code> / <code>renderStoreChart(d)</code> / <code>renderRegionChart(d)</code> / <code>renderRefundChart(d)</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p1">P1</span>
+      <div>
+        <div class="issue-title">全局变量泛滥（20+ 个顶层 var）</div>
+        <div class="issue-location">app.js:1-9</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      所有状态都挂在全局作用域：<code>token</code>, <code>sessionId</code>, <code>_isAnalyzing</code>, <code>_dashCharts</code>, <code>_allUsers</code>, <code>_cache</code>, <code>dismissedIds</code> 等 20+ 个全局变量。没有任何命名空间隔离，容易意外覆盖、难以测试、无法 tree-shake。
+    </div>
+    <div class="code-block">
+<span class="comment">// app.js:1-9 — 全部是全局变量</span>
+<span class="keyword">var</span> _currentTab=<span class="string">'dashboard'</span>,_lastUser=<span class="string">''</span>,_dashCharts={};
+<span class="keyword">var</span> _monitorDays=30,_monitorPreset=<span class="string">'30'</span>,...;
+<span class="keyword">var</span> _allUsers=[],_allStores=[],_allRegions=[];
+<span class="keyword">var</span> sessionId=null,lastRecordId=null,pendingFeedback=null,...;
+<span class="keyword">var</span> dismissedIds=...;
+<span class="keyword">var</span> hiddenIds=<span class="keyword">new</span> Set(),_isAnalyzing=false,...;
+<span class="keyword">var</span> voiceListening=false,voiceRecognition=null;
+<span class="keyword">var</span> SEMOJIS={...};
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 修复建议</div>
+      <div class="issue-desc">
+        1. 短期：用 IIFE 或 <code>const App = { state: {...}, ... }</code> 命名空间包裹<br>
+        2. 中期：引入 ES Modules（<code>export</code> / <code>import</code>），用 <code>&lt;script type="module"&gt;</code> 加载<br>
+        3. 长期：如果项目继续增长，考虑轻量框架（Preact 3KB / Alpine.js 15KB）管理状态
+      </div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p1">P1</span>
+      <div>
+        <div class="issue-title">内联样式大量绕过 Design Token 系统</div>
+        <div class="issue-location">app.js 全文 / index.html:168-245</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      CSS 文件中精心定义了 Design Token（<code>--bg</code>, <code>--card</code>, <code>--border</code>, <code>--accent</code> 等），但 JS 生成的 HTML 中充斥着 <code>style="..."</code> 内联样式，直接硬编码颜色值（如 <code>#94a3b8</code>, <code>rgba(99,102,241,.12)</code>），完全绕过了 Token 系统。这意味着改主题色需要同时改 CSS 和 JS 两处。
+    </div>
+    <div class="code-block">
+<span class="comment">// app.js:60 — 内联样式硬编码颜色值</span>
+p.style.cssText=<span class="string">'position:absolute;width:...background:rgba(99,102,241,'</span>+(.2+Math.random()*.3)+<span class="string">')...'</span>;
+
+<span class="comment">// app.js:201 — ECharts option 中硬编码颜色</span>
+axisLabel:{color:<span class="highlight">'#94a3b8'</span>,fontSize:9}  <span class="comment">// 应该用 CSS 变量或主题对象</span>
+axisLine:{lineStyle:{color:<span class="highlight">'#334155'</span>}}
+
+<span class="comment">// index.html:168 — 整个登录弹窗都是内联样式</span>
+&lt;div style=<span class="string">"position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.95)..."</span>&gt;
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 修复建议</div>
+      <div class="issue-desc">
+        1. 将所有内联样式提取为 CSS 类（如 <code>.login-overlay</code>, <code>.kpi-up</code>, <code>.kpi-down</code>）<br>
+        2. ECharts 主题颜色通过 <code>getComputedStyle(document.documentElement).getPropertyValue('--accent')</code> 动态读取 CSS 变量<br>
+        3. 这样未来支持亮色主题只需切换 <code>:root</code> 变量，JS 零改动
+      </div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p1">P1</span>
+      <div>
+        <div class="issue-title">可访问性：无 ARIA 标签、无键盘导航、无焦点管理</div>
+        <div class="issue-location">index.html 全文 / app.js — 所有自定义组件</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      当前界面<strong>完全无法用键盘操作</strong>。自定义下拉菜单（用户菜单、管理面板筛选器）、模态框（反馈、用户编辑）、Tab 导航、历史记录列表等全部依赖鼠标点击，没有 <code>tabindex</code>、<code>role</code>、<code>aria-label</code>、<code>aria-expanded</code> 等任何 ARIA 属性。模态框打开后焦点不会陷阱在框内，Escape 键无法关闭。
+    </div>
+    <div class="code-block">
+<span class="comment">&lt;!-- index.html:91 — 用户菜单按钮无 aria-expanded --&gt;</span>
+&lt;button class=<span class="string">"user-menu-btn"</span> onclick=<span class="string">"toggleUserMenu()"</span><span class="del"> </span><span class="add">aria-expanded="false" aria-haspopup="true" aria-label="用户菜单"</span>&gt;
+
+<span class="comment">&lt;!-- index.html:194 — 模态框无 role="dialog" / aria-modal --&gt;</span>
+&lt;div id=<span class="string">"feedbackModal"</span> class=<span class="string">"modal-overlay"</span><span class="del"> </span><span class="add">role="dialog" aria-modal="true" aria-labelledby="feedbackTitle"</span>&gt;
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 修复建议（按优先级排序）</div>
+      <div class="issue-desc">
+        1. <strong>模态框</strong>：添加 <code>role="dialog" aria-modal="true"</code>，打开时焦点移入、关闭时焦点返回触发元素，Escape 键关闭<br>
+        2. <strong>下拉菜单</strong>：添加 <code>aria-expanded</code> / <code>aria-haspopup</code>，支持 Enter/Space 打开、Escape 关闭、上下箭头导航<br>
+        3. <strong>Tab 导航</strong>：添加 <code>role="tablist"</code> / <code>role="tab"</code> / <code>aria-selected</code>，左右箭头切换<br>
+        4. <strong>SSE 进度</strong>：添加 <code>role="status" aria-live="polite"</code> 让屏幕阅读器播报进度<br>
+        5. <strong>图表</strong>：为每个 <code>chart-container</code> 添加 <code>role="img" aria-label="图表标题"</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p1">P1</span>
+      <div>
+        <div class="issue-title">SSE 错误处理过于宽泛，异常被静默吞掉</div>
+        <div class="issue-location">app.js:710,745 / 全文 try-catch</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      SSE 事件解析的 <code>catch(e){console.warn('SSE event parse:',e);}</code> 会吞掉所有 JSON 解析错误和运行时错误。如果某个事件格式变化导致 <code>ev.type</code> 分支内代码抛异常，用户只会看到进度条卡住，没有任何错误提示。同样，<code>restoreSession</code>、<code>loadSessionInfo</code> 等函数的 <code>catch(e){console.warn(e);}</code> 也会让网络错误对用户不可见。
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 修复建议</div>
+      <div class="issue-desc">
+        1. SSE 解析失败时记录到错误上报系统，而非仅 <code>console.warn</code><br>
+        2. 连续 N 次解析失败后向用户展示"连接不稳定"提示<br>
+        3. <code>restoreSession</code> 失败应 <code>toast('会话恢复失败，请重新登录')</code> 并跳转登录页<br>
+        4. 考虑引入全局 <code>window.onerror</code> / <code>unhandledrejection</code> 捕获器
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== P2: Optimization ========== -->
+<div class="section">
+  <div class="section-title"><span class="icon">🔧</span> P2 — 建议优化 <span class="count">11 项</span></div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">innerHTML 大块替换而非局部 DOM 更新</div>
+        <div class="issue-location">app.js:179 (KPI 渲染) / 490 (监控面板) / 599 (历史详情)</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      <code>loadDashboard()</code> 每次刷新都 <code>innerHTML</code> 重建全部 6 个 KPI 卡片，然后 <code>setTimeout</code> 再逐个 <code>getElementById</code> 做数字动画。监控面板 <code>renderMonitorView()</code> 每次切换日期都重建整个面板 innerHTML（~200 行 HTML 字符串），包括表格、错误列表、图表容器。这种"全量替换"模式导致：(1) 已初始化的 ECharts 实例丢失 (2) DOM 重建闪烁 (3) 事件监听器泄漏。
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 建议</div>
+      <div class="issue-desc">首次渲染创建 DOM 结构，后续更新只修改 <code>textContent</code> / <code>className</code> / <code>style</code>。对监控面板，区分"结构不变只更新数据"和"需要重建结构"两种情况。</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">重复代码：错误元素创建逻辑 x2</div>
+        <div class="issue-location">app.js:316-321 (doAddUser) / 384-389 (doEditUser)</div>
+      </div>
+    </div>
+    <div class="issue-desc">两个函数中创建 <code>userEditError</code> 元素的代码完全相同（7 行），包括样式字符串。应提取为 <code>getOrCreateErrorEl()</code> 公共函数。</div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">变量命名不一致、过度缩写</div>
+        <div class="issue-location">app.js:702-704 (SSE 处理)</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      SSE 流式解析中使用了大量单字母/双字母变量：<code>sr2</code> (stream response), <code>r2</code> (reader), <code>dec</code> (decoder), <code>buf</code> (buffer), <code>sc</code> (stream content), <code>fr</code> (final report), <code>fid</code> (final id), <code>fds</code> (final data sources), <code>ffqs</code> (final followup questions), <code>fers</code> (final errors), <code>sb</code> (stream bubble), <code>fh</code> (final html), <code>ext</code> (extra html)。这些命名在 70 行函数内可读性极差。
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 建议</div>
+      <div class="issue-desc"><code>sr2 → streamRes</code>, <code>sc → streamContent</code>, <code>fr → finalReport</code>, <code>sb → reportBubble</code>, <code>fh → reportHtml</code> 等，配合函数拆分后作用域缩小，可读性将显著提升。</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">CSS 重复 @media 块</div>
+        <div class="issue-location">style.css — @media(max-width:768px) 出现 4 次</div>
+      </div>
+    </div>
+    <div class="issue-desc"><code>@media(max-width:768px)</code> 在 style.css 中出现了 4 次（第 192、270、481、654 行），<code>@media(max-width:480px)</code> 出现 2 次，<code>@media print</code> 出现 3 次。应合并为同一媒体查询块，减少 CSS 解析开销和维护成本。</div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">Design Token 新旧别名并存</div>
+        <div class="issue-location">style.css:52-60</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      CSS 中同时存在新名称（<code>--bg-base</code>, <code>--surface-card</code>, <code>--text-primary</code>）和旧别名（<code>--bg</code>, <code>--card</code>, <code>--text</code>），注释说"方便逐步迁移"但从未完成迁移。代码中混用两套名称增加了认知负担。
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 建议</div>
+      <div class="issue-desc">一次性将全文 <code>var(--bg)</code> → <code>var(--bg-base)</code> 等替换完成，删除旧别名。用 CSS 变量查找替换 + 视觉回归测试验证。</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">无加载骨架屏、无错误重试机制</div>
+        <div class="issue-location">app.js — loadDashboard / loadHistoryView / loadMonitorOverview</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      所有数据加载只有两种状态：空白等待 + 数据渲染完成。没有骨架屏（Skeleton Screen）给用户"内容正在加载"的视觉反馈。加载失败时只有 <code>toast('看板加载失败')</code> 一行提示，没有重试按钮。监控面板有 loading spinner，但 Dashboard 和 History 没有。
+    </div>
+    <div class="fix">
+      <div class="fix-label">✅ 建议</div>
+      <div class="issue-desc">为 KPI 卡片、图表容器、历史列表添加骨架屏（灰色脉冲占位块）。加载失败时展示"加载失败 [重试]"状态而非 toast。</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">Toast 2.5s 消失过快 + 无操作按钮</div>
+        <div class="issue-location">utils.js:76</div>
+      </div>
+    </div>
+    <div class="issue-desc"><code>setTimeout(function(){el.remove()},2500)</code> 让 Toast 在 2.5 秒后自动消失。对于"报告已下载"、"复制成功"等确认型 Toast 尚可，但对于"导出失败"等错误型 Toast，用户可能来不及阅读。也没有手动关闭按钮。</div>
+    <div class="fix">
+      <div class="fix-label">✅ 建议</div>
+      <div class="issue-desc">区分 <code>toast.success(msg)</code>（2.5s 自动消失）和 <code>toast.error(msg)</code>（5s + 关闭按钮）。或统一改为 <code>toast(msg, {duration, type, action})</code>。</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">var 全局使用，未用 const/let</div>
+        <div class="issue-location">全文 — 所有 JS 文件</div>
+      </div>
+    </div>
+    <div class="issue-desc">所有变量声明都用 <code>var</code>，没有使用 <code>const</code> / <code>let</code>。<code>var</code> 的函数作用域和变量提升行为容易导致闭包陷阱（如 for 循环中的 var）。虽然当前代码没有明显 bug，但在重构时容易引入。</div>
+    <div="fix">
+      <div class="fix-label">✅ 建议</div>
+      <div class="issue-desc">配合 ESLint 的 <code>no-var</code> 规则逐步迁移。默认用 <code>const</code>，需要重新赋值时用 <code>let</code>。这个改动风险低、收益高。</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">搜索输入无防抖</div>
+        <div class="issue-location">app.js:132 (index.html oninput="filterHistory()")</div>
+      </div>
+    </div>
+    <div class="issue-desc">历史记录搜索框 <code>oninput="filterHistory()"</code> 每次按键都触发过滤。虽然当前是前端过滤（数据量小），但如果历史记录增长到数百条，每次按键都遍历 + innerHTML 重建列表会有卡顿。</div>
+    <div class="fix">
+      <div class="fix-label">✅ 建议</div>
+      <div class="issue-desc">添加 200ms 防抖：<code>var _hvTimer; function filterHistory(){clearTimeout(_hvTimer); _hvTimer=setTimeout(_doFilter,200);}</code></div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">marked.min.js 和 echarts.min.js 无 Subresource Integrity</div>
+        <div class="issue-location">index.html:248,252</div>
+      </div>
+    </div>
+    <div class="issue-desc">两个第三方库通过本地 <code>/static/</code> 路径加载，虽然不涉及 CDN 篡改风险，但如果未来迁移到 CDN，缺少 <code>integrity</code> 属性将无法验证文件完整性。同时 echarts.min.js（~1MB）没有 <code>defer</code> 属性，会阻塞后续脚本。</div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p2">P2</span>
+      <div>
+        <div class="issue-title">onEChartsReady 函数未定义但被调用</div>
+        <div class="issue-location">app.js:196</div>
+      </div>
+    </div>
+    <div class="issue-desc"><code>onEChartsReady(function(echarts){...})</code> 在 <code>loadDashboard()</code> 中被调用，但在三个 JS 文件中均未找到此函数的定义。如果它在某处通过 <code>window.onEChartsReady = ...</code> 动态挂载，这种隐式依赖很容易在重构时断裂。如果确实未定义，则 Dashboard 图表永远不会渲染。</div>
+    <div class="fix">
+      <div class="fix-label">✅ 建议</div>
+      <div class="issue-desc">明确定义此函数，或改为直接检查 <code>typeof echarts !== 'undefined'</code> 后调用。如果 echarts 在页面底部加载，可以用 <code>if(typeof echarts==='undefined'){await waitForECharts()}</code> 模式。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Architecture Suggestions ========== -->
+<div class="section">
+  <div class="section-title"><span class="icon">🏗️</span> 架构演进建议</div>
+
+  <div class="callout">
+    <div class="callout-title">现状评估</div>
+    <div class="issue-desc">
+      当前前端是<strong>原生 HTML/CSS/JS 单页应用</strong>，5 个文件 2,133 行。对于 Demo 和面试展示来说，这个方案足够轻量、零构建步骤、加载快。但代码已经增长到需要<strong>模块化</strong>的临界点：全局变量 20+、函数平均 40 行、innerHTML 拼接遍布全文。
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p3">建议</span>
+      <div>
+        <div class="issue-title">短期（1-2 天）：不引入框架的低成本改进</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      <strong>1. 引入 DOMPurify + 事件委托</strong> — 解决 P0 安全问题，不改变架构<br>
+      <strong>2. 提取 ECharts 主题为独立模块</strong> — <code>echartsTheme()</code> 已在 utils.js 中，但 Dashboard/Monitor 中硬编码了大量颜色，应对齐<br>
+      <strong>3. 拆分长函数</strong> — <code>ask()</code> 和 <code>loadDashboard()</code> 拆分为 5-6 个小函数<br>
+      <strong>4. var → const/let</strong> — 全局替换，ESLint 辅助验证<br>
+      <strong>5. 合并 CSS @media 块 + 迁移 Design Token 别名</strong>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p3">建议</span>
+      <div>
+        <div class="issue-title">中期（1 周）：引入轻量构建工具</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      <strong>1. 引入 Vite + ES Modules</strong> — <code>import/export</code> 替代全局变量，保留原生 JS 开发体验<br>
+      <strong>2. 添加 ESLint + Prettier</strong> — <code>no-var</code>, <code>no-undef</code>, <code>prefer-const</code> 等规则<br>
+      <strong>3. 提取组件模式</strong> — 用 <code>class DashboardChart</code>, <code>class SSEClient</code> 等封装重复逻辑<br>
+      <strong>4. 添加 a11y 基础设施</strong> — 模态框焦点陷阱、键盘导航、ARIA 属性<br>
+      <strong>5. 引入 DOMPurify 作为构建依赖</strong>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-header">
+      <span class="issue-badge badge-p3">建议</span>
+      <div>
+        <div class="issue-title">长期（如项目继续增长）：框架迁移</div>
+      </div>
+    </div>
+    <div class="issue-desc">
+      如果前端功能继续扩展（如增加更多分析维度可视化、实时协作、权限管理界面），建议迁移到 <strong>Preact（3KB）</strong>或 <strong>Vue 3（30KB）</strong>：<br>
+      &nbsp;&nbsp;• 组件化拆分天然解决函数过长问题<br>
+      &nbsp;&nbsp;• 响应式数据绑定替代手动 innerHTML<br>
+      &nbsp;&nbsp;• 生态库（如 vue-echarts）简化图表管理<br>
+      &nbsp;&nbsp;• 内置的 XSS 防护（模板自动转义）<br>
+      <br>
+      <strong>不推荐</strong>引入 React（40KB + runtime），对这个规模的项目过重。
+    </div>
+  </div>
+</div>
+
+<!-- ========== What's Good ========== -->
+<div class="section">
+  <div class="section-title"><span class="icon">✨</span> 做得好的部分</div>
+  <div class="issue" style="border-color:rgba(34,197,94,.3)">
+    <div class="issue-desc" style="color:var(--text)">
+      审查不只是找问题，也值得肯定已有的好实践：
+    </div>
+  </div>
+  <div class="issue" style="border-color:rgba(34,197,94,.3)">
+    <div class="issue-title">✅ Design Token 体系</div>
+    <div class="issue-desc">CSS 中定义了完整的 Design Token（背景层 / 表面层 / 边框 / 文字 / 强调色 / 语义色 / 阴影），层级清晰、命名规范。这是很多项目缺失的基础设施。</div>
+  </div>
+  <div class="issue" style="border-color:rgba(34,197,94,.3)">
+    <div class="issue-title">✅ 缓存策略设计合理</div>
+    <div class="issue-desc"><code>_cachedFetch()</code> 实现了内存缓存 + sessionStorage 双层缓存，Dashboard 数据刷新后可秒级恢复。Admin 面板有 5 分钟 TTL 缓存。缓存失效逻辑（<code>_clearCache</code>）在增删改后正确调用。</div>
+  </div>
+  <div class="issue" style="border-color:rgba(34,197,94,.3)">
+    <div class="issue-title">✅ SSE 流式体验</div>
+    <div class="issue-desc">流式报告生成体验做得不错：进度条步骤动画 + token 逐字渲染 + 完成后图表注入。AbortController 支持用户中途停止分析。</div>
+  </div>
+  <div class="issue" style="border-color:rgba(34,197,94,.3)">
+    <div class="issue-title">✅ 打印样式优化</div>
+    <div class="issue-desc"><code>@media print</code> 隐藏了侧边栏、输入框、工具栏，调整了表格和代码块颜色。说明考虑了 PDF 导出场景。</div>
+  </div>
+  <div class="issue" style="border-color:rgba(34,197,94,.3)">
+    <div class="issue-title">✅ prefers-reduced-motion 支持</div>
+    <div class="issue-desc">CSS 末尾添加了 <code>@media (prefers-reduced-motion: reduce)</code>，为前庭功能障碍用户禁用动画。这是很多项目忽略的可访问性细节。</div>
+  </div>
+  <div class="issue" style="border-color:rgba(34,197,94,.3)">
+    <div class="issue-title">✅ 响应式覆盖完整</div>
+    <div class="issue-desc">从 480px 到 1280px+ 的断点都有覆盖，移动端布局合理（侧边栏变顶部、KPI 网格 6→3→2 列、图表高度缩减）。</div>
+  </div>
+</div>
+
+<!-- ========== Priority Summary ========== -->
+<div class="section">
+  <div class="section-title"><span class="icon">🎯</span> 建议修复优先级</div>
+  <div class="callout">
+    <div class="callout-title">如果只有 1 天时间，按这个顺序修</div>
+  </div>
+  <table class="summary-table">
+    <thead><tr><th>顺序</th><th>问题</th><th>预估时间</th><th>收益</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:700;color:var(--red)">1</td><td>引入 DOMPurify，在 marked.parse 后 sanitize</td><td>30 min</td><td>消除最大 XSS 风险</td></tr>
+      <tr><td style="font-weight:700;color:var(--red)">2</td><td>移除 fillUser() 硬编码密码</td><td>15 min</td><td>消除信息泄露</td></tr>
+      <tr><td style="font-weight:700;color:var(--amber)">3</td><td>修复 ECharts 内存泄漏（dispose + resize 去重）</td><td>30 min</td><td>消除内存泄漏</td></tr>
+      <tr><td style="font-weight:700;color:var(--amber)">4</td><td>onEChartsReady 函数缺失排查</td><td>15 min</td><td>确保 Dashboard 图表正常渲染</td></tr>
+      <tr><td style="font-weight:700;color:var(--amber)">5</td><td>事件委托替代 onclick 内联</td><td>2 h</td><td>安全性 + 可维护性</td></tr>
+      <tr><td style="font-weight:700;color:var(--blue)">6</td><td>拆分 ask() 和 loadDashboard()</td><td>2 h</td><td>可读性 + 可测试性</td></tr>
+      <tr><td style="font-weight:700;color:var(--blue)">7</td><td>var → const/let 全局替换</td><td>1 h</td><td>代码规范</td></tr>
+      <tr><td style="font-weight:700;color:var(--blue)">8</td><td>基础 a11y（模态框焦点 + ARIA）</td><td>2 h</td><td>可访问性合规</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="text-align:center;padding:32px 0;color:var(--dim);font-size:13px;border-top:1px solid var(--border);margin-top:40px">
+  UI Designer · 前端代码审查报告 · Enterprise Insight Agent V4 · 2026-07-30
+</div>
+
+</div>
+</body>
+</html>

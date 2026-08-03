@@ -33,7 +33,7 @@ SRT_SEGMENTS = [
     (30, 70, "输入 admin 账号登录。V4 支持多租户、RBAC 角色权限\n行级门店数据隔离，不同角色看到的数据范围完全不同"),
     (70, 100, "登录后默认进入经营看板。6 个 KPI 卡片带环比箭头\n近 30 天趋势图、区域占比、门店 Top 10，按用户权限自动过滤"),
     (100, 150, "查询型问题：上个月销售额最高的三家门店\n11 步流式进度条实时推送。新建会话清空对话\n每条报告底部有点赞点踩反馈按钮"),
-    (150, 230, "核心演示：华东区销售为什么下降\nSupervisor 激活 Sales、CRM、Finance 三个 Agent 并行执行\nReflection 四维质检确保报告质量"),
+    (150, 230, "核心演示：华东区销售为什么下降\nSupervisor 按需激活多个领域 Agent 并行执行（进度条如实展示）\nReflection 四维质检确保报告质量"),
     (230, 280, "综合经营分析：销售、会员、库存跨维度交叉验证\n多轮对话追问，报告底部有追问建议按钮"),
     (280, 330, "V4 独有亮点：PDF 导出、退出登录、角色快捷问题\nzhangsan 登录验证数据隔离——华东 22 店 vs 全量"),
     (330, 380, "V2 到 V4 版本演进：3 个 Agent → 10 个 Agent\n无流式 → 11 步流式进度，无看板 → 经营看板\nDocker 一键部署，5 个容器 2 分钟跑起来"),
@@ -115,6 +115,39 @@ async def show_annotation(page, text: str, color: str = "#6366f1", duration_ms: 
     """, [text, color, duration_ms])
 
 
+async def keep_intro_visible(page):
+    """V4.6+ 兼容：阻止欢迎页 5 秒后自动跳转登录，保持欢迎页可见供演示点击。
+
+    index.html 内联脚本在无 token 时 5s 后自动调用 showLogin() 隐藏欢迎页，
+    录制需要欢迎页停留以演示「点击进入系统」，故暂时将 showLogin 替换为空操作，
+    并把原函数存到 __origShowLogin；段 3 完成跳转后调用 restore_intro_auto 恢复
+    （logout() 内部依赖 showLogin 显示登录页，不能长期禁用）。
+    本方法不跨导航保留，仅用于首次加载后的欢迎页阶段。
+    """
+    try:
+        await page.evaluate("""() => {
+            if (!window.__demoShowLoginPatched) {
+                window.__origShowLogin = window.showLogin;
+                window.showLogin = function(){};
+                window.__demoShowLoginPatched = true;
+            }
+        }""")
+    except Exception:
+        pass  # 页面未就绪时忽略，自动跳转兜底不影响后续流程
+
+
+async def restore_intro_auto(page):
+    """恢复原始 showLogin（logout 依赖它显示登录页）。"""
+    try:
+        await page.evaluate("""() => {
+            if (window.__origShowLogin) {
+                window.showLogin = window.__origShowLogin;
+            }
+        }""")
+    except Exception:
+        pass
+
+
 async def move_mouse_smooth(page, x: int, y: int, steps: int = 15):
     """平滑移动鼠标到目标位置。"""
     current = await page.evaluate("() => ({x: window.__demo_mx || 500, y: window.__demo_my || 300})")
@@ -154,15 +187,15 @@ async def type_with_cursor(page, selector: str, text: str, delay_ms: int = 80):
 
 
 async def wait_for_analysis_complete(page, timeout_sec: float = 120):
-    """等待分析完成：进度面板消失。"""
+    """等待分析完成：#pM 进度面板从 DOM 移除（被 analysis done 事件 remove 掉）。"""
     try:
-        await page.wait_for_selector("#progress", state="visible", timeout=10000)
-        await page.wait_for_selector("#progress", state="hidden", timeout=timeout_sec * 1000)
+        await page.wait_for_selector("#pM", state="attached", timeout=15000)
+        await page.wait_for_selector("#pM", state="detached", timeout=timeout_sec * 1000)
     except Exception:
         pass
     await asyncio.sleep(2)
     try:
-        await page.wait_for_selector(".msg.assistant", state="visible", timeout=timeout_sec * 1000)
+        await page.wait_for_selector(".msg.assistant .bubble.stream-content", state="attached", timeout=timeout_sec * 1000)
     except Exception:
         pass
 
@@ -189,6 +222,7 @@ async def record_demo(page, port: int):
     # ============================================================
     print("\n[1/9] Welcome + intro page...")
     await page.goto(v4, wait_until="networkidle")
+    await keep_intro_visible(page)
     await page.wait_for_selector("#introOverlay", timeout=10000)
     await asyncio.sleep(2)
     await show_annotation(page, "10 AI Agent · 5 业务域 · Docker 一键部署", "#6366f1", 4000)
@@ -211,6 +245,7 @@ async def record_demo(page, port: int):
     await click_with_animation(page, selector=".intro-cta")
     await asyncio.sleep(0.8)
     await page.wait_for_selector("#loginOverlay", state="visible", timeout=5000)
+    await restore_intro_auto(page)  # 恢复 showLogin（logout 依赖它）
     await show_annotation(page, "多租户 · RBAC 角色权限 · 行级数据隔离", "#10b981", 4000)
     await asyncio.sleep(1)
 
@@ -222,12 +257,12 @@ async def record_demo(page, port: int):
     await asyncio.sleep(0.3)
 
     # 点击登录
-    await click_with_animation(page, selector="#loginForm button[type='submit']")
-    await page.wait_for_selector("#dashKpiRow", state="attached", timeout=15000)
+    await click_with_animation(page, selector="#loginBtn")
+    await page.wait_for_selector("#dashKpis", state="attached", timeout=15000)
     await asyncio.sleep(5)  # 等待 switchTab('dashboard') 完成 + ECharts 渲染
 
     # 展开管理面板
-    await click_with_animation(page, selector="#adminBtn")
+    await click_with_animation(page, selector="#adminNavBtn")
     await asyncio.sleep(2)
     await screenshot(page, "v4_admin_panel.png")
     await click_with_animation(page, selector=".ap-close")
@@ -246,7 +281,7 @@ async def record_demo(page, port: int):
     # 段 5：查询型问题 (1:45-2:25)
     # ============================================================
     print("[5/9] Query: top 3 stores...")
-    await click_with_animation(page, selector="#tabChat")
+    await click_with_animation(page, selector=".nav-item[data-tab='analysis']")
     await asyncio.sleep(0.5)
     await show_annotation(page, "查询型问题：直接给数据，避免信息过载", "#f59e0b", 3000)
     await asyncio.sleep(0.5)
@@ -283,7 +318,7 @@ async def record_demo(page, port: int):
         await click_with_animation(page, selector=".feedback-btn")
         await asyncio.sleep(0.5)
         # 填写反馈内容
-        feedback_box = page.locator("#feedbackReason")
+        feedback_box = page.locator("#feedbackText")
         if await feedback_box.count() > 0:
             await feedback_box.fill("数据准确，分析维度完整")
             await asyncio.sleep(0.3)
@@ -304,7 +339,7 @@ async def record_demo(page, port: int):
     await click_with_animation(page, selector="#btn")
     await show_annotation(page, "3 Agent 并行执行 · LangGraph Send 扇出", "#ef4444", 4000)
     await asyncio.sleep(4)
-    await show_annotation(page, "Sales Agent + CRM Agent + Finance Agent 同时查数据库", "#f59e0b", 4000)
+    await show_annotation(page, "领域 Agent 并行查数据库 · 按需激活", "#f59e0b", 4000)
     await asyncio.sleep(4)
     await show_annotation(page, "Reflection 4 维质检：一致性 / 逻辑 / 可操作 / 完整", "#10b981", 4000)
 
@@ -326,7 +361,7 @@ async def record_demo(page, port: int):
     await asyncio.sleep(0.3)
 
     await click_with_animation(page, selector="#btn")
-    await show_annotation(page, "全 Agent 激活：销售 + CRM + 库存 · 交叉验证", "#6366f1", 4000)
+    await show_annotation(page, "按需激活：多领域 Agent 交叉验证", "#6366f1", 4000)
     await wait_for_analysis_complete(page, timeout_sec=120)
     await asyncio.sleep(1)
 
@@ -339,7 +374,7 @@ async def record_demo(page, port: int):
     await page.evaluate("() => { const c = document.getElementById('chat'); if(c) c.scrollTop = c.scrollHeight; }")
     await asyncio.sleep(0.5)
     try:
-        pdf_btn = page.locator("button:has-text('PDF')").first
+        pdf_btn = page.locator("span.share-btn").first
         await pdf_btn.click()
         await asyncio.sleep(1.5)
         await show_annotation(page, "一键 PDF 导出 · 自动降级 Markdown", "#10b981", 2500)
@@ -348,15 +383,21 @@ async def record_demo(page, port: int):
     await asyncio.sleep(1)
 
     # 退出登录
-    await click_with_animation(page, selector="#tabDashboard")
+    await click_with_animation(page, selector="#userMenuBtn")
+    await asyncio.sleep(0.5)
+    await page.click("text=退出登录")
     await asyncio.sleep(1)
-    await click_with_animation(page, selector="#logoutBtn")
-    await asyncio.sleep(1)
-    await page.wait_for_selector("#introOverlay", state="visible", timeout=5000)
+    await page.wait_for_selector("#loginOverlay", state="visible", timeout=5000)
     await show_annotation(page, "JWT 持久化 · 刷新自动恢复 · 退出注销令牌", "#f59e0b", 3000)
     await asyncio.sleep(2)
 
     # zhangsan 登录验证数据隔离
+    # 退出后刷新回到欢迎页（introOverlay），再点击进入系统
+    # 注意：此处不打 keep_intro_visible 补丁——点击在 5s 自动跳转窗口内，
+    # 且保留自动跳转作为兜底（即使点击错过窗口，登录页也会在 5s 自动出现）
+    await page.goto(f"http://localhost:{port}", wait_until="networkidle", timeout=10000)
+    await asyncio.sleep(1)
+    await page.wait_for_selector("#introOverlay", state="visible", timeout=5000)
     await click_with_animation(page, selector=".intro-cta")
     await asyncio.sleep(0.8)
     await page.wait_for_selector("#loginOverlay", state="visible", timeout=5000)
@@ -366,8 +407,9 @@ async def record_demo(page, port: int):
     await asyncio.sleep(0.2)
     await type_with_cursor(page, "#loginPass", "admin123", delay_ms=80)
     await asyncio.sleep(0.2)
-    await click_with_animation(page, selector="#loginForm button[type='submit']")
-    await page.wait_for_selector("#dashKpiRow", state="attached", timeout=15000)
+    await click_with_animation(page, selector="#loginBtn")
+    # state="visible"：真实验证登录成功（attached 在隐藏的 #app 容器里也会命中）
+    await page.wait_for_selector("#dashKpis", state="visible", timeout=15000)
     await asyncio.sleep(4)
     await show_annotation(page, "zhangsan 华东区域经理 · 只看到华东 22 店 · 数据隔离", "#ef4444", 4000)
     await asyncio.sleep(2)
@@ -385,17 +427,18 @@ async def record_demo(page, port: int):
         await show_annotation(page, "V2 (2024)：3 Agent · 无看板 · 无流式 · 无图表 · pip install", "#94a3b8", 3000)
         await asyncio.sleep(1)
         await screenshot(page, "v2_home.png")
-        # V2 login: click account card → password pre-filled → submit
+        # V2 login: 等待账号卡片渲染后点击 admin 卡片，再提交表单，等待弹窗消失
         try:
-            # V2 用选账号卡片登录，不是输入框
-            await page.click("#loginAccounts > div:first-child")  # 点 admin 卡片
+            await page.wait_for_selector("#acct-admin", state="visible", timeout=5000)
+            await page.click("#acct-admin")
             await asyncio.sleep(0.3)
             await page.click("#loginForm button[type='submit']")
-            await asyncio.sleep(3)
+            await page.wait_for_selector("#loginOverlay", state="hidden", timeout=8000)
+            await asyncio.sleep(1)
             await screenshot(page, "v2_chat.png")
             await show_annotation(page, "V2 登录后：直接进聊天页，无看板无进度条", "#94a3b8", 3000)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  V2 login failed: {e}")
         await asyncio.sleep(2)
     except Exception as e:
         print(f"  V2 failed: {e}")
@@ -411,24 +454,28 @@ async def record_demo(page, port: int):
             await page.fill("#loginUser", "admin")
             await page.fill("#loginPass", "admin123")
             await page.click("#loginForm button[type='submit']")
-            await asyncio.sleep(3)
+            await page.wait_for_selector("#loginOverlay", state="hidden", timeout=8000)
+            await asyncio.sleep(1)
             await screenshot(page, "v3_chat.png")
             await show_annotation(page, "V3：有图表有对话，但无看板页、无流式进度", "#64748b", 3000)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  V3 login failed: {e}")
         await asyncio.sleep(2)
     except Exception as e:
         print(f"  V3 failed: {e}")
 
     # --- 回到 V4 展示对比表 ---
     await page.goto(f"http://localhost:{V4_PORT}", wait_until="networkidle", timeout=10000)
-    await asyncio.sleep(2)
-    # 快速登录
+    await asyncio.sleep(1)
+    # 快速登录（显式点击进入系统；5s 自动跳转兜底）
     try:
+        await click_with_animation(page, selector=".intro-cta")
+        await asyncio.sleep(0.8)
+        await page.wait_for_selector("#loginOverlay", state="visible", timeout=5000)
         await page.fill("#loginUser", "admin")
         await page.fill("#loginPass", "admin123")
-        await page.click("#loginForm button[type='submit']")
-        await page.wait_for_selector("#dashKpiRow", state="attached", timeout=10000)
+        await page.click("#loginBtn")
+        await page.wait_for_selector("#dashKpis", state="visible", timeout=10000)
         await asyncio.sleep(3)
     except Exception:
         pass

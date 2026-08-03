@@ -1,0 +1,234 @@
+.share-container {
+  padding: 32rpx;
+  min-height: 100vh;
+}
+
+/* 加载态 */
+.loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 160rpx 0;
+}
+
+.loading-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border: 6rpx solid #E5E5EA;
+  border-top-color: #1A73E8;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 32rpx;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #86868B;
+}
+
+/* 失效/错误页 */
+.expired-wrap,
+.error-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 40rpx;
+  text-align: center;
+}
+
+.expired-icon,
+.error-icon {
+  font-size: 100rpx;
+  margin-bottom: 32rpx;
+}
+
+.expired-title,
+.error-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1D1D1F;
+  margin-bottom: 16rpx;
+}
+
+.expired-desc {
+  font-size: 28rpx;
+  color: #86868B;
+  margin-bottom: 48rpx;
+}
+
+.expired-action {
+  background: #1A73E8;
+  color: #FFFFFF;
+  padding: 28rpx 56rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+/* 分享卡片 */
+.share-card {
+  background: linear-gradient(135deg, #1A73E8 0%, #4A9AF5 100%);
+  border-radius: 24rpx;
+  padding: 48rpx 40rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(26, 115, 232, 0.2);
+}
+
+.share-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  font-size: 22rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.share-conclusion {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+  line-height: 1.5;
+  margin-bottom: 20rpx;
+  /* 默认折叠：最多 4 行，展开时取消限制 */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+.share-conclusion.expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.share-expand {
+  display: inline-block;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  margin-bottom: 20rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.4);
+}
+
+.share-time {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 发现区 */
+.finding-section {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 40rpx 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28rpx;
+}
+
+.section-icon {
+  font-size: 36rpx;
+  margin-right: 16rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1D1D1F;
+}
+
+.finding-list {
+  margin-bottom: 32rpx;
+}
+
+.finding-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F5F5F7;
+}
+
+.finding-item:last-child {
+  border-bottom: none;
+}
+
+.finding-index {
+  width: 44rpx;
+  height: 44rpx;
+  background: #E8F0FE;
+  color: #1A73E8;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 600;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.finding-index.rec {
+  background: #FFF9E6;
+}
+
+.finding-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #1D1D1F;
+  line-height: 1.6;
+}
+
+.empty-finding {
+  text-align: center;
+  padding: 40rpx;
+  font-size: 26rpx;
+  color: #86868B;
+}
+
+.cta-btn {
+  text-align: center;
+  background: #1A73E8;
+  color: #FFFFFF;
+  padding: 28rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-top: 24rpx;
+}
+
+/* 登录提示 */
+.login-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 28rpx 32rpx;
+  margin-top: 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.prompt-text {
+  font-size: 28rpx;
+  color: #1D1D1F;
+}
+
+.prompt-btn {
+  background: #1A73E8;
+  color: #FFFFFF;
+  padding: 16rpx 36rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+}

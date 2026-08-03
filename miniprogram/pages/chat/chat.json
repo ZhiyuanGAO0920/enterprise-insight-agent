@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "AI 助手",
+  "usingComponents": {
+    "chart-render": "/components/chart-render/chart-render"
+  }
+}

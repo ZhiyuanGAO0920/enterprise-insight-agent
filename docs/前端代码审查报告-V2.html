@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>EIA V4 前端代码审查报告</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei',sans-serif;background:#f8fafc;color:#1e293b;line-height:1.6;padding:32px 40px}
+h1{font-size:28px;font-weight:800;margin-bottom:8px;letter-spacing:-0.5px}
+h2{font-size:20px;font-weight:700;margin:32px 0 16px;padding-bottom:8px;border-bottom:2px solid #e2e8f0}
+h3{font-size:16px;font-weight:600;margin:20px 0 12px;color:#334155}
+.subtitle{font-size:14px;color:#64748b;margin-bottom:24px}
+.meta{display:flex;gap:16px;margin-bottom:32px;font-size:13px;color:#64748b}
+.meta span{background:#f1f5f9;padding:4px 12px;border-radius:8px;border:1px solid #e2e8f0}
+
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px}
+.sum-card{background:#fff;border-radius:12px;padding:20px;border:1px solid #e2e8f0}
+.sum-card.p0{border-color:#ef4444;background:#fef2f2}
+.sum-card.p1{border-color:#f59e0b;background:#fffbeb}
+.sum-card.p2{border-color:#3b82f6;background:#eff6ff}
+.sum-num{font-size:36px;font-weight:800;line-height:1}
+.sum-num.red{color:#ef4444}
+.sum-num.amber{color:#f59e0b}
+.sum-num.blue{color:#3b82f6}
+.sum-label{font-size:13px;color:#64748b;margin-top:4px}
+
+.issue{background:#fff;border-radius:10px;padding:18px 20px;margin-bottom:14px;border:1px solid #e2e8f0;transition:border-color .2s}
+.issue:hover{border-color:#6366f1}
+.issue-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.issue-id{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;min-width:32px;text-align:center}
+.issue-id.p0{background:#ef4444}
+.issue-id.p1{background:#f59e0b}
+.issue-id.p2{background:#3b82f6}
+.issue-title{font-size:15px;font-weight:600;color:#1e293b}
+.issue-file{font-size:12px;color:#64748b;margin-left:auto;font-family:'Consolas','Monaco',monospace;background:#f8fafc;padding:2px 8px;border-radius:4px}
+.issue-desc{font-size:13px;color:#475569;margin-bottom:12px;line-height:1.7}
+.issue-desc code{font-family:'Consolas','Monaco',monospace;background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px;color:#6366f1}
+.issue-code{background:#1e293b;color:#e2e8f0;padding:14px 16px;border-radius:8px;font-family:'Consolas','Monaco',monospace;font-size:12px;line-height:1.5;overflow-x:auto;margin-bottom:12px;white-space:pre}
+.issue-code .hl{color:#f59e0b}
+.issue-code .good{color:#22c55e}
+.issue-fix{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;font-size:13px;color:#166534}
+.issue-fix code{background:#dcfce7;padding:1px 6px;border-radius:4px;font-size:12px;color:#15803d}
+.issue-effort{font-size:11px;color:#64748b;margin-top:8px;display:flex;gap:8px}
+.issue-effort span{padding:2px 10px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc}
+
+.good-point{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin-bottom:12px;font-size:13px;color:#166534}
+.good-point strong{color:#15803d}
+
+.priority-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px}
+.priority-table th{background:#f1f5f9;padding:10px 14px;text-align:left;font-weight:600;color:#475569;border-bottom:2px solid #e2e8f0}
+.priority-table td{padding:10px 14px;border-bottom:1px solid #e2e8f0;color:#1e293b}
+.priority-table tr:hover{background:#f8fafc}
+
+.footer{margin-top:40px;padding-top:20px;border-top:2px solid #e2e8f0;font-size:12px;color:#94a3b8;text-align:center}
+</style>
+</head>
+<body>
+
+<h1>🔍 EIA V4 前端代码审查报告</h1>
+<div class="subtitle">Enterprise Insight Agent V4 · 原生 HTML/CSS/JS + ECharts 5 · 5 个文件 · 2,133 行</div>
+<div class="meta">
+  <span>📅 审查日期：2026-07-30</span>
+  <span>📊 总行数：2,133</span>
+  <span>📁 文件：index.html · style.css · app.js · utils.js · views.js</span>
+  <span>🧑‍💻 审查者：UI Designer</span>
+</div>
+
+<!-- ── 概览 ── -->
+<div class="summary-grid">
+  <div class="sum-card p0"><div class="sum-num red">5</div><div class="sum-label">P0 严重问题（安全/稳定性）</div></div>
+  <div class="sum-card p1"><div class="sum-num amber">8</div><div class="sum-label">P1 重要问题（架构/性能）</div></div>
+  <div class="sum-card p2"><div class="sum-num blue">10</div><div class="sum-label">P2 建议改进（质量/一致性）</div></div>
+</div>
+
+<!-- ================================================================
+     1. 安全 (Security)
+     ================================================================ -->
+<h2>🛡️ 1. 安全</h2>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p0">P0</span>
+    <span class="issue-title">innerHTML 拼接 LLM 输出 — XSS 注入风险</span>
+    <span class="issue-file">app.js:759 · views.js:628</span>
+  </div>
+  <div class="issue-desc">
+    <code>marked.parse()</code> 将 LLM 输出转为 HTML 后，通过 <code>sd2.innerHTML = fh</code> 直接注入 DOM。
+    虽然 <code>sanitizeHtml()</code> 调用了 DOMPurify，但存在两个薄弱点：<br>
+    ① <code>sanitizeHtml()</code> 兜底逻辑在 DOMPurify 加载失败时<strong>直接返回原文 HTML</strong>（utils.js:78），等于完全放弃过滤；<br>
+    ② <code>expandChartTags()</code> 在 sanitize 之前就执行，将 <code>[CHART:...]</code> 转为 <code>&lt;div&gt;</code> 元素，绕过了 DOMPurify 的白名单过滤。<br>
+    如果 LLM 被 prompt 注入输出 <code>&lt;img onerror=alert(1)&gt;</code> 或恶意 SVG，在 DOMPurify 不可用时将直接执行。
+  </div>
+  <div class="issue-code"><span class="hl">// utils.js:74-79 — 兜底返回原文，等于零过滤</span>
+function sanitizeHtml(html){
+  try{
+    if(typeof DOMPurify!=='undefined'&&DOMPurify.sanitize)
+      return DOMPurify.sanitize(html);
+  }catch(e){}
+  <span class="hl">return html; // ⚠️ DOMPurify 不可用时无任何过滤</span>
+}</div>
+  <div class="issue-fix">
+    ✅ 修复建议：<br>
+    1. <code>sanitizeHtml()</code> 兜底改为 <code>esc(html)</code>（纯文本转义），而非返回原文；<br>
+    2. <code>expandChartTags()</code> 产出的 HTML 应在 <code>marked.parse()</code> 之前插入，然后整体交给 <code>DOMPurify.sanitize()</code> 过滤；<br>
+    3. 为 DOMPurify 配置允许的标签白名单：<code>DOMPurify.sanitize(html, {ALLOWED_TAGS: [...], ALLOWED_ATTR: [...]})</code>，限制 <code>div.chart-container</code> 和 <code>data-chart</code> 属性。
+  </div>
+  <div class="issue-effort"><span>影响：全用户</span><span>修复难度：中</span><span>预计工时：2h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p0">P0</span>
+    <span class="issue-title">onclick 内联事件 + jsEscape 拼接 — CSP 违规 + 转义遗漏风险</span>
+    <span class="issue-file">index.html:52+64-68+72+102-104+149-154+159+161+200+208+212+223+237+242 · views.js:621+625</span>
+  </div>
+  <div class="issue-desc">
+    全文有 <strong>20+ 个 onclick 内联事件处理器</strong>，依赖 <code>jsEscape()</code> 手动转义拼接字符串。
+    风险：<br>
+    ① 若 <code>jsEscape()</code> 有遗漏（如未覆盖反引号模板字符串 <code>${}</code>），攻击者可注入 JS；<br>
+    ② 违反 CSP（Content Security Policy）的 <code>unsafe-inline</code> 规则，浏览器无法禁止内联脚本执行；<br>
+    ③ 部分内联 onclick 已经被事件委托替代（app.js:159-182），但 HTML 中仍残留大量内联写法，两套机制并存增加维护混乱。
+  </div>
+  <div class="issue-code"><span class="hl">// index.html:52 — 内联 onclick</span>
+&lt;button class="intro-cta" <span class="hl">onclick="transitionToLogin()"</span>&gt;进入系统&lt;/button&gt;
+
+<span class="hl">// views.js:621 — 拼接 onclick 中的字符串参数</span>
+onclick="showFeedback(&#39;helpful&#39;)"
+<span class="hl">// app.js:625 — 拼接 onclick，依赖 jsEscape</span>
+onclick="downloadMD()"</div>
+  <div class="issue-fix">
+    ✅ 修复建议：<br>
+    1. 将所有内联 onclick 改为 <code>data-action</code> 属性 + 事件委托（已有 <code>document.addEventListener('click', ...)</code> 框架）；<br>
+    2. HTML 模板中的按钮统一用 <code>data-action="xxx"</code>，JS 侧统一用 <code>e.target.closest('[data-action]')</code> 捕获；<br>
+    3. 这样既符合 CSP，也消除了 jsEscape 拼接遗漏的风险。
+  </div>
+  <div class="issue-effort"><span>影响：CSP 合规</span><span>修复难度：中</span><span>预计工时：3h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p0">P0</span>
+    <span class="issue-title">客户端硬编码演示密码</span>
+    <span class="issue-file">已被移除（V4.5 修复）</span>
+  </div>
+  <div class="issue-desc">
+    V4.0 版本的 <code>fillUser()</code> 将 admin/123456 明文写在 JS 中。经查当前代码中已无 <code>fillUser()</code> 函数，此问题已修复。但仍需注意：登录表单没有任何暴力破解防护（如 rate limiting、CAPTCHA），若 API 侧也无保护则存在风险。
+  </div>
+  <div class="issue-fix">
+    ✅ 已修复。建议补充：API 侧增加登录 rate limiting（5 次/分钟），前端增加锁定提示。
+  </div>
+  <div class="issue-effort"><span>影响：认证安全</span><span>修复难度：低</span><span>预计工时：1h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">localStorage 存储 JWT token — 无法防御 XSS 窃取</span>
+    <span class="issue-file">app.js:82+135 · index.html:16</span>
+  </div>
+  <div class="issue-desc">
+    JWT token 存在 <code>localStorage</code> 中，一旦 XSS 成功执行，攻击者可直接 <code>localStorage.getItem('eia_token')</code> 窃取 token。
+    index.html:16 的内联脚本也在 localStorage 中操作 token。对于 B 端企业级产品，应优先使用 <code>httpOnly + Secure + SameSite=Strict</code> 的 Cookie 存储 token，使 JS 完全无法读取。
+  </div>
+  <div class="issue-fix">
+    ✅ 修复建议：<br>
+    1. 后端登录 API 设置 <code>Set-Cookie: eia_token=xxx; httpOnly; Secure; SameSite=Strict; Path=/api</code>；<br>
+    2. 前端移除所有 <code>localStorage.getItem('eia_token')</code>，改由浏览器自动携带 Cookie；<br>
+    3. 保留 <code>eia_user</code> 在 localStorage（仅存用户名，不含敏感信息）。
+  </div>
+  <div class="issue-effort"><span>影响：认证安全</span><span>修复难度：高</span><span>预计工时：4h（需前后端联动）</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">admin 表格操作通过 innerHTML 拼接 — 依赖 jsEscape 无 DOMPurify</span>
+    <span class="issue-file">app.js:310-314</span>
+  </div>
+  <div class="issue-desc">
+    <code>renderUserList()</code> 通过字符串拼接 + <code>innerHTML</code> 渲染表格行，包含用户名等可能含特殊字符的数据。依赖 <code>esc()</code> 和 <code>jsEscape()</code> 手动转义，未经过 DOMPurify。若用户名包含 <code>&lt;script&gt;</code> 等标签，<code>esc()</code> 可以过滤 HTML 标签，但 <code>jsEscape()</code> 在 <code>data-uname</code> 属性中的拼接仍存在理论上的边缘情况。
+  </div>
+  <div class="issue-fix">
+    ✅ 修复建议：改用 DOM API 创建元素（<code>document.createElement('tr')</code> + <code>textContent</code>），彻底消除 innerHTML 拼接风险。
+  </div>
+  <div class="issue-effort"><span>影响：管理面板</span><span>修复难度：中</span><span>预计工时：2h</span></div>
+</div>
+
+<!-- ================================================================
+     2. 架构 (Architecture)
+     ================================================================ -->
+<h2>🏗️ 2. 架构</h2>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">20+ 全局变量 — 无命名空间、无模块化</span>
+    <span class="issue-file">app.js:2-10</span>
+  </div>
+  <div class="issue-desc">
+    <code>token</code>、<code>sessionId</code>、<code>_dashCharts</code>、<code>_currentRole</code>、<code>_allUsers</code>、<code>_allStores</code>、<code>_isAnalyzing</code> 等超过 20 个全局变量散落在 window 上，无命名空间隔离。
+    问题：<br>
+    ① 任何第三方脚本（如 ECharts 插件）可意外覆盖全局变量；<br>
+    ② 多人协作时变量命名冲突概率高；<br>
+    ③ 难以追踪哪个函数修改了哪个变量（<code>token</code> 在 8 个地方被赋值）。
+  </div>
+  <div class="issue-fix">
+    ✅ 修复建议：<br>
+    1. 创建 <code>const EIA = { state: {}, api: {}, ui: {} }</code> 命名空间，所有变量移入 <code>EIA.state</code>；<br>
+    2. 或渐进式：先创建 <code>EIA.state</code> 对象，将最关键的 <code>token</code>、<code>sessionId</code>、<code>_isAnalyzing</code> 移入，其余逐步迁移。
+  </div>
+  <div class="issue-effort"><span>影响：可维护性</span><span>修复难度：中</span><span>预计工时：3h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">函数过长 — ask() 70行、loadDashboard() 80行、renderMonitorView() 50行</span>
+    <span class="issue-file">app.js:717-790 · 185-269 · 480-532</span>
+  </div>
+  <div class="issue-desc">
+    <code>ask()</code> 函数长达 70 行，混合了 SSE 连接建立、事件解析、DOM 操作、错误处理、状态管理五类职责。<code>loadDashboard()</code> 混合了数据获取、KPI 渲染、动画计算、ECharts 初始化四类职责。违反单一职责原则，调试时难以定位问题行。
+  </div>
+  <div class="issue-fix">
+    ✅ 修复建议：<br>
+    1. <code>ask()</code> 拆分为 <code>connectSSE()</code>、<code>handleSSEEvent()</code>、<code>renderReport()</code>、<code>handleError()</code>；<br>
+    2. <code>loadDashboard()</code> 拆分为 <code>fetchDashboardData()</code>、<code>renderKPIs()</code>、<code>renderDashboardCharts()</code>；<br>
+    3. <code>renderMonitorView()</code> 拆分为 <code>buildHeroCards()</code>、<code>buildAgentTable()</code>、<code>buildErrorList()</code>、<code>buildTokenChart()</code>。
+  </div>
+  <div class="issue-effort"><span>影响：可读性/可维护性</span><span>修复难度：中</span><span>预计工时：4h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">views.js 仅 24 行 — 文件职责不清</span>
+    <span class="issue-file">views.js</span>
+  </div>
+  <div class="issue-desc">
+    <code>views.js</code> 仅包含 <code>initIntroParticles()</code> 和初始化逻辑（24 行），而 app.js 中大量视图渲染代码（Dashboard、Monitor、History）应属于"视图"职责。文件划分与实际职责不匹配——views.js 名为"视图"但内容极少，app.js 名为"入口"却承载了绝大部分 UI 渲染逻辑。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：将 app.js 中的视图渲染函数（<code>loadDashboard()</code>、<code>renderMonitorView()</code>、<code>loadHistoryView()</code> 等）迁移到 views.js，使文件名与职责一致。
+  </div>
+  <div class="issue-effort"><span>影响：代码组织</span><span>修复难度：低</span><span>预计工时：1h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">缓存策略硬编码 TTL — 无配置化</span>
+    <span class="issue-file">app.js:14-32</span>
+  </div>
+  <div class="issue-desc">
+    <code>_cachedFetch()</code> 的 TTL 值分散在各调用处：<code>30000</code>（dashboard）、<code>300000</code>（admin）、<code>30000</code>（monitor）。sessionStorage 的 TTL 是硬编码 <code>60000</code>。无法通过配置统一调整缓存策略，也无法根据网络状态动态调整。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：创建 <code>const CACHE_CONFIG = { dashboard: 30000, admin: 300000, monitor: 30000 }</code> 配置对象，统一管理 TTL。
+  </div>
+  <div class="issue-effort"><span>影响：可维护性</span><span>修复难度：低</span><span>预计工时：0.5h</span></div>
+</div>
+
+<!-- ================================================================
+     3. 性能 (Performance)
+     ================================================================ -->
+<h2>⚡ 3. 性能</h2>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p0">P0</span>
+    <span class="issue-title">ECharts 内存泄漏 — 不 dispose 旧实例 + resize 监听器累积</span>
+    <span class="issue-file">app.js:223-267 · utils.js:349-355</span>
+  </div>
+  <div class="issue-desc">
+    Dashboard 的 ECharts 实例通过 <code>_dashCharts.t = echarts.init(...)</code> 创建，但<strong>从未调用 <code>echarts.dispose()</code></strong>。
+    问题：<br>
+    ① 每次切换到 Dashboard tab 都调用 <code>loadDashboard()</code>，虽然 <code>if(!_dashCharts.t)</code> 防止了重复 init，但若 DOM 元素被替换（如 innerHTML 重写），旧实例会持有已移除 DOM 的引用，形成内存泄漏；<br>
+    ② <code>window.addEventListener('resize', ...)</code>（utils.js:349）在全局注册 resize 监听器，遍历所有 <code>.chart-container</code> 元素调用 <code>resize()</code>，但不检查元素是否仍在 DOM 中；<br>
+    ③ Monitor 面板的 <code>window._monitorChart</code> 在每次重新加载时会 <code>dispose()</code>（app.js:507），这是正确的做法，但 Dashboard 和报告内嵌图表没有同样的保护。
+  </div>
+  <div class="issue-code"><span class="hl">// app.js:225 — 只 init，从不 dispose</span>
+if(!_dashCharts.t)<span class="good">_dashCharts.t=echarts.init(document.getElementById('dashTrendChart'))</span>;
+<span class="hl">// ⚠️ 若 dashTrendChart 的父容器被 innerHTML 替换，
+// 旧 _dashCharts.t 仍持有已移除 DOM 节点的引用 → 内存泄漏</span>
+
+<span class="hl">// app.js:507 — Monitor 正确地先 dispose</span>
+<span class="good">if(window._monitorChart)window._monitorChart.dispose();</span>
+window._monitorChart=echarts.init(el);</div>
+  <div class="issue-fix">
+    ✅ 修复建议：<br>
+    1. 在 <code>loadDashboard()</code> 开头先 dispose 所有已有实例：<code>Object.values(_dashCharts).forEach(c =&gt; c?.dispose()); _dashCharts = {};</code>；<br>
+    2. <code>initChartsInBubble()</code> 中的报告图表，在重新渲染前也先 dispose：<code>container._chart?.dispose(); container._chart = null;</code>；<br>
+    3. resize 监听器改为 <code>ResizeObserver</code>（仅观察存在的容器），替代全局 window resize。
+  </div>
+  <div class="issue-effort"><span>影响：内存/长时间使用</span><span>修复难度：中</span><span>预计工时：2h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">ECharts 1MB 库在底部同步加载 — 阻塞首屏交互</span>
+    <span class="issue-file">index.html:253</span>
+  </div>
+  <div class="issue-desc">
+    <code>echarts.min.js</code>（~1MB）在 <code>&lt;body&gt;</code> 底部同步加载。虽然 <code>onEChartsReady()</code> 队列机制确保了图表延迟渲染，但 1MB 的同步脚本下载仍会阻塞 DOMContentLoaded 之后的 JS 执行约 1-3 秒（取决于网络）。注释说"echarts 已在 head async 预加载"，但 head 中并无 echarts 的 preload 标签。
+  </div>
+  <div class="issue-code"><span class="hl">// index.html:253 — 底部同步加载 1MB ECharts</span>
+&lt;script src="/static/echarts.min.js"&gt;&lt;/script&gt;
+<span class="hl">// ⚠️ 注释说"已在 head async 预加载"，但 head 中没有对应 preload</span></div>
+  <div class="issue-fix">
+    ✅ 修复建议：<br>
+    1. 在 <code>&lt;head&gt;</code> 加 <code>&lt;link rel="preload" href="/static/echarts.min.js" as="script"&gt;</code> 提前下载；<br>
+    2. body 底部改为 <code>&lt;script src="/static/echarts.min.js" defer&gt;</code> 或 <code>async</code>，避免阻塞后续脚本；<br>
+    3. 修正注释与实际代码不一致的问题。
+  </div>
+  <div class="issue-effort"><span>影响：首屏加载</span><span>修复难度：低</span><span>预计工时：0.5h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">Dashboard KPI 动画用 requestAnimationFrame + 闭包 — 可优化</span>
+    <span class="issue-file">app.js:213-222</span>
+  </div>
+  <div class="issue-desc">
+    KPI 数字递增动画在 <code>setTimeout(100ms)</code> 后启动，使用闭包中的 <code>requestAnimationFrame</code> 逐帧计算。每个 KPI 值独立创建一个闭包动画，6 个 KPI = 6 个并行 RAF 循环。可以合并为单个 RAF 循环驱动所有 KPI，减少调度开销。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：使用 utils.js 中已有的 <code>animateKPI()</code> 函数（统一 RAF 循环），替代 app.js 中 6 个独立闭包动画。
+  </div>
+  <div class="issue-effort"><span>影响：渲染效率</span><span>修复难度：低</span><span>预计工时：0.5h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">无资源压缩/合并 — 5 个独立 JS + 2 个 CSS 文件请求</span>
+    <span class="issue-file">index.html:248-253</span>
+  </div>
+  <div class="issue-desc">
+    前端资源为 5 个独立 JS 文件（purify + marked + utils + views + app）+ 1 个 CSS + echarts.min.js，共 7 个 HTTP 请求。原生项目无构建工具，无法合并/压缩/Tree-shake。对于 B 端产品内网部署影响较小，但公网部署时应考虑资源合并。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：内网部署暂不处理。若未来公网部署，可引入轻量构建（esbuild 一行命令合并 JS）。
+  </div>
+  <div class="issue-effort"><span>影响：公网加载</span><span>修复难度：低</span><span>预计工时：视需求</span></div>
+</div>
+
+<!-- ================================================================
+     4. 代码质量 (Code Quality)
+     ================================================================ -->
+<h2>🔧 4. 代码质量</h2>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">函数命名不语义化 — ts()、es()、sn()、ka()、kp()、kd()</span>
+    <span class="issue-file">app.js:320+396+309+214-221</span>
+  </div>
+  <div class="issue-desc">
+    <code>ts()</code>（toggleScope？）、<code>es()</code>（editScope？）、<code>sn()</code>（storeName？）、<code>ka()/kp()/kd()</code>（KPI 动画系列）等函数名过于缩写，无法从名称推断职责。这显著降低了代码可读性，尤其对新协作者。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：<code>ts()</code> → <code>toggleScopeSection()</code>，<code>es()</code> → <code>updateEditScope()</code>，<code>sn()</code> → <code>formatStoreNames()</code>，<code>ka/kp/kd</code> → <code>animateKPIValue/animateKPIPercent/animateKPIDisplay</code>。
+  </div>
+  <div class="issue-effort"><span>影响：可读性</span><span>修复难度：低</span><span>预计工时：1h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">重复的转义函数 — esc()、escapeHtml()、htmlEscape() 三套并存</span>
+    <span class="issue-file">utils.js:19+21+71</span>
+  </div>
+  <div class="issue-desc">
+    三个 HTML 转义函数功能几乎相同：<br>
+    <code>escapeHtml(t)</code> — DOM API 转义（textContent → innerHTML）；<br>
+    <code>htmlEscape(text)</code> — 正则替换 5 个字符；<br>
+    <code>esc(s)</code> — 正则替换 5 个字符（与 htmlEscape 重复）。<br>
+    三套并存增加维护混乱，且 <code>esc()</code> 和 <code>htmlEscape()</code> 的映射表略有差异（htmlEscape 多覆盖了 <code>&amp;</code> 的场景可能不同）。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：统一为 <code>esc()</code> 一个函数（保留最完整的映射），删除 <code>escapeHtml()</code> 和 <code>htmlEscape()</code>，所有调用统一改为 <code>esc()</code>。
+  </div>
+  <div class="issue-effort"><span>影响：维护性</span><span>修复难度：低</span><span>预计工时：0.5h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">SSE 解析错误计数器 _sseParseErrs 未声明</span>
+    <span class="issue-file">app.js:773</span>
+  </div>
+  <div class="issue-desc">
+    <code>_sseParseErrs++</code> 在 app.js:773 使用，但 <code>_sseParseErrs</code> 未在全局变量区声明（app.js:2-10）。依赖 JS 的隐式全局变量声明，严格模式下会报错。
+  </div>
+  <div class="issue-fix">
+    ✅ 在全局变量声明区增加 <code>var _sseParseErrs = 0;</code>。
+  </div>
+  <div class="issue-effort"><span>影响：严格模式兼容</span><span>修复难度：极低</span><span>预计工时：5min</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">CSS 版本号分散不一致</span>
+    <span class="issue-file">index.html:14-15+250-252</span>
+  </div>
+  <div class="issue-desc">
+    资源版本号：<code>style.css?v=4.33</code>、<code>utils.js?v=4.33</code>、<code>views.js?v=4.40</code>、<code>app.js?v=4.29</code>。四个不同的版本号，无法统一管理缓存失效。发布新版本时需逐个修改，容易遗漏。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：统一为 <code>?v=4.50</code>（当前项目版本号），或引入 <code>?v={{BUILD_HASH}}</code> 构建时自动注入。
+  </div>
+  <div class="issue-effort"><span>影响：缓存管理</span><span>修复难度：极低</span><span>预计工时：5min</span></div>
+</div>
+
+<!-- ================================================================
+     5. 可访问性 (Accessibility)
+     ================================================================ -->
+<h2>♿ 5. 可访问性 (WCAG AA)</h2>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">系统性 ARIA 缺失 — 无法屏幕阅读器导航</span>
+    <span class="issue-file">index.html 全文 · app.js 全文</span>
+  </div>
+  <div class="issue-desc">
+    整个前端<strong>无任何 <code>aria-label</code>、<code>aria-role</code>、<code>aria-live</code></strong> 属性。<br>
+    具体缺失：<br>
+    ① 侧边栏导航无 <code>role="navigation"</code> + <code>aria-label="主导航"</code>；<br>
+    ② Tab 切换按钮无 <code>role="tab"</code> + <code>aria-selected</code>；<br>
+    ③ 聊天区域无 <code>role="log"</code> + <code>aria-live="polite"</code>（新消息到达时屏幕阅读器不会通知）；<br>
+    ④ 模态框无 <code>role="dialog"</code> + <code>aria-modal="true"</code> + 焦点陷阱；<br>
+    ⑤ 进度步骤无 <code>aria-valuetext</code> 状态描述；<br>
+    ⑥ 图表容器无 <code>aria-label</code> 替代文本（盲人用户完全无法感知图表内容）。
+  </div>
+  <div class="issue-fix">
+    ✅ 修复建议（渐进式）：<br>
+    1. 优先：侧栏 + Tab + 聊天 + 模态框 加 ARIA role/label（2h）；<br>
+    2. 次优先：图表容器加 <code>aria-label="销售趋势图：近30天日均XX万"</code> 概要文本（1h）；<br>
+    3. 长期：SSE 进度步骤加 <code>aria-live="polite"</code>（0.5h）。
+  </div>
+  <div class="issue-effort"><span>影响：WCAG AA合规</span><span>修复难度：中</span><span>预计工时：3.5h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">模态框无焦点陷阱 — Tab 键可跳出模态框</span>
+    <span class="issue-file">index.html:168-192+194-204+232-245</span>
+  </div>
+  <div class="issue-desc">
+    登录弹窗、反馈弹窗、用户编辑弹窗均无焦点陷阱（focus trap）。按 Tab 键可以跳出弹窗到背后的页面元素，违反 WCAG 2.4.3（焦点顺序）和 2.1.2（无键盘陷阱）。
+  </div>
+  <div class="issue-fix">
+    ✅ 修复建议：打开模态框时，<code>document.addEventListener('keydown', trapFocus)</code>，限制 Tab 只在模态框内循环；关闭时移除监听器，焦点回到触发按钮。
+  </div>
+  <div class="issue-effort"><span>影响：键盘用户</span><span>修复难度：中</span><span>预计工时：1.5h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">颜色对比度不足 — 部分文字难以辨认</span>
+    <span class="issue-file">style.css 多处</span>
+  </div>
+  <div class="issue-desc">
+    暗色主题下的对比度问题：<br>
+    ① <code>var(--text-muted): #b0c0d5</code> 在 <code>var(--bg-base): #0f172a</code> 上 → 对比度约 6.8:1（✅ 合规）；<br>
+    ② 但内联硬编码 <code>#94a3b8</code>（index.html:26+style.css 多处）在深色背景上 → 对比度约 5.5:1（✅ AA合规但偏弱）；<br>
+    ③ <code>font-size:10px</code>（多处 KPI sub、trace meta）配 <code>color:var(--muted)</code> → 10px 属"正常文字"需 4.5:1，当前勉强合规但低字号+低对比度=实际阅读困难。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：将字号低于 12px 的辅助文字颜色提升至 <code>var(--text-secondary)</code>（<code>#cbd5e1</code>，对比度更高），或统一最小字号为 12px。
+  </div>
+  <div class="issue-effort"><span>影响：弱视用户</span><span>修复难度：低</span><span>预计工时：1h</span></div>
+</div>
+
+<!-- ================================================================
+     6. CSS 设计系统
+     ================================================================ -->
+<h2>🎨 6. CSS 设计系统</h2>
+
+<div class="good-point">
+  <strong>✅ Design Token 体系做得好</strong>：style.css 建立了完整的 <code>:root</code> Token 层级（bg-* → surface-* → border-* → text-* → accent-* → semantic-*），并有旧名称别名兼容机制，这是很多项目缺失的好实践。
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">JS 内联样式绕过 Design Token — 硬编码颜色值</span>
+    <span class="issue-file">app.js:61+200+247-253+317+346+392+467+504 · index.html:26+52+82+109+112+168-189+232-244</span>
+  </div>
+  <div class="issue-desc">
+    JS 生成 HTML 中大量硬编码颜色值：<code>#94a3b8</code>、<code>#334155</code>、<code>#f1f5f9</code>、<code>#6366f1</code> 等，完全绕过了 CSS Token 体系。这意味着若要换肤/改配色，需要同时修改 CSS 变量和 JS 硬编码值两套系统，Design Token 的核心价值被削弱。
+  </div>
+  <div class="issue-code"><span class="hl">// app.js:61 — 粒子动画硬编码颜色</span>
+p.style.cssText='...background:rgba(99,102,241,'+(.2+Math.random()*.3)+');...';
+
+<span class="hl">// app.js:247-253 — 区域按钮硬编码样式</span>
+b.style.cssText='padding:3px 10px;border-radius:10px;border:1px solid <span class="hl">var(--border)</span>;background:<span class="hl">var(--bg)</span>;color:<span class="hl">var(--text)</span>;font-size:11px;cursor:pointer';
+<span class="good">// ✅ 这里用了 CSS 变量，但很多其他地方没用</span></div>
+  <div class="issue-fix">
+    ✅ 修复建议：<br>
+    1. JS 中所有内联样式统一使用 <code>var(--xxx)</code> CSS 变量（<code>element.style.color = 'var(--text-muted)'</code> 在现代浏览器中支持）；<br>
+    2. 对于动态值（如粒子随机透明度），可设 <code>var(--particle-alpha)</code> 并通过 JS 修改 CSS 变量；<br>
+    3. HTML 中的内联样式（index.html:168+232）也应迁移到 CSS class。
+  </div>
+  <div class="issue-effort"><span>影响：主题一致性</span><span>修复难度：中</span><span>预计工时：3h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">CSS 重复声明 — .history-item 规则重复</span>
+    <span class="issue-file">style.css:76-77</span>
+  </div>
+  <div class="issue-desc">
+    <code>.history-item</code> 在 style.css:76 和 :77 连续声明两次，第一次设置了 padding/background/font-size 等，第二次仅添加了 <code>position:relative</code>。应合并为一个声明块。
+  </div>
+  <div class="issue-fix">
+    ✅ 合并两行 <code>.history-item</code> 规则为一个声明块。
+  </div>
+  <div class="issue-effort"><span>影响：CSS整洁</span><span>修复难度：极低</span><span>预计工时：2min</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">intro-overlay 硬编码 #0a0e1a — 不使用 Design Token</span>
+    <span class="issue-file">style.css:558+609+628+588+594+599</span>
+  </div>
+  <div class="issue-desc">
+    欢迎页样式大量使用硬编码颜色：<code>#0a0e1a</code>（背景）、<code>#60a5fa</code>（badge文字）、<code>#93c5fd</code>/<code>#3b82f6</code>（标题渐变）、<code>#94a3b8</code>（subtitle）、<code>#475569</code>（版本文字）、<code>#64748b</code>（stat label）。虽然这些是 intro 特有的视觉设计，但 <code>#0a0e1a</code> 与 <code>var(--bg-base)</code> 的 <code>#0f172a</code> 不一致，导致欢迎页→主界面过渡时背景色不连续。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：将 <code>#0a0e1a</code> 改为 <code>var(--bg-base)</code> 或新增 <code>--bg-intro</code> Token，确保过渡连续性。
+  </div>
+  <div class="issue-effort"><span>影响：视觉一致性</span><span>修复难度：低</span><span>预计工时：0.5h</span></div>
+</div>
+
+<!-- ================================================================
+     7. UX / 交互
+     ================================================================ -->
+<h2>💡 7. UX / 交互</h2>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p1">P1</span>
+    <span class="issue-title">登录后返回用户仍显示欢迎页 Loading — 路径断裂</span>
+    <span class="issue-file">index.html:26 · app.js:95-131</span>
+  </div>
+  <div class="issue-desc">
+    index.html:26 的内联脚本在 token 有效时将 introOverlay 内容替换为 loading spinner，但如果 <code>restoreSession()</code> 的 API 请求失败（如 token 过期），introOverlay 已被改写为 spinner，无法回退到原始欢迎页内容。用户会看到永久性的"正在加载..."页面。
+  </div>
+  <div class="issue-fix">
+    ✅ 修复建议：<br>
+    1. 不直接修改 introOverlay.innerHTML，而是动态创建一个 loading overlay 叠加在 intro 上；<br>
+    2. 若 restoreSession 失败，移除 loading overlay，恢复原始 intro 内容并显示登录框。
+  </div>
+  <div class="issue-effort"><span>影响：登录体验</span><span>修复难度：中</span><span>预计工时：1h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">Toast 自动消失无手动关闭 — 错误信息 5 秒后消失</span>
+    <span class="issue-file">utils.js:82-87</span>
+  </div>
+  <div class="issue-desc">
+    Toast 通过 CSS <code>animation:fadeOut</code> 在 2.5-5 秒后消失。对于错误 Toast（5秒），用户可能在阅读中途就被淡出，无法手动保持或关闭。对于重要错误消息（如"网络错误"），应提供关闭按钮或延长显示时间。
+  </div>
+  <div class="issue-fix">
+    ✅ 建议：错误 Toast 增加 × 关闭按钮，或改为可手动 dismiss 的 Notification Bar。
+  </div>
+  <div class="issue-effort"><span>影响：信息可读性</span><span>修复难度：低</span><span>预计工时：0.5h</span></div>
+</div>
+
+<div class="issue">
+  <div class="issue-header">
+    <span class="issue-id p2">P2</span>
+    <span class="issue-title">Dashboard 6 列 KPI 在窄屏溢出 — 响应式断点不够</span>
+    <span class="issue-file">style.css:293</span>
+  </div>
+  <div class="issue-desc">
+    <code>.dash-kpi-row</code> 默认 <code>grid-template-columns: repeat(6, 1fr)</code>，仅在 <code>max-width:1024px</code> 时改为 3 列、<code>max-width:640px</code> 时改为 2 列。在 641-1023px 区间（平板竖屏），3 列 × 6 KPI = 2 行，每列可能过窄导致文字换行混乱。缺少 768px 断点（4列）。
+  </div>
+  <div class="issue-fix">
+    ✅ 在 <code>768px</code> 断点增加 <code>grid-template-columns: repeat(4, 1fr)</code>，过渡更平滑。
+  </div>
+  <div class="issue-effort"><span>影响：平板体验</span><span>修复难度：低</span><span>预计工时：15min</span></div>
+</div>
+
+<!-- ================================================================
+     做得好的部分
+     ================================================================ -->
+<h2>👍 做得好的部分</h2>
+
+<div class="good-point"><strong>Design Token 体系</strong>：完整的 6 层 Token（bg/surface/border/text/accent/semantic）+ 旧名称别名兼容，为换肤和主题扩展打下好基础。</div>
+<div class="good-point"><strong>缓存策略</strong>：内存 + sessionStorage 双层缓存，页面刷新后秒级恢复看板数据，用户体验连贯。</div>
+<div class="good-point"><strong>SSE 流式体验</strong>：分析过程有 Step 进度条实时反馈，LLM 输出流式渲染，用户无需等待完整报告。</div>
+<div class="good-point"><strong>事件委托框架</strong>：app.js:159-182 的 <code>data-action</code> 事件委托已覆盖追问按钮、能力卡片、管理面板操作，方向正确。</div>
+<div class="good-point"><strong>打印样式</strong>：完善的 <code>@media print</code> 规则，隐藏非内容元素，适配白底输出。</div>
+<div class="good-point"><strong>prefers-reduced-motion</strong>：尊重前庭功能障碍用户的减少动画偏好，关闭所有动画和粒子效果。</div>
+<div class="good-point"><strong>ECharts 暗色主题</strong>：<code>echartsTheme()</code> 统一配置暗色配色、tooltip、axisLabel，保持视觉一致性。</div>
+<div class="good-point"><strong>onEChartsReady 队列</strong>：优雅处理 ECharts 异步加载，15 秒超时自动清空队列，避免永久等待。</div>
+
+<!-- ================================================================
+     优先级排序
+     ================================================================ -->
+<h2>📋 修复优先级排序（如果只有 1 天时间）</h2>
+
+<table class="priority-table">
+  <thead>
+    <tr><th>#</th><th>问题</th><th>等级</th><th>预计工时</th><th>影响范围</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>sanitizeHtml 兜底改为 esc()（零过滤→纯文本转义）</td><td>P0</td><td>15min</td><td>全用户安全</td></tr>
+    <tr><td>2</td><td>ECharts dispose + ResizeObserver（内存泄漏）</td><td>P0</td><td>2h</td><td>长时间使用</td></tr>
+    <tr><td>3</td><td>onclick→data-action 统一事件委托</td><td>P0</td><td>3h</td><td>CSP 合规</td></tr>
+    <tr><td>4</td><td>expandChartTags 在 DOMPurify 之后执行</td><td>P0</td><td>1h</td><td>XSS 防御</td></tr>
+    <tr><td>5</td><td>侧栏/Tab/聊天/模态框 ARIA</td><td>P1</td><td>2h</td><td>WCAG AA</td></tr>
+    <tr><td>6</td><td>模态框焦点陷阱</td><td>P1</td><td>1.5h</td><td>键盘用户</td></tr>
+    <tr><td>7</td><td>函数拆分 ask/loadDashboard/renderMonitorView</td><td>P1</td><td>4h</td><td>可维护性</td></tr>
+    <tr><td>8</td><td>全局变量→命名空间 EIA.state</td><td>P1</td><td>3h</td><td>可维护性</td></tr>
+    <tr><td>9</td><td>JS 内联样式→CSS 变量</td><td>P1</td><td>3h</td><td>主题一致性</td></tr>
+    <tr><td>10</td><td>函数重命名 ts/es/sn/ka→语义名</td><td>P1</td><td>1h</td><td>可读性</td></tr>
+    <tr><td>11</td><td>统一 esc/escapeHtml/htmlEscape→esc()</td><td>P1</td><td>0.5h</td><td>维护性</td></tr>
+    <tr><td>12</td><td>ECharts preload/async 加载</td><td>P1</td><td>0.5h</td><td>首屏加载</td></tr>
+    <tr><td>13</td><td>登录返回用户 Loading 路径修复</td><td>P1</td><td>1h</td><td>登录体验</td></tr>
+    <tr><td>14</td><td>admin 表格→DOM API 创建</td><td>P1</td><td>2h</td><td>安全</td></tr>
+    <tr><td>15</td><td>声明 _sseParseErrs</td><td>P2</td><td>5min</td><td>严格模式</td></tr>
+    <tr><td>16</td><td>统一版本号 ?v=4.50</td><td>P2</td><td>5min</td><td>缓存管理</td></tr>
+    <tr><td>17</td><td>views.js 职责迁移</td><td>P2</td><td>1h</td><td>代码组织</td></tr>
+    <tr><td>18</td><td>缓存 TTL 配置化</td><td>P2</td><td>0.5h</td><td>可维护性</td></tr>
+    <tr><td>19</td><td>CSS .history-item 重复合并</td><td>P2</td><td>2min</td><td>CSS 整洁</td></tr>
+    <tr><td>20</td><td>intro 背景色→Token</td><td>P2</td><td>0.5h</td><td>视觉一致</td></tr>
+    <tr><td>21</td><td>Toast 关闭按钮</td><td>P2</td><td>0.5h</td><td>UX</td></tr>
+    <tr><td>22</td><td>768px KPI 断点</td><td>P2</td><td>15min</td><td>平板体验</td></tr>
+    <tr><td>23</td><td>KPI 动画合并 RAF</td><td>P2</td><td>0.5h</td><td>渲染效率</td></tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  EIA V4 前端代码审查报告 · UI Designer · 2026-07-30 · 23 个问题 · 8 个亮点 · 总预计工时 ≈ 26h
+</div>
+
+</body>
+</html>
