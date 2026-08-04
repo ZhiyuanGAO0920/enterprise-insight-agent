@@ -1,0 +1,143 @@
+/* ══════════════════════════════════════════════════════════
+   全局基础样式（暗色主题；对齐原生版）
+   ══════════════════════════════════════════════════════════ */
+
+html,
+body {
+  background: #1a1a2e;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ══════════════════════════════════════════════════════════
+   报告正文 markdown（.md-body）
+   唯一承载 AI 报告渲染的容器，样式与原生版 md-body 对齐
+   ══════════════════════════════════════════════════════════ */
+
+.md-body {
+  color: #e0e0e0;
+  font-size: 14px;
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+.md-body h1 {
+  font-size: 19px;
+  margin: 16px 0 10px;
+  color: #ffffff;
+}
+
+.md-body h2 {
+  font-size: 16px;
+  margin: 14px 0 8px;
+  color: #ffffff;
+  border-left: 3px solid #6366f1;
+  padding-left: 8px;
+}
+
+.md-body h3 {
+  font-size: 14px;
+  margin: 12px 0 6px;
+  color: #f1f5f9;
+}
+
+.md-body p {
+  margin: 6px 0;
+}
+
+.md-body strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.md-body a {
+  color: #a5b4fc;
+}
+
+.md-body ul,
+.md-body ol {
+  padding-left: 22px;
+  margin: 6px 0;
+}
+
+.md-body li {
+  margin: 3px 0;
+}
+
+/* 表格：移动端横向滚动，长表格不撑破卡片 */
+.md-body table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 100%;
+  margin: 10px 0;
+  font-size: 13px;
+  display: block;
+  overflow-x: auto;
+}
+
+.md-body th,
+.md-body td {
+  border: 1px solid #2d2d52;
+  padding: 6px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.md-body th {
+  background: #26264a;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.md-body tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.md-body code {
+  background: #15152a;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  color: #8fb3ff;
+}
+
+.md-body pre {
+  background: #15152a;
+  border: 1px solid #2d2d52;
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.md-body pre code {
+  background: transparent;
+  padding: 0;
+  color: #e2e8f0;
+  white-space: pre;
+}
+
+.md-body blockquote {
+  margin: 8px 0;
+  padding: 4px 12px;
+  border-left: 3px solid #6366f1;
+  border-radius: 0 6px 6px 0;
+  color: #94a3b8;
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.md-body img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.md-body hr {
+  border: none;
+  border-top: 1px solid #2d2d52;
+  margin: 14px 0;
+}

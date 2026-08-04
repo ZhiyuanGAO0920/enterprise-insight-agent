@@ -3,7 +3,9 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ConfigProvider, theme, App as AntApp } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
+import './styles/global.css';
 import App from './App';
+import ErrorBoundary from './components/ErrorBoundary';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -20,9 +22,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       }}
     >
       <AntApp>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </ErrorBoundary>
       </AntApp>
     </ConfigProvider>
   </React.StrictMode>

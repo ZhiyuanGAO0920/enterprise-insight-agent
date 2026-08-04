@@ -1,21 +1,24 @@
 import { useState } from 'react';
-import { Card, Form, Input, Button, Typography, message } from 'antd';
+import { App as AntApp, Card, Form, Input, Button, Typography } from 'antd';
 import { UserOutlined, LockOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useAuth } from '../hooks/useAuth';
+import { errMsg } from '../lib/format';
 
 const { Title, Text } = Typography;
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  /* antd v5 推荐用 App.useApp() 获取 message（静态 message 有 context 告警） */
+  const { message } = AntApp.useApp();
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
     try {
       await login(values.username, values.password);
       message.success('登录成功');
-    } catch (err: any) {
-      message.error(err.response?.data?.detail || '登录失败');
+    } catch (err) {
+      message.error(errMsg(err, '登录失败'));
     } finally {
       setLoading(false);
     }
@@ -42,17 +45,6 @@ export default function LoginPage() {
             </Button>
           </Form.Item>
         </Form>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {['admin', 'zhangsan', 'lisi'].map((u) => (
-            <Button key={u} size="small" type="link" onClick={() => {
-              const form = document.querySelector('form');
-              if (form) {
-                (form.querySelector('#username') as HTMLInputElement).value = u;
-                (form.querySelector('#password') as HTMLInputElement).value = 'admin123';
-              }
-            }}>{u}</Button>
-          ))}
-        </div>
       </Card>
     </div>
   );

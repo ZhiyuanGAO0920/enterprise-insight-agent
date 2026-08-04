@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.api.dependencies import get_current_user, rate_limit, rate_limit_ip
 from app.auth.hashing import verify_password
@@ -30,6 +30,8 @@ class LoginResponse(BaseModel):
     token_type: str = Field(default="bearer", description="令牌类型")
     user_id: int = Field(description="用户 ID")
     username: str = Field(description="用户名")
+    role: str = Field(default="", description="角色: admin/regional_director/regional_manager/store_manager")
+    display_name: str | None = Field(default=None, description="显示名")
 
 
 class WechatLoginRequest(BaseModel):
@@ -47,6 +49,8 @@ class WechatLoginResponse(BaseModel):
     token_type: str = Field(default="bearer", description="令牌类型")
     user_id: int = Field(description="用户 ID")
     username: str = Field(description="用户名")
+    role: str = Field(default="", description="角色: admin/regional_director/regional_manager/store_manager")
+    display_name: str | None = Field(default=None, description="显示名")
     message: str = Field(default="ok", description="提示信息")
     need_bind: bool = Field(default=False, description="是否需要在绑定页完成账号绑定（未绑定微信账号时为 true）")
 
@@ -89,13 +93,30 @@ async def _wechat_code2session(code: str) -> str:
     return "demo_wechat_dev_user"
 
 
-def _build_login_response(user: User) -> WechatLoginResponse:
-    """根据 User 构建统一的登录响应。"""
+async def _get_user_role(session, user_id: int) -> str:
+    """查询用户首个角色名（user_roles 多对多）。"""
+    result = await session.execute(
+        text(
+            "SELECT r.name FROM user_roles ur "
+            "JOIN roles r ON ur.role_id = r.id "
+            "WHERE ur.user_id = :uid ORDER BY ur.role_id LIMIT 1"
+        ),
+        {"uid": user_id},
+    )
+    row = result.fetchone()
+    return row[0] if row else ""
+
+
+async def _build_login_response(session, user: User) -> WechatLoginResponse:
+    """根据 User 构建统一的登录响应（含角色，供前端免查询）。"""
     token = create_access_token({"user_id": user.id, "username": user.username})
+    role = await _get_user_role(session, user.id)
     return WechatLoginResponse(
         access_token=token,
         user_id=user.id,
         username=user.username,
+        role=role,
+        display_name=user.display_name,
     )
 
 
@@ -131,11 +152,14 @@ async def login(
             )
 
         token = create_access_token({"user_id": user.id, "username": user.username})
+        role = await _get_user_role(session, user.id)
 
         return LoginResponse(
             access_token=token,
             user_id=user.id,
             username=user.username,
+            role=role,
+            display_name=user.display_name,
         )
 
 
@@ -182,7 +206,7 @@ async def wechat_login(
                 detail="账户已被禁用",
             )
 
-        resp = _build_login_response(user)
+        resp = await _build_login_response(session, user)
         resp.message = "登录成功"
         return resp
 
@@ -229,7 +253,7 @@ async def wechat_bind(
         session.add(binding)
         await session.commit()
 
-        resp = _build_login_response(user)
+        resp = await _build_login_response(session, user)
         resp.message = "绑定成功"
         return resp
 

@@ -29,9 +29,9 @@ CHART_ADVISOR_SYSTEM_PROMPT = """你是一位数据可视化顾问。
 你的任务是根据分析数据，推荐合适的图表类型并输出图表配置。
 
 ## 图表类型选择规则
-- bar（柱状图）：排名、对比类数据（如"各门店销售额排名"）
+- bar（柱状图）：排名、对比类数据（如"各门店销售额排名"）。排名类数据必须用 bar，禁止用 pie
 - line（折线图）：时间趋势类数据（如"近30天销售趋势"）
-- pie（饼图）：占比、分布类数据（如"各区域销售额占比"）
+- pie（饼图）：占比、分布类数据（如"各区域销售额占比"）。pie 只用于占比/分布语义
 - scatter（散点图）：两个数值维度的相关性（如"客单价 vs 退款率"）
 - radar（雷达图）：多维度对比（如"华东 vs 华北 4维度对比"）
 
@@ -58,7 +58,9 @@ CHART_ADVISOR_SYSTEM_PROMPT = """你是一位数据可视化顾问。
 如果不需要图表，输出：{"charts": []}
 
 注意：
-- x_data 最多取 TOP 20 条（避免柱状图过密）
+- x_data 最多取 TOP 10 条（数据过多会失去可读性）
+- 数据表同时含多个数值列时（如"订单数""销售额"），优先选择业务金额列（销售额/收入/金额/营业额/利润），不要选订单数/数量列
+- series 的 data 长度必须与 x_data 一致
 - 数值取整数或保留1位小数
 - 不要输出 null 值"""
 
@@ -72,6 +74,47 @@ CHART_ADVISOR_HUMAN_TEMPLATE = """分析数据：
 # ---------------------------------------------------------------------------
 
 llm = create_llm(temperature=0.0)
+
+
+# ---------------------------------------------------------------------------
+# LLM 输出后处理：硬性约束（prompt 是软约束，LLM 偶尔不遵守）
+# ---------------------------------------------------------------------------
+
+MAX_CHART_ITEMS = 10
+
+
+def _sanitize_charts(charts: list) -> list:
+    """对 LLM 生成的图表配置做强制约束与校验。
+
+    - 排名/对比类（标题含"排名/排行/TOP/前N"）强制 bar，禁止 pie（饼图不适合排名）
+      —— 仅凭标题关键词判定，不用数据递减：占比数据天然递减，会误伤合法 pie
+    - 数据项最多 10 条（过多失去可读性）
+    - 校验 x_data/series 完整性，残缺项直接丢弃
+    """
+    out = []
+    for c in charts:
+        if not isinstance(c, dict):
+            continue
+        x_data = c.get("x_data") or []
+        series = c.get("series") or []
+        if not isinstance(series, list) or not series:
+            continue
+        s0 = series[0]
+        data = s0.get("data") if isinstance(s0, dict) else None
+        if not isinstance(data, list) or len(data) != len(x_data) or not data:
+            continue  # 数据残缺，丢弃该图
+        title = str(c.get("title") or "")
+        is_ranking = ("排名" in title or "排行" in title or "TOP" in title.upper()
+                      or ("前" in title and len(data) >= 3))
+        ctype = c.get("type", "bar")
+        if is_ranking and ctype == "pie":
+            ctype = "bar"
+        if len(x_data) > MAX_CHART_ITEMS:
+            x_data = x_data[:MAX_CHART_ITEMS]
+            data = data[:MAX_CHART_ITEMS]
+            series = [{"name": s0.get("name", ""), "data": data}]
+        out.append({**c, "type": ctype, "x_data": x_data, "series": series})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -124,16 +167,28 @@ def parse_tables_from_summary(summary: str) -> dict | None:
         if name_col_idx < 0:
             name_col_idx = 0
 
-        # 找数值列：名称列右侧第一个数值列（主要指标，如销售额、准时率）
+        # 找数值列：名称列右侧的数值列中，优先选择业务金额列（销售额/收入/金额…），
+        # 避免选中"订单数/数量"列（历史案例曾把订单数当销售额画图）
+        _NUM_COL_KEYWORDS = [
+            ("销售额", 0), ("营业额", 0), ("收入", 0), ("金额", 0), ("利润", 1), ("毛利", 1),
+            ("订单", 2), ("销量", 2), ("数量", 2), ("率", 3),
+        ]
         num_col_idx = -1
+        _best_pri = 99
         for ci in range(name_col_idx + 1, len(headers)):
             try:
                 cleaned = rows[0][ci].replace(",", "").replace("¥", "").replace("$", "").replace("元", "").replace("%", "")
                 float(cleaned)
-                num_col_idx = ci
-                break
             except (ValueError, IndexError):
                 continue
+            h = headers[ci]
+            pri = 9
+            for kw, p in _NUM_COL_KEYWORDS:
+                if kw in h:
+                    pri = min(pri, p)
+                    break
+            if pri < _best_pri:
+                _best_pri, num_col_idx = pri, ci
         if num_col_idx < 0:
             # 兜底：名称列右侧无数值列，尝试左侧
             for ci in range(name_col_idx - 1, -1, -1):
@@ -149,7 +204,7 @@ def parse_tables_from_summary(summary: str) -> dict | None:
 
         x_data = []
         series_data = []
-        for row in rows[:20]:
+        for row in rows[:10]:
             try:
                 val = float(row[num_col_idx].replace(",", "").replace("¥", "").replace("$", "").replace("元", "").replace("%", ""))
                 x_data.append(row[name_col_idx] if len(row) > name_col_idx else f"项{len(x_data)+1}")
@@ -160,10 +215,18 @@ def parse_tables_from_summary(summary: str) -> dict | None:
         if len(x_data) < 3:
             continue
 
-        is_ranking = len(series_data) >= 3 and series_data[0] > series_data[-1]
+        # 图型判定：表头信号优先（占比表数据天然递减，不能用递减判断）
+        _all_headers = "".join(headers)
+        is_share = "占比" in _all_headers or "比例" in _all_headers or "份额" in _all_headers
+        is_ranking = "排名" in headers[0] or "排行" in headers[0] or (
+            not is_share and len(series_data) >= 3 and series_data[0] > series_data[-1]
+        )
+        ctype = "bar" if is_ranking else "pie"
+        title = (f"{headers[name_col_idx]}{headers[num_col_idx]}排名" if ctype == "bar"
+                 else f"{headers[name_col_idx]}{headers[num_col_idx]}占比")
         return {
-            "type": "bar" if is_ranking else "pie",
-            "title": f"{headers[name_col_idx]}{headers[num_col_idx]}排名",
+            "type": ctype,
+            "title": title,
             "x_data": x_data,
             "series": [{"name": headers[num_col_idx], "data": series_data}],
             "height": max(300, min(600, len(x_data) * 25)),
@@ -245,7 +308,8 @@ async def chart_advisor_node(state: AnalysisState) -> dict:
             else:
                 logger.warning("规则兜底未生成图表, summary_len=%d", len(summary))
 
-        return {"chart_suggestions": charts}
+        # V4.6.1: LLM 输出硬校验（排名强制 bar / TOP 10 / 数据完整性）
+        return {"chart_suggestions": _sanitize_charts(charts)}
 
     except Exception as e:
         elapsed = time.monotonic() - t_start
@@ -255,7 +319,7 @@ async def chart_advisor_node(state: AnalysisState) -> dict:
             fallback = parse_tables_from_summary(summary)
             if fallback:
                 logger.info("LLM 异常后规则兜底生成图表")
-                return {"chart_suggestions": [fallback]}
+                return {"chart_suggestions": _sanitize_charts([fallback])}
         except Exception:
             logger.warning("规则兜底也失败，返回空图表列表")
         return {"chart_suggestions": []}

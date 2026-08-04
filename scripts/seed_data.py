@@ -38,6 +38,7 @@ PERMISSIONS = [
     ("analysis:create", "提交经营分析问题"),
     ("history:view", "查看历史分析记录"),
     ("user:manage", "管理用户和权限"),
+    ("admin:manage", "系统管理（审计日志、Schema 配置等）"),
     ("dashboard:view", "查看经营仪表盘"),
     ("alerts:view", "查看预警和告警"),
     ("feedback:submit", "提交反馈"),
@@ -47,7 +48,7 @@ PERMISSIONS = [
 ROLES = {
     "admin": {
         "description": "系统管理员 —— 拥有全部权限",
-        "permissions": ["analysis:create", "history:view", "user:manage",
+        "permissions": ["analysis:create", "history:view", "user:manage", "admin:manage",
                         "dashboard:view", "alerts:view", "feedback:submit",
                         "prompts:view"],
     },

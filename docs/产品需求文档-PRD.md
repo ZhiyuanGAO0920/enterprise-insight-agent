@@ -10,7 +10,7 @@
 | **文档状态** | ✅ 已定版（基于 v4.5.0 代码基线） |
 | **产品版本** | Enterprise Insight Agent V4（4.0.0） |
 | **产品负责人** | 高志远 |
-| **技术栈** | Python 3.12 / LangGraph / DeepSeek / FastAPI / PostgreSQL 16+pgvector / Redis / n8n / React 18 + TypeScript + Ant Design 5 |
+| **技术栈** | Python 3.12 / LangGraph / DeepSeek / FastAPI / PostgreSQL 16+pgvector / Redis / n8n / 原生 HTML/CSS/JS + ECharts 5（React 版重构中） |
 | **创建日期** | 2026-07-08 |
 | **最后更新** | 2026-07-11 |
 
@@ -44,7 +44,7 @@
 
 ### 1.1 产品定位
 
-面向连锁零售企业的 AI 经营决策平台。**5 个领域 Agent 覆盖销售、会员、财务、库存、供应链五大业务域**，通过 10 节点 LangGraph 编排实现全链路自动化分析。**V4 已具备多租户、审计日志、PDF 导出、React 前端等企业级能力**，可直接交付生产环境使用。
+面向连锁零售企业的 AI 经营决策平台。**5 个领域 Agent 覆盖销售、会员、财务、库存、供应链五大业务域**，通过 11 节点 LangGraph 编排实现全链路自动化分析。**V4 已具备多租户、审计日志、PDF 导出、原生 HTML 前端等企业级能力**，可直接交付生产环境使用。
 
 版本演进：V1 线性流水线 → V2 Multi-Agent 并行 → V3 体验质变 → **V4 企业就绪**。
 
@@ -54,7 +54,7 @@
 |--------|-----|-----|
 | 多租户 | 无 | **租户表 + tenant_id 数据隔离 + JWT 注入** |
 | 审计日志 | 无 | **全量 API 操作审计（用户/操作/IP/耗时）** |
-| 前端 | 静态 HTML/JS | **React 18 + TypeScript + Ant Design 5** |
+| 前端 | 静态 HTML/JS | **原生 HTML/CSS/JS + ECharts 5（React 版重构中）** |
 | PDF 导出 | 无 | **Markdown → A4 PDF（WeasyPrint）** |
 | 通知服务 | 无 | **邮件 + 企微/钉钉/飞书 Webhook** |
 | 日志系统 | 标准 logging | **structlog + trace_id + JSON 格式** |
@@ -64,17 +64,17 @@
 | 代码质量 | — | **60 项修复（见 CHANGELOG）** |
 | 测试 | 137 条 | **192 条（190 通过 / 2 失败——LLM 连接环境）** |
 | 数据库表 | 23 | **25（+ tenants, + audit_log）** |
-| API | 26 | **31（+ 模拟登录 / 审计查询 / Schema 管理（数据库结构管理））** |
+| API | 26 | **49（45 路由 + 4 应用级）** |
 
 ### 1.3 关键指标
 
 | 指标 | 数值 |
 |------|:--:|
 | 领域 Agent | 5（Sales / CRM / Finance / Inventory / Supply Chain） |
-| Agent 节点总数 | 10 |
-| 测试条数 | 137（115 passed + 22 skipped） |
+| Agent 节点总数 | 11 |
+| 测试条数 | 192（190 通过 / 2 失败——LLM 连接环境） |
 | 数据库表 | 25 |
-| API 端点 | 31 |
+| API 端点 | 49（45 路由 + 4 应用级） |
 | 中间件 | 4（CORS → 审计 → 多租户 → API 版本头） |
 | 部署容器 | 5（App + PostgreSQL + Redis + Ollama + n8n） |
 | 默认角色 | 3（admin / analyst / viewer） |
@@ -92,7 +92,7 @@
 ├──────────────┬──────────────┬──────────────┬──────────────────────────────┤
 │   分析引擎    │   交互体验    │   安全底座    │      AI 质量体系              │
 ├──────────────┼──────────────┼──────────────┼──────────────────────────────┤
-│ 10 Agent 节点 │ React 前端    │ RBAC 5 级角色 │ 离线评估集（102 条）          │
+│ 11 Agent 节点 │ 原生 HTML 前端 │ RBAC 5 级角色 │ 离线评估集（102 条）          │
 │ 5 领域并行    │ ECharts 图表  │ scope_type 权限│ AI 质量仪表板                │
 │ Supervisor 路由│ 多轮对话      │ 行级 SQL 注入  │ Prompt 迭代日志              │
 │ Reflection 质检│ 数据溯源面板  │ SQL 白名单     │ Bad Case 复盘                │
@@ -237,7 +237,7 @@ Layer 1: SQL 安全（白名单审查 + 字符串剥离反绕过 + 行数上限�
 
 ## 6. API 设计
 
-### 6.1 端点清单（39 个）
+### 6.1 端点清单（49 个）
 
 | 分组 | 端点 | 说明 | V4 |
 |------|------|------|:--:|
@@ -285,7 +285,7 @@ Layer 1: SQL 安全（白名单审查 + 字符串剥离反绕过 + 行数上限�
 
 | 能力 | V3 | V4 |
 |------|:--:|:--:|
-| 技术栈 | 静态 HTML/JS | **React 18 + TypeScript + Ant Design 5 + Vite** |
+| 技术栈 | 静态 HTML/JS | **原生 HTML/CSS/JS + ECharts 5（React 版重构中）** |
 | 聊天界面 | ✅ | ✅（组件化重构） |
 | Markdown 渲染 | ✅ | ✅ |
 | ECharts 图表 | ✅ 5 类 | ✅ 5 类 |

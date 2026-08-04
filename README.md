@@ -9,13 +9,13 @@
 [![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-purple.svg)](https://deepseek.com)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-teal.svg)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL%2016%20%2B%20pgvector-blue.svg)](https://www.postgresql.org/)
-[![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20TS-61dafb.svg)](https://react.dev/)
+[![Frontend](https://img.shields.io/badge/Frontend-Native%20HTML%2FJS%20%2B%20ECharts5-lightgrey.svg)](app/api/static/)
 [![Docker](https://img.shields.io/badge/Deploy-Docker%20One--Click-2496ed.svg)](https://www.docker.com/)
 [![Tests](https://img.shields.io/badge/Tests-190%20pass%20%7C%202%20fail-brightgreen.svg)](tests/)
 [![Prompt](https://img.shields.io/badge/Prompt-V4.5%20%22Data%E2%86%92Insight%E2%86%92Action%22-orange.svg)](prompts/yaml/report.yaml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-*多租户 · 审计日志 · React 前端 · PDF 导出 · 结构化日志 · 全链路追踪 · AI 质量监控面板 · 规则兜底图表注入 🆕*
+*多租户 · 审计日志 · 原生 HTML 前端 · PDF 导出 · 结构化日志 · 全链路追踪 · AI 质量监控面板 · 规则兜底图表注入 🆕*
 
 </div>
 
@@ -23,7 +23,7 @@
 
 ## 这是什么？
 
-**面向连锁零售企业的 AI 经营决策平台**。5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据，10 个节点全链路编排，从问题到报告全自动。
+**面向连锁零售企业的 AI 经营决策平台**。5 个 AI Agent 并行分析销售、会员、财务、库存、供应链数据，11 个节点全链路编排，从问题到报告全自动。
 
 > "BI 工具让你做出好看的报表，我们让你不用做报表——用中文提问，直接得到答案和行动建议。"
 
@@ -128,7 +128,7 @@ uvicorn app.api.main:app --host 0.0.0.0 --port 8002
 
 ## 系统架构
 
-### Agent 拓扑 — 10 节点全链路
+### Agent 拓扑 — 11 节点全链路
 
 ```
        ┌──────────────┐
@@ -193,9 +193,9 @@ uvicorn app.api.main:app --host 0.0.0.0 --port 8002
 
 | 层级 | 技术 | 说明 |
 |------|------|------|
-| **前端** | React 18 + TypeScript + Ant Design 5 + Vite | SPA 管理界面 + 分析对话 UI |
+| **前端** | 原生 HTML/CSS/JS + ECharts 5（React 版 `web/` 重构中） | 管理界面 + 分析对话 UI |
 | **后端框架** | FastAPI 0.115 | 异步 API + 自动 OpenAPI 文档 |
-| **Agent 引擎** | LangGraph 0.2+ | 10 节点有状态图编排 + 并行扇出 |
+| **Agent 引擎** | LangGraph 0.2+ | 11 节点有状态图编排 + 并行扇出 |
 | **LLM** | DeepSeek-V4 | 路由决策 / SQL 生成 / 报告撰写 / 质检 |
 | **Embedding** | Ollama + BGE-M3（1024 维） | 本地部署，向量语义搜索 |
 | **数据库** | PostgreSQL 16 + pgvector | 主存储 + 向量索引 |
@@ -213,7 +213,7 @@ uvicorn app.api.main:app --host 0.0.0.0 --port 8002
 ```
 enterprise-insight-agent-v4/
 ├── app/
-│   ├── agents/            # 10 个 AI Agent 节点
+│   ├── agents/            # 11 个 Agent 节点
 │   │   ├── supervisor_agent.py
 │   │   ├── sales_agent.py / crm_agent.py / finance_agent.py
 │   │   ├── inventory_agent.py / supply_chain_agent.py
@@ -224,22 +224,22 @@ enterprise-insight-agent-v4/
 │   │   ├── schema_mapping.py      # 逻辑概念 → 物理表/列映射
 │   │   └── prompt_builder.py      # 动态生成适配后的 Agent Prompt
 │   ├── api/                # FastAPI 路由 + 中间件
-│   │   ├── routes/         # 8 组 API 端点（31 个）
+│   │   ├── routes/         # 10 组路由（49 个端点）
 │   │   ├── static/         # 前端静态文件
 │   │   └── dependencies.py # 认证/权限/限流 依赖注入
 │   ├── workflow/           # LangGraph 图谱定义
-│   │   ├── graph.py        # 10 节点拓扑编排（compile）
+│   │   ├── graph.py        # 11 节点拓扑编排（compile）
 │   │   └── state.py        # AnalysisState TypedDict
 │   ├── auth/               # JWT + RBAC + 行级安全
 │   ├── tools/              # SQL 执行/安全检查/记忆/嵌入/RAG
 │   ├── database/           # ORM 模型 + 异步引擎
 │   ├── middleware/          # 🆕 审计 + 多租户中间件
 │   └── services/           # 🆕 通知服务（邮件 + Webhook）
-├── web/                    # 🆕 React 18 + TypeScript 前端
+├── web/                    # 🆕 React 18 + TypeScript 前端（重构中）
 ├── prompts/                # Prompt 模板（Python + YAML）
 ├── scripts/                # 🆕 部署/备份/验证/离线镜像脚本
 ├── tests/                  # 192 条测试用例
-├── alembic/                # 7 个数据库迁移版本
+├── alembic/                # 13 个数据库迁移版本
 ├── docs/                   # 14 份产品/技术文档
 ├── ollama-models/          # 🆕 预打包 BGE-M3 模型目录
 ├── docker-entrypoint.sh    # 🆕 容器启动脚本

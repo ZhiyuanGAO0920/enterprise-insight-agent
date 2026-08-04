@@ -170,6 +170,7 @@ async def find_similar_analyses(
                        1 - (embedding <=> CAST(:e AS vector)) AS similarity
                 FROM analysis_history
                 WHERE embedding IS NOT NULL
+                  AND (embedding <=> CAST(:e AS vector))::text <> 'NaN'
                   AND 1 - (embedding <=> CAST(:e AS vector)) > :t
                   {tid_filter}
                 ORDER BY similarity DESC
@@ -179,10 +180,14 @@ async def find_similar_analyses(
             {"e": vec_str, "t": threshold, "l": limit, "tid": tid} if tid else {"e": vec_str, "t": threshold, "l": limit},
         )
         rows = result.fetchall()
+        # 防御：过滤 NaN 相似度（全 0 向量余弦距离为 NaN）
+        rows = [r for r in rows if not math.isnan(r.similarity)]
         return [
             {
                 "id": row.id,
-                "question": row.question,
+                # 清洗历史脏数据：旧记录曾把 [系统指令] ranking hint 存进 question，
+                # 只取第一行（原始问题），不再向展示层泄漏系统指令
+                "question": row.question.split("\n")[0].strip() if row.question else row.question,
                 "report_preview": (
                     row.report[:200] + "..." if len(row.report) > 200 else row.report
                 ),

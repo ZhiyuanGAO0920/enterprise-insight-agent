@@ -6,7 +6,7 @@
 
 ## 项目定位
 
-面向连锁零售的 Multi-Agent AI 经营分析平台。10 个 Agent 协作，用户用自然语言提问，60 秒内获得含数据概览、根因诊断、可执行建议的诊断报告。
+面向连锁零售的 Multi-Agent AI 经营分析平台。11 个 Agent 协作，用户用自然语言提问，60 秒内获得含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
 **状态**：V4.6.0，192 条测试（190 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复），GitHub 开源
@@ -56,13 +56,13 @@ Save Memory（pgvector 1024 维，BGE-M3 本地 Embedding）
 ```
 app/
 ├── agents/          # 11 个 Agent 节点（含 supervisor, 5 领域, aggregator, chart, report, reflection, memory）
-├── api/routes/      # 11 个路由组，46 个端点
+├── api/routes/      # 10 个路由组，49 个端点
 │   ├── analysis.py  # /analyze + /analyze-stream（SSE）
 │   ├── dashboard.py # /today-summary + /overview
 │   ├── alerts.py    # /check（n8n 定时触发 + 飞书/钉钉/企微通知）
 │   └── weekly.py    # /generate + /export（PDF）
 ├── auth/            # JWT + RBAC + RLS（行级安全）
-├── database/        # 17 ORM 模型，12 版 Alembic 迁移
+├── database/        # 17 ORM 模型，13 版 Alembic 迁移
 ├── middleware/       # 🆕 audit.py（审计日志） + tenant.py（多租户）
 ├── services/        # notification.py + pdf_exporter.py
 ├── tools/           # sql_runner.py（RLS 注入），prompt_loader.py（3 级 fallback）

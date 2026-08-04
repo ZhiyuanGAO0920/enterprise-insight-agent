@@ -1,5 +1,33 @@
 # CHANGELOG — V4 修复与优化记录
 
+## V4.6.1 (2026-08-04)
+
+### 🐛 修复：SSE 流式分析超时误杀（心跳保活）
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 1 | `app/api/routes/analysis.py` | SSE 流加心跳保活：节点内部非流式 LLM 调用期间（实测单步 40-75s）无任何事件推送，前端 45s 看门狗会误判连接挂死而 abort（报"分析超时（45 秒无响应）"）。新增 `_with_heartbeat` 每 20s 穿插 `{"type":"heartbeat"}` 事件，graph 结束/异常即终止（心跳从属于主数据流）；实测"整体经营状况分析"全链路 165-246s，修复前必超时，修复后最大静默 20s |
+| 2 | `web/src/hooks/useSSE.ts` | 显式忽略 heartbeat 事件（仅用于重置 45s 看门狗，内容无业务意义）；看门狗语义不变，真死连接仍被兜住 |
+
+### 🐛 修复：饼图空白圆环（React 端字段名不匹配）
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 3 | `web/src/lib/report.ts` | 后端图表契约字段为 `x_data`（下划线），React 版 `extractCharts` 未归一化导致 `config.xData` 为 undefined → pie 的 data 映射空数组 → ECharts 渲染灰色无数据占位环（#cccccc）。对齐原生版 `utils.js` 的 `xData: params.x_data` 转换；解析层修复，**历史报告自动恢复显示**，分享页共用管线同受益 |
+
+### ✨ 优化：图表质量约束（排名类图型/数据量/数值列选择）
+
+| # | 文件 | 优化 |
+|---|------|------|
+| 4 | `prompts/yaml/chart_advisor.yaml` (v1.1.0) | 硬约束：排名类必须 bar 禁止 pie（原 prompt 仅"推荐 bar"，LLM 常输出 pie）；数据 TOP 10（原 20 条挤爆）；多个数值列时优先业务金额列（销售额/收入/金额，避免选中订单数列） |
+| 5 | `app/agents/chart_advisor_agent.py` | 新增 `_sanitize_charts` LLM 输出硬校验（prompt 是软约束）：标题含"排名/排行/TOP/前N"且为 pie → 强制 bar；截断 10 项；x_data/series 残缺丢弃；**占比 pie 不误伤**（判定仅靠标题关键词，占比数据天然递减）。规则兜底 `parse_tables_from_summary`：数值列按关键词优先级选择、排名判定改表头信号（"占比"信号优先于数据递减）、TOP 10、标题按图型语义生成 |
+
+**端到端验证**（真实全链路）：修复前"各门店销售额排名"生成 pie 圆环（20 项/订单数）；修复后 bar 柱状图（TOP 10/销售额（元）），浏览器 canvas 像素验证 97% 单色柱渲染正常。
+
+### 🧹 清理
+
+- 删除误入库的 `.playwright-mcp/` 调试快照（page-*.yml/png/pdf，Playwright MCP 自动产物）
+
 ## V4.6.0 (2026-07-31)
 
 ### ✨ 报告分享功能（分享链接 + 长图导出）

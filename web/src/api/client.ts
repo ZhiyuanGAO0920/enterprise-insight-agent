@@ -20,7 +20,11 @@ client.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
+      // 清理全部登录态（含 username/role/session_id，避免残留脏数据）
       localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('role');
+      localStorage.removeItem('session_id');
       window.location.reload();
     }
     return Promise.reject(err);

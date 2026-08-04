@@ -667,7 +667,7 @@ var CAP_CARDS=[
   {icon:"📊",title:"销售分析",desc:"趋势·排名·对比",question:"各门店销售额排名"},
   {icon:"👥",title:"会员洞察",desc:"增长·留存·画像",question:"会员增长与留存情况"},
   {icon:"💰",title:"财务诊断",desc:"成本·利润·应收",question:"整体经营分析报告"},
-  {icon:"📦",title:"库存预警",desc:"滞销·周转·缺货",question:"各区域经营对比"},
+  {icon:"📦",title:"库存预警",desc:"滞销·周转·缺货",question:"缺货与滞销商品预警"},
   {icon:"🚚",title:"供应链优化",desc:"交期·评级·采购",question:"供应商准时交货率排名"}
 ];
 function renderCapabilityCards(){

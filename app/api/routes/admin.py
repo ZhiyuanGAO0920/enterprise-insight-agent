@@ -261,6 +261,27 @@ async def delete_user(
         if not existing.fetchone():
             raise HTTPException(status_code=404, detail="用户不存在")
 
+        # 解除关联数据的 FK 依赖（历史/审计/周报保留，user_id 置空）
+        await session.execute(
+            text("UPDATE analysis_history SET user_id = NULL WHERE user_id = :uid"),
+            {"uid": target_user_id},
+        )
+        await session.execute(
+            text("UPDATE audit_log SET user_id = NULL WHERE user_id = :uid"),
+            {"uid": target_user_id},
+        )
+        await session.execute(
+            text("UPDATE alert_rules SET created_by = NULL WHERE created_by = :uid"),
+            {"uid": target_user_id},
+        )
+        await session.execute(
+            text("UPDATE weekly_reports SET created_by = NULL WHERE created_by = :uid"),
+            {"uid": target_user_id},
+        )
+        await session.execute(
+            text("DELETE FROM user_wechat_bindings WHERE user_id = :uid"),
+            {"uid": target_user_id},
+        )
         await session.execute(
             text("DELETE FROM user_store_access WHERE user_id = :uid"),
             {"uid": target_user_id},

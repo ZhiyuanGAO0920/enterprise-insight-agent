@@ -429,6 +429,65 @@ NODE_PROGRESS_MESSAGES = {
 # 11 步约 7 秒，画面自然且保留「流式进度」演示卖点）
 _CACHE_REPLAY_STEP_SEC = 0.6
 
+# ---------------------------------------------------------------------------
+# SSE 心跳：节点内部执行期（非流式 LLM 调用 / SQL / Embedding）可能长达数十秒，
+# 期间无任何事件 —— 前端 45s 看门狗会误判连接挂死而 abort（"整体经营状况分析"
+# 等全 Agent 综合查询在 LLM 慢时必然触发）。每 20s 推一个心跳事件仅用于保活，
+# 前端忽略其内容；45s 看门狗语义不变，仍能兜住真正的死连接。
+# ---------------------------------------------------------------------------
+
+_HEARTBEAT_INTERVAL_SEC = 20.0
+
+
+async def _with_heartbeat(
+    graph_stream: AsyncGenerator,
+    interval: float = _HEARTBEAT_INTERVAL_SEC,
+) -> AsyncGenerator:
+    """在 graph 事件流中穿插心跳 SSE 事件；graph 正常结束或抛异常时立即终止。
+
+    心跳从属于主数据流：graph 结束后无论心跳任务处于何处都取消它，
+    避免无限心跳流导致合并永不终止。
+    慢节点（非流式 LLM / SQL / Embedding）静默期间，心跳保持字节流动，
+    前端 45s 看门狗不再误判连接挂死；45s 语义不变，真死连接仍会被兜住。
+    """
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def _pump() -> None:
+        try:
+            async for item in graph_stream:
+                await queue.put(("data", item))
+            await queue.put(("stop", None))
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            await queue.put(("error", e))  # 传播原始异常，行为与无心跳时一致
+
+    async def _hb_pump() -> None:
+        try:
+            while True:
+                await asyncio.sleep(interval)
+                await queue.put(("hb", None))
+        except asyncio.CancelledError:
+            raise
+
+    t_pump = asyncio.create_task(_pump())
+    t_hb = asyncio.create_task(_hb_pump())
+    try:
+        while True:
+            kind, payload = await queue.get()
+            if kind == "stop":
+                break
+            if kind == "error":
+                raise payload
+            if kind == "hb":
+                yield f"data: {json.dumps({'type': 'heartbeat'}, ensure_ascii=False)}\n\n"
+            else:
+                yield payload
+    finally:
+        t_pump.cancel()
+        t_hb.cancel()
+        await asyncio.gather(t_pump, t_hb, return_exceptions=True)
+
 
 def _replay_nodes(cached: dict) -> list[str]:
     """推导缓存报告实际执行过的节点，用于精确还原进度条（而非全 11 步）。
@@ -529,8 +588,15 @@ async def _stream_graph(
     _started_nodes: set[str] = set()
     _phase_start_times: dict[str, float] = {}
     _MIN_PHASE_DISPLAY_SEC = 0.6  # 每个步骤至少亮 0.6 秒，快完成的 Agent 也不一闪而过
-    combined_stream = graph.astream(initial_state, stream_mode=["updates", "custom", "values"])
-    async for mode, chunk in combined_stream:
+    combined_stream = _with_heartbeat(
+        graph.astream(initial_state, stream_mode=["updates", "custom", "values"]),
+    )
+    async for item in combined_stream:
+        # 心跳为完整 SSE 字符串，直接透传保活；图事件为 (mode, chunk) 元组
+        if isinstance(item, str):
+            yield item
+            continue
+        mode, chunk = item
         if mode == "updates":
             for node_name, node_output in chunk.items():
                 # 确保 phase 至少展示了 MIN_PHASE_DISPLAY_SEC 才发 step

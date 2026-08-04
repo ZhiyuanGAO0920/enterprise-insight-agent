@@ -59,7 +59,7 @@ Save Memory（pgvector 1024 维，BGE-M3 本地 Embedding）
 ```
 app/
 ├── agents/          # 11 个 Agent 节点（含 supervisor, 5 领域, aggregator, chart, report, reflection, memory）
-├── api/routes/      # 11 个路由组，36 个端点
+├── api/routes/      # 10 个路由组，49 个端点
 │   ├── analysis.py  # /analyze + /analyze-stream（SSE）
 │   ├── dashboard.py # /today-summary + /overview
 │   ├── alerts.py    # /check（n8n 定时触发 + 飞书/钉钉/企微通知）
