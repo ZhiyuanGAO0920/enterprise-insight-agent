@@ -1,5 +1,20 @@
 # CHANGELOG — V4 修复与优化记录
 
+## V4.6.3 (2026-08-05)
+
+### ✨ 优化：评估体系升级 —— 事实级幻觉检测 + 指标自洽性（P0/P1 落地）
+
+| # | 文件 | 优化 |
+|---|------|------|
+| 1 | `tests/run_eval.py` | **数值交叉校验（cross_check）**：报告中的关键数字（>=100 或含小数）必须能在 SQL 执行结果/SQL 文本/用户问题/结果表合计值中找到出处（相对容差 0.5% 覆盖万/亿改写），返回 Top5 缺失数字供人工复核。取代原「只查『100% 准确』一个信号」的廉价幻觉检测。阈值按类型区分：**lookup/edge <0.6 判幻觉嫌疑**（健康实测 ~0.7-0.9）；**analysis 只展示密度不判罪**（其数字几乎全是合法派生指标，好报告与编造报告得分都低，真实质检由 LLM-as-Judge accuracy + Reflection 负责） |
+| 2 | `tests/run_eval.py` | **sql_accuracy 落地实现**（此前 eval_set.json 有定义但从未计算）：SQL 执行成功率（raw_data 以 [SQL_ERROR] 开头计失败）+ 外层表名白名单告警（17 ORM 表 + 4 原生表；过滤 CTE 名与短别名防子查询误报）。语义级「查对表/用对聚合」由 Judge accuracy 维度覆盖 |
+| 3 | `tests/run_eval.py` | **Reflection 三态统计**（修复监控指标失真）：`reflection_status` 四分类 passed / failed / parsing_fallback（解析兜底按过）/ skipped（简单查询按设计跳过），报告同时输出严格通过率（50%）与含兜底通过率——此前单一 reflection_passed 布尔值既虚高（兜底按过）又虚低（跳过默认 False 污染指标，8 月初 58% 即此因） |
+| 4 | `tests/run_eval.py` | **LLM-as-Judge 深度评分（--judge 开关）**：DeepSeek 从 accuracy/logic/actionability/completeness 四维给分析型报告打 1-5 分 + 合格判定，覆盖规则指标测不到的内容质量。默认仅 analysis 型（38 次调用 ≈ ¥0.2），--judge-all 全量 |
+| 5 | `tests/run_eval.py` | 错误分支补 `type` 字段（by_type 汇总不再出现 unknown 桶）；改进建议按类型给出交叉校验阈值告警 |
+| 6 | `tests/eval_set.json` | metrics 块更新为与实现一致的定义（旧 sql_accuracy 定义存在但未实现，属文档与实现 gap） |
+
+**实测验证**（12 条子集 + 全链路）：健康报告 lookup 型 cross 0.68-0.76（无误报，0 条存疑）；analysis 型 0.29-0.85 展示为密度信息；SQL 执行成功率 87.6%（失败 15/107 次尝试，Agent 重试自愈）；**Reflection 三态立刻暴露真实信号：4 条分析报告 2 条未过质检（严格通过率 50%）**——旧指标藏住的退化现在可见。
+
 ## V4.6.2 (2026-08-05)
 
 ### 🐛 修复：监控页重试率虚高（统计口径 bug）

@@ -107,9 +107,12 @@
     {"id":"Q102","type":"edge","category":"edge","question":"近30天各区域销售额占比和会员新增率的关联","expected_agents":["sales","crm"],"expected_dimensions":["区域","销售额","占比","会员新增","关联"],"min_result_rows":4,"max_result_rows":30}
   ],
   "metrics": {
-    "sql_accuracy": {"description": "生成的 SQL 是否语法正确、查询了正确的表、使用了正确的聚合方式", "scale": "pass/fail per question"},
     "dimension_coverage": {"description": "报告是否覆盖了 expected_dimensions 中的所有维度", "scale": "0.0-1.0 per question"},
     "row_count_in_range": {"description": "结果行数是否在 min_result_rows 和 max_result_rows 之间", "scale": "pass/fail per question"},
-    "no_hallucination": {"description": "报告中是否没有编造数据（所有数字都来自 SQL 查询结果）", "scale": "pass/fail per question"}
+    "cross_check_rate": {"description": "数值交叉校验：报告中的关键数字（>=100 或含小数）能否在 SQL 执行结果/SQL 文本/用户问题/结果表合计值中找到出处（相对容差 0.5%，覆盖万/亿改写）。找不到出处的数字即幻觉信号，返回 Top5 缺失数字供人工复核。仅 lookup/edge 判罪（<0.6 为幻觉嫌疑，健康实测 ~0.7-0.9）；analysis 只展示密度供复核——其数字几乎全是合法派生指标（差/比/均值/总计），好报告与编造报告得分都低（~0.2-0.35），判别力弱，analysis 的真实质检由 LLM-as-Judge accuracy + Reflection 负责。无数据可校验（如边界拒绝类问题）时标记 skipped 不参与统计", "scale": "0.0-1.0 per question, lookup/edge <0.6 视为幻觉"},
+    "sql_accuracy": {"description": "SQL 执行成功率：raw_data 以 [SQL_ERROR] 开头计为执行失败（覆盖语法/权限/RLS 问题）；外层 FROM 表名不在白名单（17 ORM 表 + 4 原生表）时输出告警。语义级「查对表/用对聚合」由 LLM-as-Judge 的 accuracy 维度覆盖", "scale": "0.0-1.0 per question"},
+    "no_hallucination": {"description": "廉价信号：报告是否出现极端措辞（如「100% 准确」）。事实级幻觉检测见 cross_check_rate", "scale": "pass/fail per question"},
+    "reflection_status": {"description": "质检四分类：passed（真过）/ failed（未过）/ parsing_fallback（Reflection 未输出结构化结果兜底按过）/ skipped（简单查询按设计跳过）。严格通过率 = passed/(passed+failed+fallback)；有效通过率 = (passed+fallback)/同分母", "scale": "enum per question"},
+    "judge_scores": {"description": "LLM-as-Judge 深度评分（--judge 时启用）：accuracy/logic/actionability/completeness 四维 1-5 分 + 合格判定，覆盖规则指标测不到的内容质量", "scale": "1-5 per dimension"}
   }
 }

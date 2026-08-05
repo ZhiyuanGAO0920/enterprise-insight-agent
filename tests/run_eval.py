@@ -6,14 +6,27 @@
     python tests/run_eval.py --type analysis       # 只跑分析型
     python tests/run_eval.py --id Q01              # 只跑单条
     python tests/run_eval.py --parallel 5          # 并发 5 条（默认串行）
+    python tests/run_eval.py --judge               # 分析型追加 LLM-as-Judge 深度评分
+    python tests/run_eval.py --judge-all           # 全部类型追加 LLM-as-Judge 评分
     python tests/run_eval.py --output result.json  # 输出结果到 JSON
     python tests/run_eval.py --compare baseline.json  # 与基线对比
+
+指标说明（V4.6.2 升级）：
+    1. dimension_coverage   —— 规则：期望维度关键词覆盖
+    2. rows_in_range        —— 规则：报告表格行数区间
+    3. cross_check_rate     —— 数值交叉校验：报告数字必须能在 SQL 执行结果中找到出处
+                              （取代单一关键词的"无幻觉"信号；无数据可校验时标记 skipped）
+    4. sql_accuracy         —— SQL 执行成功率（[SQL_ERROR] 计数）+ 表名白名单告警
+    5. reflection_status    —— 质检三态：passed / failed / parsing_fallback（解析兜底视为过）/ skipped
+    6. judge_*              —— LLM-as-Judge 深度评分（--judge 时启用，4 维 1-5 分）
+    7. latency_ms           —— 端到端延迟
 """
 
 import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -67,12 +80,235 @@ def check_no_hallucination(report: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# V4.6.2：数值交叉校验（事实级幻觉检测）
+# ---------------------------------------------------------------------------
+
+_NUM_RE = re.compile(r"(-?\d[\d,]*(?:\.\d+)?)\s*([万亿]?)")
+_YEAR_MIN, _YEAR_MAX = 1900, 2100
+
+# 全量表清单：17 张 ORM 表（app/database/models.py）+ 4 张原生 SQL 表（迁移 003）
+KNOWN_TABLES = {
+    "alert_rules", "alerts", "analysis_history", "audit_log", "employee_performance",
+    "member", "orders", "permissions", "role_permissions", "roles", "store", "tenants",
+    "user_roles", "user_store_access", "user_wechat_bindings", "users", "weekly_reports",
+    "supplier", "product", "inventory", "purchase_order",
+}
+
+
+def extract_numbers(text: str) -> list[float]:
+    """从文本中提取数字（去千分位逗号、处理 万/亿 单位、排除年份区间）。
+
+    示例："华东区销售额 1,280,000 元（12.8万）" -> [1280000.0, 128000.0]
+    """
+    out = []
+    for m in _NUM_RE.finditer(text):
+        s, unit = m.group(1), m.group(2)
+        try:
+            v = float(s.replace(",", ""))
+        except ValueError:
+            continue
+        if unit == "万":
+            v *= 1e4
+        elif unit == "亿":
+            v *= 1e8
+        if _YEAR_MIN <= v <= _YEAR_MAX and v == int(v):
+            continue  # 排除年份/日期类数字
+        out.append(round(v, 2))
+    return out
+
+
+def cross_check_report(report: str, sources: list[dict], question: str) -> dict:
+    """数值交叉校验：报告中的关键数字必须能在数据来源中找到出处。
+
+    允许集合 = 所有 SQL 执行结果 ∪ 报告外 SQL 文本 ∪ 用户问题原文
+    （"近30天"、"2026年" 等来自问题本身或查询条件的数字不算编造）。
+
+    只校验「大整数（>=100）或带小数」的数字，规避序号/天数/小计数等噪音；
+    被校验数字中找不到出处的视为幻觉信号，返回 Top5 缺失数字供人工复核。
+    无任何数据可校验（如边界拒绝类问题）时标记 skipped，不参与通过率。
+    """
+    allowed: set[float] = set()
+    for s in sources:
+        nums = extract_numbers(s.get("raw_data", ""))
+        allowed.update(nums)
+        # 每张结果表的合计值（LLM 常把整表求和作为「总计」，属于合法派生）
+        if nums:
+            allowed.add(round(sum(nums), 2))
+        allowed.update(extract_numbers(s.get("sql", "")))
+    allowed.update(extract_numbers(question))
+
+    report_numbers = [n for n in extract_numbers(report) if n >= 100 or n != int(n)]
+    if not allowed:
+        return {"rate": None, "missing": [], "skipped": True, "total": len(report_numbers)}
+    if not report_numbers:
+        return {"rate": 1.0, "missing": [], "skipped": False, "total": 0}
+
+    allowed_sorted = sorted(allowed)
+    missing = []
+    for n in report_numbers:
+        # 相对容差 0.5% 匹配：覆盖 LLM 用「万/亿 + 四舍五入」改写数字的合法情况
+        # （如 20847932.62 -> "2084.79万" = 20847900）。编造数字几乎不可能落在任意真值的 0.5% 内。
+        found = any(
+            abs(n - a) <= 0.005 * max(abs(a), abs(n), 1.0) for a in allowed_sorted
+        )
+        if not found:
+            missing.append(n)
+    missing.sort(reverse=True)
+    return {
+        "rate": (len(report_numbers) - len(missing)) / len(report_numbers),
+        "missing": missing[:5],
+        "skipped": False,
+        "total": len(report_numbers),
+    }
+
+
+def compute_sql_accuracy(sources: list[dict]) -> dict:
+    """SQL 执行成功率 + 表名白名单告警。
+
+    - 执行失败：raw_data 以 [SQL_ERROR] 开头（sql_runner 的错误返回格式）
+    - 表名告警：用 sql_runner._get_outermost_tables 提取外层 FROM 表名，不在白名单则告警
+      （CTE/子查询引用不提取，只告警不判失败 —— 语义级"查对表"需 golden SQL，超出本指标范围，
+      由 LLM-as-Judge 的 accuracy 维度覆盖）
+    """
+    total = len(sources)
+    failed = 0
+    unknown_tables: list[str] = []
+    try:
+        from app.tools.sql_runner import _get_outermost_tables
+    except Exception:
+        _get_outermost_tables = None
+    for s in sources:
+        raw = s.get("raw_data", "")
+        if raw.startswith("[SQL_ERROR"):
+            failed += 1
+            continue
+        if _get_outermost_tables is None:
+            continue
+        sql = s.get("sql", "")
+        # CTE 名（WITH x AS / RECURSIVE / , y AS）不出现在 FROM 的白名单检查里
+        cte_names = set(re.findall(
+            r"\b(?:WITH|,)\s+(?:RECURSIVE\s+)?([a-zA-Z_]\w*)\s+AS\b", sql, re.IGNORECASE
+        ))
+        try:
+            for t in _get_outermost_tables(sql):
+                # 过滤 CTE 名与疑似别名（子查询别名如 FROM (...) t，sqlparse 会误提取）
+                if len(t) < 3:
+                    continue
+                if t.lower() not in KNOWN_TABLES and t not in cte_names:
+                    unknown_tables.append(t)
+        except Exception:
+            pass
+    if total == 0:
+        return {"total": 0, "failed": 0, "rate": None, "unknown_tables": []}
+    return {
+        "total": total,
+        "failed": failed,
+        "rate": (total - failed) / total,
+        "unknown_tables": sorted(set(unknown_tables)),
+    }
+
+
+def classify_reflection(feedback_json: str | None, passed: bool) -> str:
+    """质检状态四分类：passed / failed / parsing_fallback / skipped。
+
+    - skipped：无 feedback（简单查询按设计跳过质检）
+    - parsing_fallback：Reflection 未输出结构化结果，兜底按通过（summary 含 PARSING_FALLBACK）
+    - passed / failed：真实质检结论
+    """
+    if not feedback_json:
+        return "skipped"
+    try:
+        fb = json.loads(feedback_json)
+    except Exception:
+        fb = {}
+    if "PARSING_FALLBACK" in str(fb.get("summary", "")):
+        return "parsing_fallback"
+    return "passed" if passed else "failed"
+
+
+# ---------------------------------------------------------------------------
+# LLM-as-Judge（--judge 时启用）：对报告做 4 维深度评分
+# ---------------------------------------------------------------------------
+
+JUDGE_SCHEMA = {
+    "type": "function",
+    "function": {
+        "name": "judge_result",
+        "description": "Output the quality judge scores for the analysis report",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "scores": {
+                    "type": "object",
+                    "properties": {
+                        "accuracy": {"type": "number", "description": "数据准确性（数字/结论是否与报告内数据一致，1-5）"},
+                        "logic": {"type": "number", "description": "逻辑严谨性（归因是否有依据、有无过度推断，1-5）"},
+                        "actionability": {"type": "number", "description": "可操作性（建议是否具体可执行，1-5）"},
+                        "completeness": {"type": "number", "description": "完整性（是否完整回答用户问题，1-5）"},
+                    },
+                    "required": ["accuracy", "logic", "actionability", "completeness"],
+                },
+                "pass": {"type": "boolean", "description": "该报告是否达到合格线（综合 >= 3 分）"},
+                "rationale": {"type": "string", "description": "一句话评分依据"},
+            },
+            "required": ["scores", "pass", "rationale"],
+        },
+    },
+}
+
+JUDGE_SYSTEM_PROMPT = (
+    "你是连锁零售经营分析领域的资深质检专家。你会收到一条用户问题和系统生成的经营分析报告。\n"
+    "请从 4 个维度对报告质量打分（1-5 分，5 最好），并判定是否合格（pass）。\n"
+    "1. accuracy 数据准确性：报告中的数字与结论是否自洽、有无明显编造或自相矛盾。\n"
+    "2. logic 逻辑严谨性：归因和结论是否有数据依据、是否过度推断。\n"
+    "3. actionability 可操作性：建议是否具体、可执行、有优先级。\n"
+    "4. completeness 完整性：是否完整回答了用户问题，有无遗漏关键维度。\n"
+    "只依据报告内容本身评分，不要假设报告之外的数据。"
+)
+
+
+async def judge_report(question: str, report: str, llm) -> dict | None:
+    """调用 LLM 对报告做 4 维评分。tool_calls 优先，文本 JSON 兜底；失败返回 None。"""
+    from app.agents.reflection_agent import _extract_json
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    messages = [
+        SystemMessage(content=JUDGE_SYSTEM_PROMPT),
+        HumanMessage(content=f"## 用户问题\n{question}\n\n## 分析报告\n{report[:18000]}"),
+    ]
+    try:
+        resp = await llm.bind_tools([JUDGE_SCHEMA]).ainvoke(messages)
+        if resp.tool_calls:
+            return resp.tool_calls[0]["args"]
+        parsed = _extract_json(resp.content or "")
+        if parsed:
+            return parsed
+    except Exception as e:
+        print(f"    [judge 失败: {str(e)[:80]}]")
+    return None
+
+
+# ---------------------------------------------------------------------------
 # 异步并发执行
 # ---------------------------------------------------------------------------
 
 
-async def run_single_eval(question: dict, token: str, port: int, sem: asyncio.Semaphore | None = None) -> dict:
-    """对单条问题运行评估。"""
+async def run_single_eval(
+    question: dict, token: str, port: int,
+    sem: asyncio.Semaphore | None = None,
+    judge: bool = False,
+    judge_llm=None,
+) -> dict:
+    """对单条问题运行评估。
+
+    Args:
+        question: eval_set 中的问题条目。
+        token: 登录令牌。
+        port: V4 服务端口。
+        sem: 并发信号量。
+        judge: 是否追加 LLM-as-Judge 深度评分（失败不影响主指标）。
+        judge_llm: 复用的 Judge LLM 实例（judge=True 时由调用方创建）。
+    """
     import urllib.request
 
     async def _run():
@@ -94,6 +330,7 @@ async def run_single_eval(question: dict, token: str, port: int, sem: asyncio.Se
         except Exception as e:
             return {
                 "id": question["id"],
+                "type": question.get("type"),
                 "question": question["question"][:60],
                 "error": str(e),
                 "latency_ms": int((time.monotonic() - t_start) * 1000),
@@ -106,7 +343,7 @@ async def run_single_eval(question: dict, token: str, port: int, sem: asyncio.Se
 
         sqls = [s.get("sql", "") for s in sources if s.get("sql")]
 
-        return {
+        result: dict = {
             "id": question["id"],
             "type": question["type"],
             "question": question["question"][:80],
@@ -114,6 +351,11 @@ async def run_single_eval(question: dict, token: str, port: int, sem: asyncio.Se
             "dimension_coverage": check_dimension_coverage(report, question.get("expected_dimensions", [])),
             "rows_in_range": check_result_rows(report, question.get("min_result_rows", 0), question.get("max_result_rows", 999)),
             "no_hallucination": check_no_hallucination(report),
+            "cross_check": cross_check_report(report, sources, question.get("question", "")),
+            "sql_accuracy": compute_sql_accuracy(sources),
+            "reflection_status": classify_reflection(
+                data.get("reflection_feedback"), data.get("reflection_passed", False)
+            ),
             "sql_count": len(sqls),
             "sqls": sqls[:3],
             "errors": len(errors),
@@ -122,6 +364,13 @@ async def run_single_eval(question: dict, token: str, port: int, sem: asyncio.Se
             "data_source_count": len(sources),
             "latency_ms": elapsed_ms,
         }
+
+        if judge and report and judge_llm is not None:
+            judge_result = await judge_report(question.get("question", ""), report, judge_llm)
+            if judge_result:
+                result["judge"] = judge_result
+
+        return result
 
     if sem:
         async with sem:
@@ -144,8 +393,52 @@ def compute_metrics(results: list[dict]) -> dict:
     dim_scores = [r["dimension_coverage"] for r in results if "dimension_coverage" in r]
     rows_ok = sum(1 for r in results if r.get("rows_in_range"))
     no_hall = sum(1 for r in results if r.get("no_hallucination"))
-    reflect_ok = sum(1 for r in results if r.get("reflection_passed"))
     avg_latency = sum(r.get("latency_ms", 0) for r in results) / max(total, 1)
+
+    # ---- 数值交叉校验（skipped 不参与统计） ----
+    # 按类型区分：lookup/edge 报告以照抄数据为主，< 0.6 判幻觉嫌疑（健康实测 ~0.7-0.9）。
+    # analysis 不参与判罪：好报告与编造报告在交叉校验上得分都低（~0.2-0.35，
+    # 数字几乎全是合法派生指标），对 analysis 仅展示密度供复核，
+    # 真实质检由 LLM-as-Judge accuracy + Reflection 负责。
+    cross_rates = [
+        r["cross_check"]["rate"] for r in results
+        if r.get("cross_check") and r["cross_check"].get("rate") is not None
+    ]
+    cross_fail = sum(
+        1 for r in results
+        if r.get("cross_check") and r["cross_check"].get("rate") is not None
+        and r.get("type") != "analysis"
+        and r["cross_check"]["rate"] < 0.6
+    )
+    cross_skipped = sum(1 for r in results if r.get("cross_check") and r["cross_check"].get("skipped"))
+
+    # ---- SQL 执行成功率（无 SQL 的问题不参与） ----
+    sql_rates = [
+        r["sql_accuracy"]["rate"] for r in results
+        if r.get("sql_accuracy") and r["sql_accuracy"].get("rate") is not None
+    ]
+    sql_failed = sum(r["sql_accuracy"]["failed"] for r in results if r.get("sql_accuracy"))
+    sql_total = sum(r["sql_accuracy"]["total"] for r in results if r.get("sql_accuracy"))
+
+    # ---- Reflection 四分类（修复监控指标失真的核心） ----
+    rstatus = [r.get("reflection_status") for r in results]
+    r_counts = {s: rstatus.count(s) for s in ("passed", "failed", "parsing_fallback", "skipped")}
+    r_counted = r_counts["passed"] + r_counts["failed"] + r_counts["parsing_fallback"]
+    reflect_strict_pass = (r_counts["passed"] / r_counted) if r_counted else None
+    reflect_effective_pass = (
+        (r_counts["passed"] + r_counts["parsing_fallback"]) / r_counted if r_counted else None
+    )
+
+    # ---- LLM-as-Judge ----
+    judge_dims = ("accuracy", "logic", "actionability", "completeness")
+    judge_entries = [r["judge"] for r in results if r.get("judge")]
+    judge_avg = {
+        d: round(sum(j["scores"].get(d, 0) for j in judge_entries) / max(len(judge_entries), 1), 2)
+        for d in judge_dims
+    } if judge_entries else {}
+    judge_pass_rate = round(
+        sum(1 for j in judge_entries if j.get("pass")) / max(len(judge_entries), 1) * 100, 1
+    ) if judge_entries else None
 
     by_type = {}
     for r in results:
@@ -177,7 +470,17 @@ def compute_metrics(results: list[dict]) -> dict:
         "avg_dimension_coverage": round(sum(dim_scores) / max(len(dim_scores), 1), 3),
         "rows_in_range_rate": round(rows_ok / max(total, 1) * 100, 1),
         "no_hallucination_rate": round(no_hall / max(total, 1) * 100, 1),
-        "reflection_pass_rate": round(reflect_ok / max(total, 1) * 100, 1),
+        "cross_check_rate": round(sum(cross_rates) / max(len(cross_rates), 1), 3),
+        "cross_check_failures": cross_fail,
+        "cross_check_skipped": cross_skipped,
+        "sql_accuracy": round(sum(sql_rates) / max(len(sql_rates), 1), 3),
+        "sql_failed_count": sql_failed,
+        "sql_total_count": sql_total,
+        "reflection_status_counts": r_counts,
+        "reflection_strict_pass_rate": round(reflect_strict_pass * 100, 1) if reflect_strict_pass is not None else None,
+        "reflection_effective_pass_rate": round(reflect_effective_pass * 100, 1) if reflect_effective_pass is not None else None,
+        "judge_avg_scores": judge_avg,
+        "judge_pass_rate": judge_pass_rate,
         "avg_latency_ms": int(avg_latency),
         "by_type": type_summary,
     }
@@ -196,10 +499,21 @@ def print_report(results: list[dict], baseline: dict | None = None):
           f"失败: {metrics['failed']}/{metrics['total']}  "
           f"通过率: {metrics['pass_rate']}%")
     print(f"  维度覆盖率:      {metrics['avg_dimension_coverage']*100:.1f}%  "
-          f"行数合理: {metrics['rows_in_range_rate']:.0f}%  "
-          f"无幻觉: {metrics['no_hallucination_rate']:.0f}%")
-    print(f"  Reflection 通过:  {metrics['reflection_pass_rate']:.0f}%  "
-          f"平均延迟: {metrics['avg_latency_ms']/1000:.1f}s")
+          f"行数合理: {metrics['rows_in_range_rate']:.0f}%")
+    print(f"  数值交叉校验:    {metrics['cross_check_rate']*100:.1f}%"
+          f"（{metrics['cross_check_failures']} 条存疑，{metrics['cross_check_skipped']} 条跳过）")
+    print(f"  SQL 执行成功率:  {metrics['sql_accuracy']*100:.1f}%"
+          f"（失败 {metrics['sql_failed_count']}/{metrics['sql_total_count']}）")
+    rs = metrics["reflection_status_counts"]
+    print(f"  Reflection:      严格通过 {metrics['reflection_strict_pass_rate']:.0f}% / "
+          f"含兜底 {metrics['reflection_effective_pass_rate']:.0f}%"
+          f"（过 {rs['passed']} / 未过 {rs['failed']} / 解析兜底 {rs['parsing_fallback']} / 跳过 {rs['skipped']}）")
+    if metrics.get("judge_avg_scores"):
+        ja = metrics["judge_avg_scores"]
+        print(f"  Judge 深度评分:  准确 {ja.get('accuracy', 0):.1f} / 逻辑 {ja.get('logic', 0):.1f} / "
+              f"可操作 {ja.get('actionability', 0):.1f} / 完整 {ja.get('completeness', 0):.1f}  "
+              f"合格率 {metrics['judge_pass_rate']:.0f}%")
+    print(f"  平均延迟: {metrics['avg_latency_ms']/1000:.1f}s")
     print("-" * 70)
 
     if baseline:
@@ -244,32 +558,73 @@ def print_report(results: list[dict], baseline: dict | None = None):
 
     for r in results:
         dim_pct = r.get("dimension_coverage", 0) * 100
+        cross = r.get("cross_check") or {}
+        cross_mark = ""
+        if cross.get("rate") is not None:
+            # analysis 型只展示密度信息（派生指标多，判别力弱，质检交给 Judge）
+            if r.get("type") != "analysis" and cross["rate"] < 0.6:
+                cross_mark = f" | CROSS_CHECK {cross['rate']*100:.0f}%（缺失: {cross.get('missing', [])[:3]}）"
+            elif cross["rate"] < 0.9:
+                cross_mark = f" | cross={cross['rate']*100:.0f}%（缺失待复核: {cross.get('missing', [])[:3]}）"
         status = "OK" if not r.get("error") and r.get("rows_in_range") and r.get("no_hallucination") else "!!"
         error_info = f" | ERROR: {r['error']}" if r.get("error") else ""
         row_mark = "" if r.get("rows_in_range") else " | ROWS_OOB"
         hall_mark = "" if r.get("no_hallucination") else " | HALL?"
+        sql_fail = ""
+        sa = r.get("sql_accuracy") or {}
+        if sa.get("failed"):
+            sql_fail = f" | SQL_FAIL {sa['failed']}/{sa['total']}"
+        ut = sa.get("unknown_tables") or []
+        ut_mark = f" | UNKNOWN_TBL {ut}" if ut else ""
         print(
             f"  {status} {r['id']} [{r.get('type','?'):8s}] "
             f"dim={dim_pct:.0f}% lat={r.get('latency_ms',0)/1000:.1f}s"
-            f"{row_mark}{hall_mark}{error_info}"
+            f"{row_mark}{hall_mark}{sql_fail}{ut_mark}{cross_mark}{error_info}"
         )
 
     print("=" * 70)
 
     rows_ok = sum(1 for r in results if r.get("rows_in_range"))
     no_hall = sum(1 for r in results if r.get("no_hallucination"))
-    reflect_ok = sum(1 for r in results if r.get("reflection_passed"))
     dim_scores = [r["dimension_coverage"] for r in results if "dimension_coverage" in r]
+    cross_rates = [
+        r["cross_check"]["rate"] for r in results
+        if r.get("cross_check") and r["cross_check"].get("rate") is not None
+    ]
+    sql_rates = [
+        r["sql_accuracy"]["rate"] for r in results
+        if r.get("sql_accuracy") and r["sql_accuracy"].get("rate") is not None
+    ]
+    unknown_tables = sorted({
+        t for r in results for t in (r.get("sql_accuracy") or {}).get("unknown_tables", [])
+    })
+    cross_by_type = {}
+    for r in results:
+        cc = r.get("cross_check")
+        if not cc or cc.get("rate") is None:
+            continue
+        t = r.get("type", "unknown")
+        cross_by_type.setdefault(t, []).append(cc["rate"])
 
     issues = []
     if rows_ok / max(len(results), 1) < 0.8:
         issues.append("行数检查通过率低于 80%，需要检查 Agent 是否在截断输出")
     if sum(dim_scores) / max(len(dim_scores), 1) < 0.7:
         issues.append("维度覆盖率低于 70%，需要检查 Prompt 是否遗漏了关键分析维度")
-    if reflect_ok / max(len(results), 1) < 0.8:
-        issues.append("Reflection 通过率低于 80%，需要检查质检 Agent 是否过于严格")
+    if metrics["reflection_effective_pass_rate"] is not None and metrics["reflection_effective_pass_rate"] < 85:
+        issues.append("Reflection 有效通过率低于 85%（含解析兜底），需检查质检 Agent 是否过严或报告质量下滑")
     if no_hall / max(len(results), 1) < 0.95:
         issues.append("幻觉信号检出率偏低，需检查报告是否有编造数据的情况")
+    for t, rates in cross_by_type.items():
+        if t == "analysis":
+            continue  # analysis 派生指标多，交叉校验无判别力（见 compute_metrics 注释）
+        avg = sum(rates) / len(rates)
+        if avg < 0.6:
+            issues.append(f"{t} 型数值交叉校验通过率 {avg*100:.0f}%（阈值 60%），报告数字存在无法溯源的情况（最可能是编造）")
+    if sql_rates and sum(sql_rates) / len(sql_rates) < 0.8:
+        issues.append("SQL 执行成功率低于 80%，Agent 生成的 SQL 存在语法/权限问题")
+    if unknown_tables:
+        issues.append(f"SQL 引用了白名单外的表名: {unknown_tables}，需检查 Schema 映射或补充白名单")
 
     if issues:
         print("\n  改进建议:")
@@ -289,6 +644,10 @@ def main():
     parser.add_argument("--parallel", type=int, default=0,
                         help="并发数（默认 0=串行; 建议 3-5 加速大规模评估）")
     parser.add_argument("--compare", help="与基线 JSON 文件对比（先前 --output 的结果）")
+    parser.add_argument("--judge", action="store_true",
+                        help="对 analysis 型问题追加 LLM-as-Judge 深度评分（约 +38 次 LLM 调用）")
+    parser.add_argument("--judge-all", action="store_true",
+                        help="对所有类型追加 LLM-as-Judge 深度评分")
     args = parser.parse_args()
 
     eval_path = Path(__file__).parent / "eval_set.json"
@@ -344,12 +703,21 @@ def main():
         if sem:
             print(f"  并发模式: {args.parallel} 条并行")
 
+        judge_enabled = args.judge or args.judge_all
+        judge_llm = None
+        if judge_enabled:
+            from app.llm import create_llm
+            judge_llm = create_llm(temperature=0.0)
+            scope = "全部类型" if args.judge_all else "analysis 型"
+            print(f"  Judge 深度评分: 启用（{scope}）")
+
         results = []
         total = len(questions)
         t_start = time.monotonic()
         for i, q in enumerate(questions, 1):
             print(f"  [{i:3d}/{total}] {q['id']:4s}: {q['question'][:50]:50s}...", end=" ", flush=True)
-            result = await run_single_eval(q, token, args.port, sem)
+            need_judge = judge_enabled and (args.judge_all or q.get("type") == "analysis")
+            result = await run_single_eval(q, token, args.port, sem, judge=need_judge, judge_llm=judge_llm)
             results.append(result)
             if result.get("error"):
                 print("ERR")

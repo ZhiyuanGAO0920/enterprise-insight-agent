@@ -1,0 +1,437 @@
+{
+  "results": [
+    {
+      "id": "Q01",
+      "type": "lookup",
+      "question": "各门店销售额排名",
+      "report_length": 6544,
+      "dimension_coverage": 1.0,
+      "rows_in_range": false,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.7649572649572649,
+        "missing": [
+          4310000.0,
+          2052683.18,
+          2052358.02,
+          2051199.61,
+          2051066.19
+        ],
+        "skipped": false,
+        "total": 234
+      },
+      "sql_accuracy": {
+        "total": 1,
+        "failed": 0,
+        "rate": 1.0,
+        "unknown_tables": []
+      },
+      "reflection_status": "skipped",
+      "sql_count": 1,
+      "sqls": [
+        "SELECT s.store_name, s.region, COUNT(o.order_id) as orders, COALESCE(SUM(o.amount),0) as sales FROM store s LEFT JOIN orders o ON s.id=o.store_id GROUP BY s.id, s.store_name, s.region ORDER BY sales DESC"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 1,
+      "latency_ms": 2061
+    },
+    {
+      "id": "Q02",
+      "type": "lookup",
+      "question": "华东区近30天销售额最高的门店是哪个",
+      "report_length": 48,
+      "dimension_coverage": 0.5,
+      "rows_in_range": false,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 1.0,
+        "missing": [],
+        "skipped": false,
+        "total": 1
+      },
+      "sql_accuracy": {
+        "total": 1,
+        "failed": 0,
+        "rate": 1.0,
+        "unknown_tables": []
+      },
+      "reflection_status": "skipped",
+      "sql_count": 1,
+      "sqls": [
+        "SELECT s.store_name, COALESCE(SUM(o.amount),0) as sales FROM store s LEFT JOIN orders o ON s.id=o.store_id AND o.create_time >= NOW() - INTERVAL '30 days' WHERE s.region = '华东' GROUP BY s.id, s.store_name ORDER BY sales DESC LIMIT 1"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 1,
+      "latency_ms": 2077
+    },
+    {
+      "id": "Q03",
+      "type": "lookup",
+      "question": "各区域销售额占比",
+      "report_length": 1803,
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.675,
+        "missing": [
+          20847932.62,
+          20804984.18,
+          20601990.68,
+          20558013.86,
+          20330209.27
+        ],
+        "skipped": false,
+        "total": 40
+      },
+      "sql_accuracy": {
+        "total": 2,
+        "failed": 1,
+        "rate": 0.5,
+        "unknown_tables": []
+      },
+      "reflection_status": "skipped",
+      "sql_count": 2,
+      "sqls": [
+        "SELECT s.region, COUNT(o.order_id) as orders, COALESCE(SUM(o.amount),0) as sales, ROUND(COALESCE(SUM(o.amount),0) * 100.0 / SUM(SUM(o.amount)) OVER (), 2) as sales_share FROM store s LEFT JOIN orders o ON s.id = o.store_id GROUP BY s.region ORDER BY sales DESC",
+        "SELECT s.region, COUNT(o.order_id) as orders, COALESCE(SUM(o.amount),0) as sales, ROUND((COALESCE(SUM(o.amount),0) * 100.0 / SUM(SUM(o.amount)) OVER ())::numeric, 2) as sales_share FROM store s LEFT JOIN orders o ON s.id = o.store_id GROUP BY s.region ORDER BY sales DESC"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 2,
+      "latency_ms": 2062
+    },
+    {
+      "id": "Q04",
+      "type": "lookup",
+      "question": "各区域订单数对比",
+      "report_length": 1559,
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.6944444444444444,
+        "missing": [
+          20847932.62,
+          20804984.18,
+          20601990.68,
+          20558013.86,
+          20330209.27
+        ],
+        "skipped": false,
+        "total": 36
+      },
+      "sql_accuracy": {
+        "total": 1,
+        "failed": 0,
+        "rate": 1.0,
+        "unknown_tables": []
+      },
+      "reflection_status": "skipped",
+      "sql_count": 1,
+      "sqls": [
+        "SELECT s.region, COUNT(o.order_id) as orders, COALESCE(SUM(o.amount),0) as sales FROM store s LEFT JOIN orders o ON s.id=o.store_id GROUP BY s.region ORDER BY orders DESC"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 1,
+      "latency_ms": 2046
+    },
+    {
+      "id": "Q51",
+      "type": "analysis",
+      "question": "分析华东区最近销售情况",
+      "report_length": 2768,
+      "dimension_coverage": 0.6666666666666666,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.8529411764705882,
+        "missing": [
+          4365000.0,
+          109000.0,
+          48000.0,
+          37000.0,
+          37000.0
+        ],
+        "skipped": false,
+        "total": 68
+      },
+      "sql_accuracy": {
+        "total": 5,
+        "failed": 0,
+        "rate": 1.0,
+        "unknown_tables": []
+      },
+      "reflection_status": "skipped",
+      "sql_count": 5,
+      "sqls": [
+        "SELECT s.region, COUNT(o.order_id) as orders, COALESCE(SUM(o.amount),0) as sales, COALESCE(SUM(o.refund_amount),0) as refund_amount, COUNT(CASE WHEN o.refund_amount>0 THEN 1 END) as refund_orders FROM store s LEFT JOIN orders o ON s.id=o.store_id WHERE s.region='华东' GROUP BY s.region",
+        "SELECT DATE(o.create_time) as date, COUNT(*) as orders, COALESCE(SUM(o.amount),0) as sales FROM orders o JOIN store s ON o.store_id=s.id WHERE s.region='华东' AND o.create_time >= NOW() - INTERVAL '30 days' GROUP BY DATE(o.create_time) ORDER BY date",
+        "SELECT s.store_name, COUNT(o.order_id) as orders, COALESCE(SUM(o.amount),0) as sales, COALESCE(SUM(o.refund_amount),0) as refund_amount FROM store s LEFT JOIN orders o ON s.id=o.store_id WHERE s.region='华东' GROUP BY s.id, s.store_name ORDER BY sales DESC"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 5,
+      "latency_ms": 2078
+    },
+    {
+      "id": "Q52",
+      "type": "analysis",
+      "question": "对比华东和华北两个区域的销售表现",
+      "report_length": 1461,
+      "dimension_coverage": 1.0,
+      "rows_in_range": false,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.2857142857142857,
+        "missing": [
+          20956908.03,
+          2043251.44,
+          2012606.0,
+          152000.0,
+          44721.0
+        ],
+        "skipped": false,
+        "total": 21
+      },
+      "sql_accuracy": {
+        "total": 2,
+        "failed": 0,
+        "rate": 1.0,
+        "unknown_tables": []
+      },
+      "reflection_status": "skipped",
+      "sql_count": 2,
+      "sqls": [
+        "SELECT s.region, COUNT(o.order_id) as orders, COALESCE(SUM(o.amount),0) as sales, COALESCE(SUM(o.refund_amount),0) as refund_amount FROM store s LEFT JOIN orders o ON s.id=o.store_id WHERE s.region IN ('华东','华北') GROUP BY s.region ORDER BY sales DESC",
+        "SELECT region, COUNT(*) as store_count FROM store WHERE region IN ('华东','华北') GROUP BY region"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 2,
+      "latency_ms": 2061
+    },
+    {
+      "id": "Q53",
+      "type": "analysis",
+      "question": "分析各区域销售额的同比变化",
+      "report_length": 1868,
+      "dimension_coverage": 0.75,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.717948717948718,
+        "missing": [
+          2088091.65,
+          2077197.17,
+          2072760.9,
+          2050247.46,
+          2031655.32
+        ],
+        "skipped": false,
+        "total": 39
+      },
+      "sql_accuracy": {
+        "total": 4,
+        "failed": 1,
+        "rate": 0.75,
+        "unknown_tables": []
+      },
+      "reflection_status": "skipped",
+      "sql_count": 4,
+      "sqls": [
+        "SELECT MIN(create_time) AS min_time, MAX(create_time) AS max_time, EXTRACT(YEAR FROM create_time) AS yr FROM orders GROUP BY yr ORDER BY yr",
+        "SELECT s.region, EXTRACT(YEAR FROM o.create_time) AS yr, COUNT(o.order_id) AS orders, COALESCE(SUM(o.amount),0) AS sales FROM store s LEFT JOIN orders o ON s.id = o.store_id GROUP BY s.region, yr ORDER BY s.region, yr",
+        "WITH y AS (\n  SELECT s.region,\n         SUM(CASE WHEN EXTRACT(YEAR FROM o.create_time)=2025 THEN o.amount ELSE 0 END) AS sales_2025,\n         SUM(CASE WHEN EXTRACT(YEAR FROM o.create_time)=2026 THEN o.amount ELSE 0 END) AS sales_2026\n  FROM store s LEFT JOIN orders o ON s.id=o.store_id\n  GROUP BY s.region\n)\nSELECT region,\n       ROUND(sales_2025,2) AS sales_2025,\n       ROUND(sales_2026,2) AS sales_2026,\n       ROUND((sales_2026 - sales_2025)*100.0 / NULLIF(sales_2025,0), 2) AS yoy_growth_pct\nFROM y\nORDER BY yoy_growth_pct DESC"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 4,
+      "latency_ms": 2032
+    },
+    {
+      "id": "Q54",
+      "type": "analysis",
+      "question": "上月销售冠军门店的成功因素分析",
+      "report_length": 2807,
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.835820895522388,
+        "missing": [
+          202846.59,
+          201818.18,
+          201314.64,
+          22300.0,
+          22200.0
+        ],
+        "skipped": false,
+        "total": 67
+      },
+      "sql_accuracy": {
+        "total": 31,
+        "failed": 4,
+        "rate": 0.8709677419354839,
+        "unknown_tables": []
+      },
+      "reflection_status": "failed",
+      "sql_count": 31,
+      "sqls": [
+        "SELECT s.store_name, s.region, s.manager, COUNT(o.order_id) as total_orders, COALESCE(SUM(o.amount),0) as sales FROM store s LEFT JOIN orders o ON s.id=o.store_id WHERE o.create_time >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND o.create_time < DATE_TRUNC('month', CURRENT_DATE) GROUP BY s.id, s.store_name, s.region, s.manager ORDER BY sales DESC LIMIT 1",
+        "SELECT MIN(create_time) as min_time, MAX(create_time) as max_time, DATE_TRUNC('month', CURRENT_DATE) as cur_month_start FROM orders",
+        "SELECT s.store_name, COUNT(o.order_id) as total_orders, COUNT(CASE WHEN o.refund_amount>0 THEN 1 END) as refund_orders, COALESCE(SUM(o.refund_amount),0) as refund_amount, ROUND(COUNT(CASE WHEN o.refund_amount>0 THEN 1 END)*100.0/NULLIF(COUNT(*),0),2) as refund_rate, ROUND(COALESCE(SUM(o.amount),0)/NULLIF(COUNT(*),0),2) as avg_order_value FROM orders o JOIN store s ON o.store_id=s.id WHERE o.create_time >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND o.create_time < DATE_TRUNC('month', CURRENT_DATE) AND s.store_name='郑州万达店' GROUP BY s.store_name"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 31,
+      "latency_ms": 2046
+    },
+    {
+      "id": "Q89",
+      "type": "edge",
+      "question": "帮我看看最近一周的情况",
+      "report_length": 4263,
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.8088235294117647,
+        "missing": [
+          2024727.69,
+          2018918.92,
+          2018379.39,
+          2017346.65,
+          2013263.62
+        ],
+        "skipped": false,
+        "total": 136
+      },
+      "sql_accuracy": {
+        "total": 44,
+        "failed": 5,
+        "rate": 0.8863636363636364,
+        "unknown_tables": []
+      },
+      "reflection_status": "failed",
+      "sql_count": 44,
+      "sqls": [
+        "SELECT DATE(create_time) as date, COUNT(*) as orders, SUM(amount) as sales FROM orders WHERE create_time >= NOW() - INTERVAL '7 days' GROUP BY DATE(create_time) ORDER BY date",
+        "SELECT s.region, COUNT(o.order_id) as orders, COALESCE(SUM(o.amount),0) as sales FROM store s LEFT JOIN orders o ON s.id=o.store_id AND o.create_time >= NOW() - INTERVAL '7 days' GROUP BY s.region ORDER BY sales DESC",
+        "SELECT DATE(create_time) as date, COUNT(*) as order_cnt, COUNT(DISTINCT member_id) as active_members, ROUND(SUM(amount),2) as total_amount FROM orders WHERE create_time >= NOW() - INTERVAL '7 days' GROUP BY DATE(create_time) ORDER BY date"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 44,
+      "latency_ms": 2093
+    },
+    {
+      "id": "Q90",
+      "type": "edge",
+      "question": "退款最多的那个门店的会员情况",
+      "report_length": 2897,
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.9506172839506173,
+        "missing": [
+          201963.98,
+          20300.0,
+          20.7,
+          20.7
+        ],
+        "skipped": false,
+        "total": 81
+      },
+      "sql_accuracy": {
+        "total": 16,
+        "failed": 4,
+        "rate": 0.75,
+        "unknown_tables": []
+      },
+      "reflection_status": "passed",
+      "sql_count": 16,
+      "sqls": [
+        "SELECT s.id, s.store_name, COALESCE(SUM(o.refund_amount),0) AS total_refund, COUNT(CASE WHEN o.refund_amount>0 THEN 1 END) AS refund_orders, COUNT(o.order_id) AS total_orders FROM store s LEFT JOIN orders o ON s.id=o.store_id GROUP BY s.id, s.store_name ORDER BY total_refund DESC LIMIT 1",
+        "SELECT m.level, COUNT(DISTINCT o.member_id) AS members, COUNT(o.order_id) AS orders, COALESCE(SUM(o.amount),0) AS sales FROM orders o JOIN member m ON o.member_id=m.member_id WHERE o.store_id=86 GROUP BY m.level ORDER BY members DESC",
+        "SELECT m.gender, COUNT(DISTINCT o.member_id) AS members, COUNT(o.order_id) AS orders, COALESCE(SUM(o.amount),0) AS sales FROM orders o JOIN member m ON o.member_id=m.member_id WHERE o.store_id=86 GROUP BY m.gender ORDER BY members DESC"
+      ],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": true,
+      "data_source_count": 16,
+      "latency_ms": 2062
+    },
+    {
+      "id": "Q91",
+      "type": "edge",
+      "question": "你好",
+      "report_length": 502,
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": null,
+        "missing": [],
+        "skipped": true,
+        "total": 0
+      },
+      "sql_accuracy": {
+        "total": 0,
+        "failed": 0,
+        "rate": null,
+        "unknown_tables": []
+      },
+      "reflection_status": "passed",
+      "sql_count": 0,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": true,
+      "data_source_count": 0,
+      "latency_ms": 2062
+    },
+    {
+      "id": "Q92",
+      "type": "edge",
+      "question": "明天天气怎么样",
+      "report_length": 323,
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": null,
+        "missing": [],
+        "skipped": true,
+        "total": 0
+      },
+      "sql_accuracy": {
+        "total": 0,
+        "failed": 0,
+        "rate": null,
+        "unknown_tables": []
+      },
+      "reflection_status": "skipped",
+      "sql_count": 0,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "reflection_passed": false,
+      "data_source_count": 0,
+      "latency_ms": 2078
+    }
+  ]
+}
