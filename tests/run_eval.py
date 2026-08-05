@@ -8,6 +8,7 @@
     python tests/run_eval.py --parallel 5          # 并发 5 条（默认串行）
     python tests/run_eval.py --judge               # 分析型追加 LLM-as-Judge 深度评分
     python tests/run_eval.py --judge-all           # 全部类型追加 LLM-as-Judge 评分
+    python tests/run_eval.py --skip-reflection     # 对照实验：跳过质检与重试（量化质检价值）
     python tests/run_eval.py --output result.json  # 输出结果到 JSON
     python tests/run_eval.py --compare baseline.json  # 与基线对比
 
@@ -120,22 +121,30 @@ def extract_numbers(text: str) -> list[float]:
 def cross_check_report(report: str, sources: list[dict], question: str) -> dict:
     """数值交叉校验：报告中的关键数字必须能在数据来源中找到出处。
 
-    允许集合 = 所有 SQL 执行结果 ∪ 报告外 SQL 文本 ∪ 用户问题原文
-    （"近30天"、"2026年" 等来自问题本身或查询条件的数字不算编造）。
+    两级校验（V4.6.3 升级为「算术审计」）：
+    1. 直接匹配：数字在 SQL 执行结果 / SQL 文本 / 用户问题 / 结果表合计 / 均值 中出现
+       （相对容差 0.5%，覆盖万/亿改写）。
+    2. 派生匹配：找不到出处的数字，用源数据重算常见派生公式验证——
+       差（|a-b|）、比率（a/b 与 a/b*100 百分数形式）、增长百分率 ((a-b)/b*100)、
+       乘积（a*b）、均值。LLM 合法算出的合计/客单价/增长率/占比都能通过，
+       而编造数字几乎不可能与任意真值的差/比/积在 0.5% 内重合。
 
     只校验「大整数（>=100）或带小数」的数字，规避序号/天数/小计数等噪音；
-    被校验数字中找不到出处的视为幻觉信号，返回 Top5 缺失数字供人工复核。
+    两级都找不到出处的视为幻觉信号，返回 Top5 缺失数字供人工复核。
     无任何数据可校验（如边界拒绝类问题）时标记 skipped，不参与通过率。
     """
     allowed: set[float] = set()
+    source_means: list[float] = []
     for s in sources:
         nums = extract_numbers(s.get("raw_data", ""))
         allowed.update(nums)
-        # 每张结果表的合计值（LLM 常把整表求和作为「总计」，属于合法派生）
         if nums:
+            # 每张结果表的合计值 / 均值（LLM 常把整表求和、求均值，属于合法派生）
             allowed.add(round(sum(nums), 2))
+            source_means.append(round(sum(nums) / len(nums), 2))
         allowed.update(extract_numbers(s.get("sql", "")))
     allowed.update(extract_numbers(question))
+    allowed.update(round(m, 2) for m in source_means)
 
     report_numbers = [n for n in extract_numbers(report) if n >= 100 or n != int(n)]
     if not allowed:
@@ -144,13 +153,46 @@ def cross_check_report(report: str, sources: list[dict], question: str) -> dict:
         return {"rate": 1.0, "missing": [], "skipped": False, "total": 0}
 
     allowed_sorted = sorted(allowed)
+
+    def _within(n: float, a: float) -> bool:
+        return abs(n - a) <= 0.005 * max(abs(a), abs(n), 1.0)
+
+    def _find(v: float) -> bool:
+        """二分查找 allowed 中是否存在 0.5% 容差内的值。"""
+        import bisect
+        i = bisect.bisect_left(allowed_sorted, v)
+        for j in (i - 1, i, i + 1):
+            if 0 <= j < len(allowed_sorted) and _within(v, allowed_sorted[j]):
+                return True
+        return False
+
+    def _derived_match(n: float) -> bool:
+        """用源数据重算派生公式：差 / 比率 / 百分率 / 增长百分率 / 乘积。"""
+        if abs(n) < 1e-9:
+            return False
+        for a in allowed_sorted:
+            if abs(a) < 1e-9:
+                continue
+            # 差：|a - b| ≈ n  →  b = a-n 或 a+n
+            if _find(a - n) or _find(a + n):
+                return True
+            # 比率：a/b ≈ n（如客单价 956908.03/12606≈75.9）
+            if _find(a / n):
+                return True
+            # 百分率：a/b*100 ≈ n（如占比 43251.44/956908.03*100≈4.52）
+            if _find(a * 100.0 / n):
+                return True
+            # 增长百分率：(a-b)/b*100 ≈ n → a/b*100 = n+100
+            if _find(a * 100.0 / (n + 100.0)):
+                return True
+            # 乘积：a*b ≈ n
+            if _find(n / a):
+                return True
+        return False
+
     missing = []
     for n in report_numbers:
-        # 相对容差 0.5% 匹配：覆盖 LLM 用「万/亿 + 四舍五入」改写数字的合法情况
-        # （如 20847932.62 -> "2084.79万" = 20847900）。编造数字几乎不可能落在任意真值的 0.5% 内。
-        found = any(
-            abs(n - a) <= 0.005 * max(abs(a), abs(n), 1.0) for a in allowed_sorted
-        )
+        found = _find(n) or _derived_match(n)
         if not found:
             missing.append(n)
     missing.sort(reverse=True)
@@ -298,6 +340,7 @@ async def run_single_eval(
     sem: asyncio.Semaphore | None = None,
     judge: bool = False,
     judge_llm=None,
+    skip_reflection: bool = False,
 ) -> dict:
     """对单条问题运行评估。
 
@@ -308,11 +351,12 @@ async def run_single_eval(
         sem: 并发信号量。
         judge: 是否追加 LLM-as-Judge 深度评分（失败不影响主指标）。
         judge_llm: 复用的 Judge LLM 实例（judge=True 时由调用方创建）。
+        skip_reflection: 对照实验 —— 请求服务跳过质检与重试（reflection_status 记为 ablation）。
     """
     import urllib.request
 
     async def _run():
-        analyze_data = json.dumps({"question": question["question"]}).encode()
+        analyze_data = json.dumps({"question": question["question"], "skip_reflection": skip_reflection}).encode()
         req = urllib.request.Request(
             f"http://localhost:{port}/api/v1/analysis/analyze",
             data=analyze_data,
@@ -353,8 +397,10 @@ async def run_single_eval(
             "no_hallucination": check_no_hallucination(report),
             "cross_check": cross_check_report(report, sources, question.get("question", "")),
             "sql_accuracy": compute_sql_accuracy(sources),
-            "reflection_status": classify_reflection(
-                data.get("reflection_feedback"), data.get("reflection_passed", False)
+            "reflection_status": (
+                "ablation" if skip_reflection else classify_reflection(
+                    data.get("reflection_feedback"), data.get("reflection_passed", False)
+                )
             ),
             "sql_count": len(sqls),
             "sqls": sqls[:3],
@@ -396,20 +442,13 @@ def compute_metrics(results: list[dict]) -> dict:
     avg_latency = sum(r.get("latency_ms", 0) for r in results) / max(total, 1)
 
     # ---- 数值交叉校验（skipped 不参与统计） ----
-    # 按类型区分：lookup/edge 报告以照抄数据为主，< 0.6 判幻觉嫌疑（健康实测 ~0.7-0.9）。
-    # analysis 不参与判罪：好报告与编造报告在交叉校验上得分都低（~0.2-0.35，
-    # 数字几乎全是合法派生指标），对 analysis 仅展示密度供复核，
-    # 真实质检由 LLM-as-Judge accuracy + Reflection 负责。
+    # V4.6.3 算术审计后统一判罪阈值 <0.6：派生数字（差/比/百分率/乘积/均值）
+    # 已能用源数据重算验证，健康报告（含 analysis）实测 0.93-1.0。
     cross_rates = [
         r["cross_check"]["rate"] for r in results
         if r.get("cross_check") and r["cross_check"].get("rate") is not None
     ]
-    cross_fail = sum(
-        1 for r in results
-        if r.get("cross_check") and r["cross_check"].get("rate") is not None
-        and r.get("type") != "analysis"
-        and r["cross_check"]["rate"] < 0.6
-    )
+    cross_fail = sum(1 for rate in cross_rates if rate < 0.6)
     cross_skipped = sum(1 for r in results if r.get("cross_check") and r["cross_check"].get("skipped"))
 
     # ---- SQL 执行成功率（无 SQL 的问题不参与） ----
@@ -422,7 +461,7 @@ def compute_metrics(results: list[dict]) -> dict:
 
     # ---- Reflection 四分类（修复监控指标失真的核心） ----
     rstatus = [r.get("reflection_status") for r in results]
-    r_counts = {s: rstatus.count(s) for s in ("passed", "failed", "parsing_fallback", "skipped")}
+    r_counts = {s: rstatus.count(s) for s in ("passed", "failed", "parsing_fallback", "skipped", "ablation")}
     r_counted = r_counts["passed"] + r_counts["failed"] + r_counts["parsing_fallback"]
     reflect_strict_pass = (r_counts["passed"] / r_counted) if r_counted else None
     reflect_effective_pass = (
@@ -505,9 +544,16 @@ def print_report(results: list[dict], baseline: dict | None = None):
     print(f"  SQL 执行成功率:  {metrics['sql_accuracy']*100:.1f}%"
           f"（失败 {metrics['sql_failed_count']}/{metrics['sql_total_count']}）")
     rs = metrics["reflection_status_counts"]
-    print(f"  Reflection:      严格通过 {metrics['reflection_strict_pass_rate']:.0f}% / "
-          f"含兜底 {metrics['reflection_effective_pass_rate']:.0f}%"
-          f"（过 {rs['passed']} / 未过 {rs['failed']} / 解析兜底 {rs['parsing_fallback']} / 跳过 {rs['skipped']}）")
+    sr = metrics["reflection_strict_pass_rate"]
+    er = metrics["reflection_effective_pass_rate"]
+    sr_txt = f"{sr:.0f}%" if sr is not None else "-"
+    er_txt = f"{er:.0f}%" if er is not None else "-"
+    print(f"  Reflection:      严格通过 {sr_txt} / "
+          f"含兜底 {er_txt}"
+          f"（过 {rs['passed']} / 未过 {rs['failed']} / 解析兜底 {rs['parsing_fallback']} / "
+          f"跳过 {rs['skipped']}"
+          + (f" / 对照跳过 {rs['ablation']}" if rs.get("ablation") else "")
+          + "）")
     if metrics.get("judge_avg_scores"):
         ja = metrics["judge_avg_scores"]
         print(f"  Judge 深度评分:  准确 {ja.get('accuracy', 0):.1f} / 逻辑 {ja.get('logic', 0):.1f} / "
@@ -561,8 +607,7 @@ def print_report(results: list[dict], baseline: dict | None = None):
         cross = r.get("cross_check") or {}
         cross_mark = ""
         if cross.get("rate") is not None:
-            # analysis 型只展示密度信息（派生指标多，判别力弱，质检交给 Judge）
-            if r.get("type") != "analysis" and cross["rate"] < 0.6:
+            if cross["rate"] < 0.6:
                 cross_mark = f" | CROSS_CHECK {cross['rate']*100:.0f}%（缺失: {cross.get('missing', [])[:3]}）"
             elif cross["rate"] < 0.9:
                 cross_mark = f" | cross={cross['rate']*100:.0f}%（缺失待复核: {cross.get('missing', [])[:3]}）"
@@ -616,8 +661,6 @@ def print_report(results: list[dict], baseline: dict | None = None):
     if no_hall / max(len(results), 1) < 0.95:
         issues.append("幻觉信号检出率偏低，需检查报告是否有编造数据的情况")
     for t, rates in cross_by_type.items():
-        if t == "analysis":
-            continue  # analysis 派生指标多，交叉校验无判别力（见 compute_metrics 注释）
         avg = sum(rates) / len(rates)
         if avg < 0.6:
             issues.append(f"{t} 型数值交叉校验通过率 {avg*100:.0f}%（阈值 60%），报告数字存在无法溯源的情况（最可能是编造）")
@@ -648,6 +691,9 @@ def main():
                         help="对 analysis 型问题追加 LLM-as-Judge 深度评分（约 +38 次 LLM 调用）")
     parser.add_argument("--judge-all", action="store_true",
                         help="对所有类型追加 LLM-as-Judge 深度评分")
+    parser.add_argument("--skip-reflection", action="store_true",
+                        help="对照实验：请求服务跳过 Reflection 质检与重试（需服务已部署 skip_reflection 参数），"
+                             "与正常跑结果对比可量化质检价值")
     args = parser.parse_args()
 
     eval_path = Path(__file__).parent / "eval_set.json"
@@ -710,6 +756,8 @@ def main():
             judge_llm = create_llm(temperature=0.0)
             scope = "全部类型" if args.judge_all else "analysis 型"
             print(f"  Judge 深度评分: 启用（{scope}）")
+        if args.skip_reflection:
+            print("  对照实验: 跳过 Reflection（结果与正常跑对比可量化质检价值）")
 
         results = []
         total = len(questions)
@@ -717,7 +765,7 @@ def main():
         for i, q in enumerate(questions, 1):
             print(f"  [{i:3d}/{total}] {q['id']:4s}: {q['question'][:50]:50s}...", end=" ", flush=True)
             need_judge = judge_enabled and (args.judge_all or q.get("type") == "analysis")
-            result = await run_single_eval(q, token, args.port, sem, judge=need_judge, judge_llm=judge_llm)
+            result = await run_single_eval(q, token, args.port, sem, judge=need_judge, judge_llm=judge_llm, skip_reflection=args.skip_reflection)
             results.append(result)
             if result.get("error"):
                 print("ERR")

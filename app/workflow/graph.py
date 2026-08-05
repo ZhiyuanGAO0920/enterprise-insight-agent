@@ -139,9 +139,10 @@ def after_reflection(state: AnalysisState) -> str:
 def after_report(state: AnalysisState) -> str:
     """从报告路由：如果有输出，前往反思；否则跳到记忆。
     V4.5: simple 查询型问题跳过 reflection（省一次 LLM 调用）。
+    V4.6.3: skip_reflection（对照实验）同样直接保存，不进入质检与重试。
     """
     if state.get("report"):
-        if state.get("query_type") == "simple":
+        if state.get("skip_reflection") or state.get("query_type") == "simple":
             return "save_memory"
         return "reflection_agent"
     return "save_memory"

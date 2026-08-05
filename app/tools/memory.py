@@ -68,7 +68,10 @@ async def save_analysis_history(
     Returns:
         新创建的历史记录 ID。
     """
-    embedding = await get_embedding(report)
+    # V4.6.3: 嵌入「问题」而非「报告」——检索侧（find_similar_analyses / search_similar_sql）
+    # 都用问题文本做向量，存储侧必须同构；此前嵌入报告（长文+数字表格），
+    # 与短查询语义错位，改写句召回率实测仅 25%。
+    embedding = await get_embedding(question)
     # 格式化为 PG vector 字面量：[0.1,0.2,0.3,...]
     vec_str = _vec_to_str(embedding)
 

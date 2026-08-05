@@ -41,6 +41,7 @@ class AnalysisState(TypedDict):
     reflection_passed: Optional[bool]
     reflection_feedback: Optional[str]
     reflection_retries: int  # 硬上限以防止无限循环
+    skip_reflection: Optional[bool]  # V4.6.3: 对照实验用——跳过质检与重试（生产勿开启）
 
     # ==== Supervisor 路由 ====
     supervisor_plan: Optional[str]

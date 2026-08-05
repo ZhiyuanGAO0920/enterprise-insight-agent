@@ -82,6 +82,10 @@ class AnalysisRequest(BaseModel):
         default=None,
         description="V3 多轮对话会话 ID。不传则为单次分析（无上下文记忆）。",
     )
+    skip_reflection: bool = Field(
+        default=False,
+        description="V4.6.3 实验参数：跳过 Reflection 质检与重试（对照实验用，生产勿开启；开启时绕过缓存保证每次真实执行）",
+    )
 
 
 class AnalysisResponse(BaseModel):
@@ -131,18 +135,21 @@ async def analyze(
     # 缓存键包含 user_id + tenant_id + store_ids + session_id + question
     # 确保不同用户/门店权限/会话上下文的相同提问不会被错误命中
     store_ids = await get_user_store_ids(user["user_id"])
-    cache_key = _analysis_cache_key(user["user_id"], user.get("tenant_id", ""), store_ids, req.session_id, req.question)
+    # V4.6.3: 对照实验（skip_reflection）绕过缓存 —— 保证每次真实执行且不污染生产缓存
     redis = None
-    try:
-        from app.database.redis import get_redis
-        redis = get_redis()
-        cached = await redis.get(cache_key)
-        if cached:
-            import json as _json
-            # decode_responses=True 已返回 str，无需 .decode()
-            return AnalysisResponse(**_json.loads(cached))
-    except Exception:
-        pass  # 缓存读取失败不影响主流程（降级为重新分析）
+    cache_key = None
+    if not req.skip_reflection:
+        cache_key = _analysis_cache_key(user["user_id"], user.get("tenant_id", ""), store_ids, req.session_id, req.question)
+        try:
+            from app.database.redis import get_redis
+            redis = get_redis()
+            cached = await redis.get(cache_key)
+            if cached:
+                import json as _json
+                # decode_responses=True 已返回 str，无需 .decode()
+                return AnalysisResponse(**_json.loads(cached))
+        except Exception:
+            pass  # 缓存读取失败不影响主流程（降级为重新分析）
 
     # V4 流式优先模式：check_cache=true 仅查缓存，不执行完整分析
     if check_cache:
@@ -157,12 +164,12 @@ async def analyze(
     bind_context(trace_id=trace_id, session_id=req.session_id or "", user_id=user["user_id"])
     logger.info("分析请求开始", question=req.question[:80])
 
-    # Check for similar historical analyses first
-    try:
-        similar = await find_similar_analyses(req.question, user_id=user["user_id"])
-    except Exception as e:
-        logger.warning("相似历史检索失败（降级处理）", exc_info=True)
-        similar = []
+    # V4.6.1: 相似历史检索与主链路并发执行，不再阻塞图启动。
+    # 它只影响「相似历史」展示面板，而 Embedding + 向量搜索可能耗时 1-3s。
+    # 任务在响应组装时收割；图超时则取消，防止悬挂。
+    similar_task = asyncio.create_task(
+        find_similar_analyses(req.question, user_id=user["user_id"])
+    )
 
     # --- V3: Multi-turn context handling ---
     ctx = ContextManager(req.session_id) if req.session_id else None
@@ -205,10 +212,12 @@ async def analyze(
                 "conversation_context": conversation_context,
                 "is_followup": is_followup,
                 "resolved_question": resolved_question if is_followup else None,
+                "skip_reflection": req.skip_reflection,
             }),
             timeout=420,
         )
     except asyncio.TimeoutError:
+        similar_task.cancel()  # 主链路已超时，取消并发的相似历史检索
         logger.error("分析链路超时（>420s），返回空报告")
         return AnalysisResponse(
             report=None,
@@ -236,6 +245,15 @@ async def analyze(
             entities=entities,
             summary=report[:300],
         )
+
+    # V4.6.1: 收割并发执行的相似历史检索（15s 兜底，不影响主响应返回）
+    try:
+        similar = await asyncio.wait_for(similar_task, timeout=15)
+    except asyncio.CancelledError:
+        raise  # 请求中断直接透传
+    except Exception as e:
+        logger.warning("相似历史检索失败（降级处理）", exc_info=True)
+        similar = []
 
     # V4.5: 传递 Supervisor 规划供前端展示推理过程
     _supervisor_plan = state.get("supervisor_plan")
@@ -536,10 +554,12 @@ async def _stream_graph(
     user_id: int | None,
     store_ids: list[str] | None = None,
     session_id: str | None = None,
+    skip_reflection: bool = False,
 ) -> AsyncGenerator[str, None]:
     """执行分析图并产生 SSE 事件流。
 
     V3：支持多轮对话上下文注入和追问建议生成。
+    V4.6.3: skip_reflection —— 对照实验参数，跳过质检与重试。
     """
     # 重置 Token 累计（为本次分析清空上次的残留）
     reset_task_tokens()
@@ -576,6 +596,7 @@ async def _stream_graph(
         "conversation_context": conversation_context,
         "is_followup": is_followup,
         "resolved_question": resolved_question if is_followup else None,
+        "skip_reflection": skip_reflection,
     }
 
     # V4 (P0-1): 使用 graph.astream(stream_mode=["updates","custom","values"]) 一次性完成
@@ -640,7 +661,8 @@ async def _stream_graph(
     await tracer.flush()
 
     # V4.5/V4.6: 流式结果写入 Redis 缓存（相同问题 30 分钟内秒回）
-    if report:
+    # V4.6.3: 对照实验不写缓存（避免污染生产缓存，键无 skip 标记会误命中）
+    if report and not skip_reflection:
         try:
             _cache_payload = json.dumps({
                 "record_id": record_id,
@@ -702,17 +724,19 @@ async def analyze_stream(
     # ── V4.6: 缓存命中快速通道 ──
     # 相同问题（同用户/租户/门店范围）10 分钟内直接重放缓存报告，不触发 LLM。
     # 键不含 session_id：不同会话中的首次提问可共享结果；多轮追问跳过（避免丢失会话上下文）。
+    # V4.6.3: 对照实验（skip_reflection）绕过缓存，保证每次真实执行。
     cached: dict | None = None
-    try:
-        if not req.session_id or not await ContextManager(req.session_id).is_followup(req.question):
-            from app.database.redis import get_redis
-            _hit = await get_redis().get(
-                _analysis_cache_key(user["user_id"], user.get("tenant_id", ""), store_ids, "", req.question)
-            )
-            if _hit:
-                cached = json.loads(_hit)
-    except Exception:
-        cached = None  # 缓存不可用/异常 → 走完整分析链路
+    if not req.skip_reflection:
+        try:
+            if not req.session_id or not await ContextManager(req.session_id).is_followup(req.question):
+                from app.database.redis import get_redis
+                _hit = await get_redis().get(
+                    _analysis_cache_key(user["user_id"], user.get("tenant_id", ""), store_ids, "", req.question)
+                )
+                if _hit:
+                    cached = json.loads(_hit)
+        except Exception:
+            cached = None  # 缓存不可用/异常 → 走完整分析链路
     if cached and cached.get("report"):
         logger.info("流式缓存命中，快速重放", question=req.question[:80])
         return StreamingResponse(
@@ -725,7 +749,7 @@ async def analyze_stream(
     async def _timeout_wrapper():
         try:
             async with asyncio.timeout(420):
-                async for item in _stream_graph(req.question, user["user_id"], store_ids, req.session_id):
+                async for item in _stream_graph(req.question, user["user_id"], store_ids, req.session_id, req.skip_reflection):
                     yield item
         except asyncio.TimeoutError:
             logger.warning("SSE 流式分析超时")
