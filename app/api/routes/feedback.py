@@ -153,7 +153,7 @@ async def get_my_feedback(
         # 我的反馈列表
         rows = await session.execute(text("""
             SELECT f.id, f.rating, f.reason, f.created_at,
-                   a.question, a.id as analysis_id
+                   a.question, a.id as analysis_id, a.reflection_passed
             FROM user_feedback f
             LEFT JOIN analysis_history a ON f.analysis_history_id = a.id
             WHERE f.user_id = :uid
@@ -168,6 +168,8 @@ async def get_my_feedback(
                 "created_at": row.created_at.isoformat() if row.created_at else "",
                 "question": row.question[:200] if row.question else "",
                 "analysis_id": row.analysis_id,
+                # V4.6.4: 质检状态（DB 无法区分跳过与未过，前端徽标 title 已注明）
+                "reflection_passed": row.reflection_passed if row.reflection_passed is not None else False,
             }
             for row in rows.fetchall()
         ]

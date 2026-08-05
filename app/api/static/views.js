@@ -575,13 +575,14 @@ function renderMonitorView(ov,er){
   document.getElementById('monitorView').innerHTML=
     '<div class="mq-header"><div class="mq-header-left"><h2>AI 质量监控</h2><span class="mq-header-period">'+per+'</span></div><div class="mq-pills">'+pills+'</div></div>'+
     '<div class="mq-hero"><div class="mq-hero-card accent"><div class="mq-hero-top"><div class="mq-hero-icon">📊</div><span class="mq-hero-status good">日均 '+da+' 次</span></div><div class="mq-hero-value">'+da+'</div><div class="mq-hero-label">日均分析量</div></div>'+
-    '<div class="mq-hero-card success"><div class="mq-hero-top"><div class="mq-hero-icon">✅</div><span class="mq-hero-status '+(pr>=90?'good':pr>=75?'warn':'bad')+'">'+(pr>=90?'优秀':pr>=75?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+pr+'%</div><div class="mq-hero-label">Reflection 通过率</div><div class="mq-hero-sub">好评率 '+fbr+'% · 未过 '+(ov.reflection_failed||0)+' 条 · 解析兜底 '+(ov.reflection_fallback||0)+' 条</div></div>'+
+    '<div class="mq-hero-card success"><div class="mq-hero-top"><div class="mq-hero-icon">✅</div><span class="mq-hero-status '+(pr>=90?'good':pr>=75?'warn':'bad')+'">'+(pr>=90?'优秀':pr>=75?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+pr+'%</div><div class="mq-hero-label">Reflection 通过率</div><div class="mq-hero-sub">好评率 '+fbr+'% · 未过 '+(ov.reflection_failed||0)+' 条 · <span onclick="showFallbackList()" title="点击查看质检未返回结构化结果、被乐观放行的报告" style="cursor:pointer;border-bottom:1px dotted var(--muted)">解析兜底 '+(ov.reflection_fallback||0)+' 条</span></div></div>'+
     '<div class="mq-hero-card warning"><div class="mq-hero-top"><div class="mq-hero-icon">⚡</div><span class="mq-hero-status '+(p50<500?'good':p50<1000?'warn':'bad')+'">'+(p50<500?'优秀':p50<1000?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+fmtSec(p50)+'</div><div class="mq-hero-label">P50 响应延迟</div><div class="mq-hero-sub">P95 '+fmtSec(p95)+' · 完整分析 '+fmtSec(dur)+'</div></div></div>'+
     '<div class="mq-groups"><div class="mq-group"><div class="mq-group-title">🔬 质量指标</div><div class="mq-group-cards">'+
     '<div class="mq-sm-card '+(rr>10?'red':rr>5?'amber':'green')+'"><div class="mq-sm-card-label">重试率</div><div class="mq-sm-card-value">'+rr+'%</div><div class="mq-sm-sub">修复率 '+fr+'%</div></div>'+
     '<div class="mq-sm-card '+(fr>=70?'green':fr>=50?'amber':'red')+'"><div class="mq-sm-card-label">修复率</div><div class="mq-sm-card-value">'+fr+'%</div><div class="mq-sm-sub">重试后通过比例</div></div>'+
     '<div class="mq-sm-card '+(fbr>=85?'green':fbr>=70?'amber':'red')+'"><div class="mq-sm-card-label">用户好评率</div><div class="mq-sm-card-value">'+fbr+'%</div><div class="mq-sm-sub">反馈有帮助比例</div></div>'+
-    '<div class="mq-sm-card '+(dur<30000?'green':'amber')+'"><div class="mq-sm-card-label">完整分析 P90</div><div class="mq-sm-card-value">'+fmtSec(p90d)+'</div><div class="mq-sm-sub">90% 在此时间内完成</div></div></div></div>'+
+    '<div class="mq-sm-card '+(dur<30000?'green':'amber')+'"><div class="mq-sm-card-label">完整分析 P90</div><div class="mq-sm-card-value">'+fmtSec(p90d)+'</div><div class="mq-sm-sub">90% 在此时间内完成</div></div>'+
+    _issueDistHtml(ov)+'</div></div>'+
     '<div class="mq-group"><div class="mq-group-title">💰 成本指标</div><div class="mq-group-cards">'+
     '<div class="mq-sm-card '+(dcost>0.05?'amber':'green')+'"><div class="mq-sm-card-label">日均成本</div><div class="mq-sm-card-value">¥'+(ov.total_analyses?dcost.toFixed(4):'—')+'</div><div class="mq-sm-sub">每日 LLM 调用费用</div></div>'+
     '<div class="mq-sm-card '+(mcost>1?'amber':'green')+'"><div class="mq-sm-card-label">月均成本</div><div class="mq-sm-card-value">¥'+(ov.total_analyses?mcost.toFixed(4):'—')+'</div><div class="mq-sm-sub">累计 Token 消耗</div></div></div></div></div>'+
@@ -589,6 +590,51 @@ function renderMonitorView(ov,er){
     '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">❌ 最近错误</div><div class="mq-section-subtitle">按时间倒序</div></div>'+ei+'</div>'+
     (ch?'<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">📊 Token 消耗趋势</div><div class="mq-section-subtitle">近 '+show.length+' 天 · 含 Input/Output/Cost</div></div>'+ch+'</div>':'');
 }
+
+/* 质检未过原因分布（四维）—— 后端 overview 已返回 reflection_issue_dist，纯前端渲染 */
+function _issueDistHtml(ov){
+  var idist=ov.reflection_issue_dist||{},qcn=[['consistency','一致性'],['logic','逻辑'],['actionability','可操作性'],['completeness','完整性']];
+  var idTotal=0;qcn.forEach(function(c){idTotal+=idist[c[0]]||0;});
+  var h='<div class="mq-sm-card blue" style="flex-basis:100%"><div class="mq-sm-card-label">质检未过原因分布</div>';
+  if(idTotal>0){
+    qcn.forEach(function(c){
+      var n=idist[c[0]]||0,pct=Math.round(n*100/idTotal);
+      h+='<div style="display:flex;align-items:center;gap:8px;font-size:11px;margin-top:6px">'+
+        '<span style="color:var(--muted);width:52px">'+c[1]+'</span>'+
+        '<span style="color:var(--muted);width:28px">'+n+'条</span>'+
+        '<div style="flex:1;height:6px;background:var(--border-subtle);border-radius:4px;overflow:hidden">'+
+        '<div style="width:'+pct+'%;height:100%;background:var(--semantic-warning);border-radius:4px"></div></div>'+
+        '<span style="color:var(--muted);width:36px;text-align:right">'+pct+'%</span></div>';
+    });
+    h+='<div style="font-size:10px;color:var(--muted);margin-top:6px">共 '+idTotal+' 条未过 · 一个报告可命中多维度</div>';
+  }else{
+    h+='<div style="font-size:12px;color:var(--semantic-success);margin-top:4px">✅ 全部通过质检</div>';
+  }
+  return h+'</div>';
+}
+
+/* 兜底报告明细弹窗 —— hero 卡片「解析兜底 N 条」点击下钻 */
+async function showFallbackList(){
+  if(!token){toast('请先登录');return;}
+  try{
+    var url=BASE+'/monitor/reflection-fallback?days='+_monitorDays;
+    if(_monitorStartDate)url+='&start_date='+_monitorStartDate;
+    if(_monitorEndDate)url+='&end_date='+_monitorEndDate;
+    var r=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+    if(!r.ok){toast('加载失败','error');return;}
+    var d=await r.json(),h='<div class="modal-box" style="width:600px;max-width:95%;max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:18px;font-weight:700;color:var(--text)">🔍 解析兜底报告</span><button onclick="closeFallbackList()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px">&times;</button></div>'+
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:12px">质检未返回结构化结果、按通过放行的报告 · 共 '+d.total+' 条，展示 '+d.entries.length+' 条</div>';
+    if(!d.entries||!d.entries.length)h+='<div style="padding:40px 0;text-align:center;color:var(--muted)">暂无兜底记录</div>';
+    else d.entries.forEach(function(e){
+      h+='<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">'+
+        '<div style="font-size:13px;color:var(--text)">'+esc(e.question)+'</div>'+
+        '<div style="font-size:11px;color:var(--muted);margin-top:4px">📅 '+((e.time||'').slice(0,16)||'')+'</div></div>';
+    });
+    h+='<div style="font-size:11px;color:var(--semantic-warning);margin-top:10px">⚠️ 兜底 ≠ 质检通过：这些报告质量未经验证，建议抽查复读</div></div>';
+    var ov2=document.createElement('div');ov2.className='modal-overlay';ov2.id='fbListOverlay';ov2.style.display='flex';ov2.onclick=function(ev){if(ev.target===ov2)closeFallbackList();};ov2.innerHTML=h;document.body.appendChild(ov2);
+  }catch(e){toast('加载失败','error');console.warn(e);}
+}
+function closeFallbackList(){var el=document.getElementById('fbListOverlay');if(el)el.remove();}
 
 
 /* Sessions & History */
@@ -920,7 +966,7 @@ async function showFeedbackHistory(){
     if(!r.ok){toast('加载失败','error');return;}
     var d=await r.json(),h='<div class="modal-box" style="width:560px;max-width:95%;max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:18px;font-weight:700;color:var(--text)">📝 我的反馈</span>'+(d.total>0?' <span style="font-size:12px;color:var(--muted)">好评率 '+d.helpful_rate+'%</span>':'')+'<button onclick="closeFeedbackHistory()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px">&times;</button></div>';
     if(!d.entries||!d.entries.length)h+='<div style="padding:40px 0;text-align:center;color:var(--muted)">暂无记录</div>';
-    else d.entries.forEach(function(e){var ri=e.rating==='helpful'?'👍':'👎',rc=e.rating==='helpful'?'var(--green)':'var(--red)';h+='<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between">'+ri+' <span style="color:'+rc+';font-weight:600">'+(e.rating==='helpful'?'有帮助':'不准确')+'</span> <span style="color:var(--muted);font-size:11px">'+((e.created_at||'').slice(0,10)||'')+'</span></div>'+(e.question?'<div style="font-size:12px;color:var(--muted)">"'+esc(e.question)+'"</div>':'')+'</div>';});
+    else d.entries.forEach(function(e){var ri=e.rating==='helpful'?'👍':'👎',rc=e.rating==='helpful'?'var(--green)':'var(--red)';h+='<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center">'+ri+' <span style="color:'+rc+';font-weight:600">'+(e.rating==='helpful'?'有帮助':'不准确')+'</span>'+(e.reflection_passed===false?'<span title="V4.6.2 起简单查询跳过质检，DB 无法区分跳过与未过" style="font-size:10px;color:var(--semantic-error);border:1px solid var(--semantic-error);border-radius:6px;padding:0 5px;line-height:1.6">⚠️ 质检未过</span>':'')+' <span style="color:var(--muted);font-size:11px">'+((e.created_at||'').slice(0,10)||'')+'</span></div>'+(e.question?'<div style="font-size:12px;color:var(--muted)">"'+esc(e.question)+'"</div>':'')+'</div>';});
     h+='</div>';
     var ov=document.createElement('div');ov.className='modal-overlay';ov.id='fbHistoryOverlay';ov.style.display='flex';ov.onclick=function(ev){if(ev.target===ov)closeFeedbackHistory();};ov.innerHTML=h;document.body.appendChild(ov);
   }catch(e){toast('加载失败','error');console.warn(e);}

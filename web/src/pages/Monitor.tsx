@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Spin, DatePicker, Space, Typography } from 'antd';
+import { Button, Spin, DatePicker, Modal, Space, Typography } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import dayjs from 'dayjs';
 import client from '../api/client';
@@ -33,6 +33,8 @@ interface OverviewData {
   // V4.6.3: 三态口径（未过/解析兜底），与离线评估对齐
   reflection_failed: number;
   reflection_fallback: number;
+  // V4.6.4: 质检未过原因分布（四维），监控页可见化
+  reflection_issue_dist?: { consistency: number; logic: number; actionability: number; completeness: number };
   feedback_helpful_rate: number;
   latency_p50_ms: number;
   latency_p95_ms: number;
@@ -77,6 +79,19 @@ export default function MonitorPage() {
   const cacheRef = useRef<{ key: string; time: number; ov: OverviewData; er: ErrorsData } | null>(null);
   /* 切换到「自定义」时跳过本次 effect 触发，避免用旧 days 值（近30天）先发一次加载 */
   const skipLoadRef = useRef(false);
+  /* V4.6.4: 兜底报告下钻弹窗 */
+  const [fbOpen, setFbOpen] = useState(false);
+  const [fbData, setFbData] = useState<{ total: number; entries: { id: number; question: string; time: string }[] } | null>(null);
+  const openFallback = async () => {
+    try {
+      const params: Record<string, unknown> = { days: Math.min(days, 90) };
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+      const res = await client.get('/monitor/reflection-fallback', { params });
+      setFbData(res.data);
+      setFbOpen(true);
+    } catch { /* 失败静默，保持弹窗关闭 */ }
+  };
 
   const periodLabel = preset === 'prevMonth' ? '上月' : preset === 'month' ? '本月' : preset === '7' ? '近7天' : preset === '30' ? '近30天' : `近${days}天`;
 
@@ -180,7 +195,7 @@ export default function MonitorPage() {
     </div>
   );
 
-  const heroCard = (icon: string, label: string, value: string, status: { label: string; color: string }, sub?: string) => (
+  const heroCard = (icon: string, label: string, value: string, status: { label: string; color: string }, sub?: React.ReactNode) => (
     <div style={{ flex: 1, minWidth: 220, background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 14, padding: '18px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 18 }}>{icon}</span>
@@ -234,7 +249,10 @@ export default function MonitorPage() {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
             {heroCard('📊', '日均分析量', String(da), { label: `日均 ${da} 次`, color: LEVEL.ok })}
             {heroCard('✅', '质检通过率', `${pr}%`, rateLevel(pr, 90, 75),
-              `好评率 ${fbr}% · 未过 ${ov?.reflection_failed ?? 0} 条 · 解析兜底 ${ov?.reflection_fallback ?? 0} 条`)}
+              <>好评率 {fbr}% · 未过 {ov?.reflection_failed ?? 0} 条 ·{' '}
+                <span style={{ cursor: 'pointer', borderBottom: `1px dotted ${DARK.muted}` }} onClick={openFallback} title="查看质检未返回结构化结果、被乐观放行的报告">
+                  解析兜底 {ov?.reflection_fallback ?? 0} 条
+                </span></>)}
             {heroCard('⚡', '中位响应延迟', fmtSec(p50), rateLevel(100 - Math.min(p50 / 10, 100), 95, 90), `95% 请求 ${fmtSec(p95)} 内 · 完整分析 ${fmtSec(ov.p50_duration_ms)}`)}
           </div>
 
@@ -247,6 +265,38 @@ export default function MonitorPage() {
                 {smCard('修复率', `${fr}%`, '重试后通过比例', fr >= 70 ? LEVEL.ok : fr >= 50 ? LEVEL.warn : LEVEL.err)}
                 {smCard('用户好评率', `${fbr}%`, '反馈有帮助比例', fbr >= 85 ? LEVEL.ok : fbr >= 70 ? LEVEL.warn : LEVEL.err)}
                 {smCard('完整分析 90% 分位', fmtSec(p90d), '90% 在此时间内完成', p90d < 30000 ? LEVEL.ok : LEVEL.warn)}
+                {/* V4.6.4: 质检未过原因分布（四维，对齐原生 _issueDistHtml） */}
+                {(() => {
+                  const dist = ov.reflection_issue_dist || {};
+                  const items: Array<[string, string]> = [['consistency', '一致性'], ['logic', '逻辑'], ['actionability', '可操作性'], ['completeness', '完整性']];
+                  const total = items.reduce((s, [k]) => s + (dist[k as keyof typeof dist] || 0), 0);
+                  return (
+                    <div style={{ flexBasis: '100%', background: 'rgba(59,130,246,.08)', borderRadius: 10, padding: '14px 16px' }}>
+                      <div style={{ fontSize: 11, color: DARK.muted, marginBottom: 8 }}>质检未过原因分布</div>
+                      {total > 0 ? (
+                        <>
+                          {items.map(([k, label]) => {
+                            const n = dist[k as keyof typeof dist] || 0;
+                            const pct = Math.round((n * 100) / total);
+                            return (
+                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, marginTop: 6 }}>
+                                <span style={{ color: DARK.muted, width: 52 }}>{label}</span>
+                                <span style={{ color: DARK.muted, width: 28 }}>{n}条</span>
+                                <div style={{ flex: 1, height: 6, background: DARK.border, borderRadius: 4, overflow: 'hidden' }}>
+                                  <div style={{ width: `${pct}%`, height: '100%', background: LEVEL.warn, borderRadius: 4 }} />
+                                </div>
+                                <span style={{ color: DARK.muted, width: 36, textAlign: 'right' }}>{pct}%</span>
+                              </div>
+                            );
+                          })}
+                          <div style={{ fontSize: 10, color: DARK.muted, marginTop: 6 }}>共 {total} 条未过 · 一个报告可命中多维度</div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 12, color: LEVEL.ok }}>✅ 全部通过质检</div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
             <div style={{ flex: 1, minWidth: 240 }}>
@@ -349,6 +399,26 @@ export default function MonitorPage() {
           )}
         </>
       )}
+
+      {/* V4.6.4: 兜底报告明细弹窗（hero 卡片「解析兜底 N 条」点击下钻） */}
+      <Modal open={fbOpen} onCancel={() => setFbOpen(false)} footer={null} width={620}
+        title={<span style={{ color: DARK.text }}>🔍 解析兜底报告</span>}
+        styles={{ content: { background: DARK.cardBg } }}>
+        <div style={{ fontSize: 11, color: DARK.muted, marginBottom: 12 }}>
+          质检未返回结构化结果、按通过放行的报告 · 共 {fbData?.total ?? 0} 条，展示 {fbData?.entries?.length ?? 0} 条
+        </div>
+        {!fbData?.entries?.length ? (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: DARK.muted }}>暂无兜底记录</div>
+        ) : (
+          fbData.entries.map((e) => (
+            <div key={e.id} style={{ background: DARK.bg, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+              <div style={{ fontSize: 13, color: DARK.text }}>{e.question}</div>
+              <div style={{ fontSize: 11, color: DARK.muted, marginTop: 4 }}>📅 {(e.time || '').slice(0, 16) || ''}</div>
+            </div>
+          ))
+        )}
+        <div style={{ fontSize: 11, color: LEVEL.warn, marginTop: 10 }}>⚠️ 兜底 ≠ 质检通过：这些报告质量未经验证，建议抽查复读</div>
+      </Modal>
     </div>
   );
 }

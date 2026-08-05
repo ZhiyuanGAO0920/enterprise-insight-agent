@@ -182,6 +182,55 @@ async def error_log(
     return {"period_days": _calc_period_days(days, start_date, end_date), "total_errors": len(errors), "by_agent": by_agent, "errors": errors}
 
 
+@router.get("/reflection-fallback", summary="解析兜底报告明细")
+async def reflection_fallback_list(
+    days: int = Query(30, ge=1, le=365),
+    start_date: str | None = Query(None, description="开始日期 YYYY-MM-DD，优先于 days"),
+    end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD，需与 start_date 同时使用"),
+    limit: int = Query(20, ge=1, le=100),
+    user: dict = Depends(require_permission("alert:view")),
+):
+    """返回「解析兜底」报告明细（质检未返回结构化结果、被乐观放行的记录）。
+
+    兜底标记：reflection_issues JSON 含 "Reflection did not return structured result"。
+    这类报告的质量未经质检验证，是监控看板上唯一不可见的质量盲区，
+    前端从 hero 卡片「解析兜底 N 条」点击下钻到本列表。
+    """
+    try:
+        ah_sql, ah_params = _time_filter(days, start_date, end_date, col="create_time")
+    except ValueError as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(e))
+
+    _FALLBACK_MARK = "%Reflection did not return structured result%"
+    async with get_session() as session:
+        total = (await session.execute(text(f"""
+            SELECT COUNT(*)
+            FROM analysis_history
+            WHERE reflection_issues::text LIKE :mark AND {ah_sql}
+        """), {**ah_params, "mark": _FALLBACK_MARK})).scalar() or 0
+        rows = (await session.execute(text(f"""
+            SELECT id, question, create_time
+            FROM analysis_history
+            WHERE reflection_issues::text LIKE :mark AND {ah_sql}
+            ORDER BY create_time DESC
+            LIMIT :l
+        """), {**ah_params, "mark": _FALLBACK_MARK, "l": limit})).fetchall()
+
+    return {
+        "period_days": _calc_period_days(days, start_date, end_date),
+        "total": total,
+        "entries": [
+            {
+                "id": row.id,
+                "question": (row.question or "")[:200],
+                "time": row.create_time.isoformat() if row.create_time else "",
+            }
+            for row in rows
+        ],
+    }
+
+
 @router.get("/overview", summary="AI 质量总览")
 async def quality_overview(
     days: int = Query(30, ge=1, le=365, description="统计最近 N 天"),
