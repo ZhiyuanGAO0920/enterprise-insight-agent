@@ -572,6 +572,10 @@ def test_feedback_request_validation():
     req3 = FeedbackRequest(analysis_history_id=1, rating="not_relevant")
     assert req3.rating == "not_relevant"
 
+    # V4.6.2: bad（前端「没有帮助」按钮）也是合法输入，提交时归一化为 inaccurate
+    req4 = FeedbackRequest(analysis_history_id=1, rating="bad")
+    assert req4.rating == "bad"
+
     # Invalid rating should raise validation error
     with pytest.raises(Exception):
         FeedbackRequest(analysis_history_id=1, rating="invalid_rating")

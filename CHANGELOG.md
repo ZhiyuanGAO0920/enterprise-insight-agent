@@ -7,6 +7,7 @@
 | # | 文件 | 修复 |
 |---|------|------|
 | 1 | `app/api/routes/monitor.py` | 重试率 SQL 把 `report_agent` 和 `reflection_agent` 事件**一起**计入 `report_runs`，而正常会话固定有 2 条事件（report 1 + reflection 1）→ `report_runs>=2` 恒成立 → **所有会话都被误判为"重试过"**，重试率虚高（实测近30天显示 82.9%、上月 100% 均失真）。改为 `COUNT(*) FILTER (WHERE node_name='report_agent')` 只统计 report 事件（真实重试 = reflection 失败后 report_agent 重跑，见 `graph.py` `after_reflection`）；修复后近30天 60.0%、上月 74.1%（数据含测试/每日投喂 demo 会话，偏高属正常） |
+| 2 | `app/api/routes/feedback.py` | 反馈三分类口径与提交端两按钮不一致：统计展示 有帮助/不准确/不相关，但前端只提交 `helpful`/`bad`，而 `bad` 不在后端 `^(helpful\|inaccurate\|not_relevant)$` 枚举内 → 点「没有帮助」提交必 422 失败（近一个多月 0 条 bad 入库）。修复：接受 `bad` 并归一化为 `inaccurate` 落库（对齐二分类决策「没有帮助≈不准确」，且不准确数据可驱动 `/analyze` 的 Agent 投诉分析）；历史 31 条 bad 一并 UPDATE 归入不准确 |
 
 ## V4.6.1 (2026-08-04)
 

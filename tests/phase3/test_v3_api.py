@@ -40,7 +40,8 @@ class TestFeedbackAPI:
         assert _c().post("/api/feedback/submit", json={"analysis_history_id": 1, "rating": "helpful"}).status_code in (401, 403)
 
     def test_invalid_rating(self):
-        assert _c().post("/api/feedback/submit", json={"analysis_history_id": 1, "rating": "bad"}, headers=_auth()).status_code == 422
+        # V4.6.2: bad 是前端「没有帮助」按钮取值，接受并归一化为 inaccurate；真正非法的 rating 仍 422
+        assert _c().post("/api/feedback/submit", json={"analysis_history_id": 1, "rating": "whatever"}, headers=_auth()).status_code == 422
 
     def test_stats(self):
         r = _c().get("/api/feedback/stats", headers=_auth())

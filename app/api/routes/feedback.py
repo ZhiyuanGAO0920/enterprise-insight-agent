@@ -15,7 +15,9 @@ router = APIRouter(prefix="/feedback", tags=["用户反馈"])
 
 class FeedbackRequest(BaseModel):
     analysis_history_id: int = Field(..., description="分析记录 ID（从 /api/analysis/analyze 的返回值获取）")
-    rating: str = Field(..., pattern="^(helpful|inaccurate|not_relevant)$", description="评分：helpful=有帮助, inaccurate=不准确, not_relevant=不相关")
+    # bad 是前端「没有帮助」按钮的历史取值，V4.6.2 起接受并在提交时归一化为 inaccurate
+    #（对齐二分类决策：没有帮助 ≈ 不准确，且 inaccurate 数据可驱动 /analyze 的 Agent 投诉分析）
+    rating: str = Field(..., pattern="^(helpful|bad|inaccurate|not_relevant)$", description="评分：helpful=有帮助, bad=没有帮助(归一化为不准确), inaccurate=不准确, not_relevant=不相关")
     reason: str = Field(default="", max_length=500, description="反馈原因（选填）")
     agent_issues: dict = Field(default={}, description="具体出错的 Agent 标记（选填）")
 
@@ -47,6 +49,9 @@ async def submit_feedback(
     if not settings.feature_feedback:
         return {"status": "disabled", "message": "反馈功能未启用", "enabled": False}
 
+    # V4.6.2: 前端「没有帮助」提交 bad，归一化为 inaccurate（见 FeedbackRequest 注释）
+    rating = "inaccurate" if req.rating == "bad" else req.rating
+
     # 验证记录存在且属于当前用户
     async with get_session() as session:
         result = await session.execute(
@@ -65,7 +70,7 @@ async def submit_feedback(
             {
                 "aid": req.analysis_history_id,
                 "uid": user["user_id"],
-                "r": req.rating,
+                "r": rating,
                 "reason": req.reason or None,
                 "issues": json.dumps(req.agent_issues) if req.agent_issues else "{}",
             },
