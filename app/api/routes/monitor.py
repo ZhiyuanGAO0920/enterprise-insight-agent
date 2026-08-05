@@ -4,6 +4,7 @@
 提取 AI PM 最关心的 5 个核心指标，支持按时间范围筛选。
 """
 
+import json
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Query
@@ -65,6 +66,35 @@ def _calc_period_days(days: int, start_date: str | None, end_date: str | None) -
     return days
 
 
+# 质检失败原因中文名（reflection_issues JSON 里的 category）
+_QC_ISSUE_CN = {"consistency": "一致性", "logic": "逻辑", "actionability": "可操作性", "completeness": "完整性"}
+
+
+def _reflection_error_text(question: str, issues) -> str:
+    """把「质检未过」记录拼成可读的错误摘要，展示在最近错误列表。
+
+    质检不过不抛异常（reflection_agent 内部吞掉后返回 reflection_passed=False），
+    只落在 analysis_history.reflection_issues 里，这里还原为人类可读文本。
+    """
+    counts: dict[str, int] = {}
+    first_desc = ""
+    for item in issues or []:
+        if not isinstance(item, dict):
+            continue
+        cat = item.get("category") or "other"
+        counts[cat] = counts.get(cat, 0) + 1
+        if not first_desc:
+            first_desc = (item.get("description") or "").strip()
+    cat_str = ", ".join(f"{_QC_ISSUE_CN.get(c, c)}×{n}" for c, n in counts.items()) or "无具体问题记录"
+    q = (question or "").strip().replace("\n", " ")
+    parts = [f"质检未通过[{cat_str}]"]
+    if q:
+        parts.append(f"「{q[:60]}」")
+    if first_desc:
+        parts.append(first_desc[:120])
+    return "｜".join(parts)
+
+
 @router.get("/errors", summary="Agent 错误日志")
 async def error_log(
     days: int = Query(7, ge=1, le=365),
@@ -73,13 +103,19 @@ async def error_log(
     limit: int = Query(50, ge=1, le=200),
     user: dict = Depends(require_permission("alert:view")),
 ):
-    """返回最近 Agent 执行错误的详细日志。"""
+    """返回最近 Agent 执行错误的详细日志。
+
+    两类错误合并展示（按时间倒序）：
+      1. 技术异常 —— agent_trace_events.error 非空（节点抛异常）
+      2. 质检未过 —— analysis_history.reflection_passed = false（质量失败，V4.6.2 并入）
+    """
     try:
         time_sql, time_params = _time_filter(days, start_date, end_date)
     except ValueError as e:
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail=str(e))
     async with get_session() as session:
+        # ── 1. 技术异常（原逻辑：节点抛异常才记录） ──
         result = await session.execute(text(f"""
             SELECT node_name, error, elapsed_ms, created_at, session_id
             FROM agent_trace_events
@@ -106,6 +142,42 @@ async def error_log(
             GROUP BY node_name ORDER BY cnt DESC
         """), time_params)
         by_agent = {row.node_name: row.cnt for row in agg_result.fetchall()}
+
+        # ── 2. 质检未过（质量失败，按 create_time 过滤） ──
+        ah_sql, ah_params = _time_filter(days, start_date, end_date, col="create_time")
+        qc_result = await session.execute(text(f"""
+            SELECT question, reflection_issues, create_time
+            FROM analysis_history
+            WHERE reflection_passed = false
+              AND {ah_sql}
+            ORDER BY create_time DESC
+            LIMIT :l
+        """), {**ah_params, "l": limit})
+        for row in qc_result.fetchall():
+            issues = row.reflection_issues
+            if isinstance(issues, str):
+                try:
+                    issues = json.loads(issues)
+                except Exception:
+                    issues = None
+            errors.append({
+                "time": row.create_time.isoformat() if row.create_time else "",
+                "agent": "reflection_agent",
+                "error": _reflection_error_text(row.question, issues)[:300],
+                "elapsed_ms": None,
+                "session": "",
+            })
+        # 质检未过总数（不受 limit 影响，用于 by_agent 统计）
+        qc_total = (await session.execute(text(f"""
+            SELECT COUNT(*) FROM analysis_history
+            WHERE reflection_passed = false AND {ah_sql}
+        """), ah_params)).scalar()
+        if qc_total:
+            by_agent["reflection_agent"] = by_agent.get("reflection_agent", 0) + qc_total
+
+        # 合并后按时间倒序，截断到 limit
+        errors.sort(key=lambda e: e["time"], reverse=True)
+        errors = errors[:limit]
 
     return {"period_days": _calc_period_days(days, start_date, end_date), "total_errors": len(errors), "by_agent": by_agent, "errors": errors}
 
@@ -150,10 +222,19 @@ async def quality_overview(
         async with get_session() as session:
             # 1. Reflection 通过率 + 分析总量
             # V4.1: 用 NULLIF 防止 analysis_history 为空时除零错误
+            # V4.6.3: 三态口径（DB 能力边界内的最大细分）：
+            #   failed   = 质检未通过（reflection_passed=false）
+            #   fallback = 质检解析失败按通过记（reflection_issues 含
+            #              "Reflection did not return structured result" 标记，reflection_agent 兜底）
+            #   passed   = 通过（含 V4.6.2 起简单查询跳过质检的乐观记过——
+            #              DB 无 reflection_feedback 列，skipped 与真过不可区分，如实标注）
+            # pass_rate 保持向后兼容（passed/total）。
             reflect = await session.execute(text(f"""
             SELECT
                 COUNT(*) as total,
                 COUNT(CASE WHEN reflection_passed = true THEN 1 END) as passed,
+                COUNT(CASE WHEN reflection_passed = false THEN 1 END) as failed,
+                COUNT(CASE WHEN reflection_issues::text LIKE '%Reflection did not return structured result%' THEN 1 END) as fallback,
                 ROUND(COUNT(CASE WHEN reflection_passed = true THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1) as pass_rate
             FROM analysis_history
             WHERE {ah_sql}
@@ -319,6 +400,9 @@ async def quality_overview(
                 "total_analyses": total_analyses,
                 "total_issues_reports": r.total - (r.passed or 0) if r.total > 0 else 0,
                 "reflection_pass_rate": r.pass_rate if r.total > 0 else 0,
+                # V4.6.3: 三态口径（未过/解析兜底），与离线评估对齐
+                "reflection_failed": r.failed or 0,
+                "reflection_fallback": r.fallback or 0,
                 "reflection_issue_dist": reflection_issue_dist,
                 "feedback_helpful_rate": fb.helpful_pct if fb.total > 0 else 0,
                 "latency_p50_ms": lat.p50 or 0,

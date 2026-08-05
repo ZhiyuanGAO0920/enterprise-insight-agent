@@ -33,6 +33,15 @@
 - **反馈×质检关联（体系自检重磅结论）：质检 passed 的不准确率 28%（27/97），failed 为 25%（4/16）——Reflection 是否通过几乎不预测用户满意度**，质检维度或阈值需重新审视
 - **对照实验（无 Reflection）**：维度覆盖率 0.876 vs 0.91（正常组部分缓存命中，口径不完全对等，建议干净复跑），1 条超时；基础设施已就绪可随时复测
 
+### 🐛 优化：监控页 Reflection 通过率升级三态口径（前端联动）
+
+| # | 文件 | 优化 |
+|---|------|------|
+| 1 | `app/api/routes/monitor.py` | overview 新增 `reflection_failed`（未过）/ `reflection_fallback`（解析兜底按过）两态计数（`reflection_issues` 含 "Reflection did not return structured result" 标记检出）；`reflection_pass_rate` 保持向后兼容。**口径边界如实标注**：DB 无 `reflection_feedback` 列，V4.6.2 乐观记录使「简单查询跳过」与「真过」不可区分——可查的最大细分是三态 |
+| 2 | `app/api/static/views.js` + `web/src/pages/Monitor.tsx` | 监控 hero 卡片副标题展示「未过 N 条 · 解析兜底 N 条」，双版本同步 |
+
+**实测**：近 30 天 `reflection_pass_rate 78.6%`，**未过 123 条、解析兜底 32 条**——兜底数量此前完全不可见（32 次质检未拿到结构化输出被乐观放行，属质检健壮性信号，可驱动 4.2 的质检重构）。
+
 ## V4.6.2 (2026-08-05)
 
 ### 🐛 修复：监控页重试率虚高（统计口径 bug）

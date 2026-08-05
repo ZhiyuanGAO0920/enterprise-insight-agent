@@ -4,6 +4,7 @@ import ReactECharts from 'echarts-for-react';
 import dayjs from 'dayjs';
 import client from '../api/client';
 import { DARK } from '../theme';
+import { fmtSec } from '../lib/format';
 
 const { Title } = Typography;
 
@@ -11,6 +12,7 @@ const { Title } = Typography;
 const AGENT_LABELS: Record<string, string> = {
   sales: '销售', crm: 'CRM', finance: '财务', inventory: '库存', supply_chain: '供应链',
   supervisor: '规划', aggregator: '聚合', chart_advisor: '图表', report: '报告', reflection: '质检',
+  reflection_agent: '质检', save_memory: '记忆',
 };
 
 /* ── 错误信息中文映射（对齐原生 _errCn） ── */
@@ -28,6 +30,9 @@ interface OverviewData {
   period_days: number;
   total_analyses: number;
   reflection_pass_rate: number;
+  // V4.6.3: 三态口径（未过/解析兜底），与离线评估对齐
+  reflection_failed: number;
+  reflection_fallback: number;
   feedback_helpful_rate: number;
   latency_p50_ms: number;
   latency_p95_ms: number;
@@ -70,6 +75,8 @@ export default function MonitorPage() {
   const [error, setError] = useState(false);
   const [customRange, setCustomRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const cacheRef = useRef<{ key: string; time: number; ov: OverviewData; er: ErrorsData } | null>(null);
+  /* 切换到「自定义」时跳过本次 effect 触发，避免用旧 days 值（近30天）先发一次加载 */
+  const skipLoadRef = useRef(false);
 
   const periodLabel = preset === 'prevMonth' ? '上月' : preset === 'month' ? '本月' : preset === '7' ? '近7天' : preset === '30' ? '近30天' : `近${days}天`;
 
@@ -93,10 +100,18 @@ export default function MonitorPage() {
     } catch { setError(true); }
   }, []);
 
-  useEffect(() => { load(preset, days, startDate, endDate); }, [load, preset, days, startDate, endDate]);
+  useEffect(() => {
+    if (skipLoadRef.current) { skipLoadRef.current = false; return; }
+    load(preset, days, startDate, endDate);
+  }, [load, preset, days, startDate, endDate]);
 
   const setPresetAndLoad = (p: string) => {
-    if (p === 'custom') { setPreset('custom'); return; }
+    if (p === 'custom') {
+      /* 只切到日期选择面板，不沿用旧 days 发请求（点「确认」后按自定义范围加载） */
+      if (preset !== 'custom') skipLoadRef.current = true;
+      setPreset('custom');
+      return;
+    }
     const n = new Date();
     let d = 30, sd: string | null = null, ed: string | null = null;
     if (p === '7') d = 7;
@@ -132,20 +147,25 @@ export default function MonitorPage() {
     const dates = show.map((t) => (t.date || '').slice(5));
     const inS = show.map((t) => t.input_tokens);
     const outS = show.map((t) => t.output_tokens);
-    const costS = show.map((t) => (t.cost ? +(t.cost * 10000).toFixed(2) : 0));
+    /* 成本存真实值（元），不再 ×10000 换算；tooltip/轴统一用 ¥ 格式化 */
+    const costS = show.map((t) => (t.cost ? +t.cost.toFixed(4) : 0));
     return {
-      tooltip: { trigger: 'axis', backgroundColor: 'rgba(30,35,55,0.95)', borderColor: '#334155', textStyle: { color: '#e2e8f0', fontSize: 12 } },
-      legend: { data: ['Input', 'Output', '成本(万元)'], textStyle: { color: '#94a3b8', fontSize: 11 }, top: 0, right: 0, icon: 'circle', itemWidth: 8, itemHeight: 8 },
+      tooltip: {
+        trigger: 'axis', backgroundColor: 'rgba(30,35,55,0.95)', borderColor: '#334155', textStyle: { color: '#e2e8f0', fontSize: 12 },
+        formatter: (p: Array<{ seriesName: string; value: number; marker: string }>) =>
+          p.map((x) => `${x.marker}${x.seriesName}: ${x.seriesName === '成本(元)' ? '¥' + x.value.toFixed(4) : fmtTokens(x.value)}`).join('<br/>'),
+      },
+      legend: { data: ['Input', 'Output', '成本(元)'], textStyle: { color: '#94a3b8', fontSize: 11 }, top: 0, right: 0, icon: 'circle', itemWidth: 8, itemHeight: 8 },
       grid: { left: 50, right: 20, top: 40, bottom: 30 },
       xAxis: { type: 'category', data: dates, axisLabel: { color: '#94a3b8', fontSize: 10 }, axisLine: { lineStyle: { color: '#334155' } }, axisTick: { show: false } },
       yAxis: [
         { type: 'value', name: 'Tokens', nameTextStyle: { color: '#94a3b8', fontSize: 10 }, axisLabel: { color: '#94a3b8', fontSize: 10, formatter: (v: number) => fmtTokens(v) }, splitLine: { lineStyle: { color: '#1e293b' } } },
-        { type: 'value', name: '成本(万元)', nameTextStyle: { color: '#94a3b8', fontSize: 10 }, axisLabel: { color: '#94a3b8', fontSize: 10, formatter: (v: number) => '¥' + (v / 10000).toFixed(4) }, splitLine: { show: false } },
+        { type: 'value', name: '成本(元)', nameTextStyle: { color: '#94a3b8', fontSize: 10 }, axisLabel: { color: '#94a3b8', fontSize: 10, formatter: (v: number) => '¥' + v.toFixed(2) }, splitLine: { show: false } },
       ],
       series: [
         { name: 'Input', type: 'line', data: inS, smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#6366f1' }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(99,102,241,0.25)' }, { offset: 1, color: 'rgba(99,102,241,0)' }] } } },
         { name: 'Output', type: 'line', data: outS, smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#22c55e' }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(34,197,94,0.2)' }, { offset: 1, color: 'rgba(34,197,94,0)' }] } } },
-        { name: '成本(万元)', type: 'bar', yAxisIndex: 1, data: costS, itemStyle: { color: 'rgba(245,158,11,0.5)', borderColor: '#f59e0b', borderWidth: 1, borderRadius: [2, 2, 0, 0] } },
+        { name: '成本(元)', type: 'bar', yAxisIndex: 1, data: costS, itemStyle: { color: 'rgba(245,158,11,0.5)', borderColor: '#f59e0b', borderWidth: 1, borderRadius: [2, 2, 0, 0] } },
       ],
     };
   })();
@@ -213,8 +233,9 @@ export default function MonitorPage() {
           {/* ── Hero 大卡（对齐原生 mq-hero） ── */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
             {heroCard('📊', '日均分析量', String(da), { label: `日均 ${da} 次`, color: LEVEL.ok })}
-            {heroCard('✅', '质检通过率', `${pr}%`, rateLevel(pr, 90, 75), `用户好评率 ${fbr}%`)}
-            {heroCard('⚡', '中位响应延迟', `${p50}ms`, rateLevel(100 - Math.min(p50 / 10, 100), 95, 90), `95% 请求 ${p95}ms 内 · 完整分析 ${Math.round((ov.p50_duration_ms || 0) / 1000)}s`)}
+            {heroCard('✅', '质检通过率', `${pr}%`, rateLevel(pr, 90, 75),
+              `好评率 ${fbr}% · 未过 ${ov?.reflection_failed ?? 0} 条 · 解析兜底 ${ov?.reflection_fallback ?? 0} 条`)}
+            {heroCard('⚡', '中位响应延迟', fmtSec(p50), rateLevel(100 - Math.min(p50 / 10, 100), 95, 90), `95% 请求 ${fmtSec(p95)} 内 · 完整分析 ${fmtSec(ov.p50_duration_ms)}`)}
           </div>
 
           {/* ── 质量指标 + 成本指标（对齐原生 mq-groups） ── */}
@@ -225,7 +246,7 @@ export default function MonitorPage() {
                 {smCard('重试率', `${rr}%`, `修复率 ${fr}%`, rr > 10 ? LEVEL.err : rr > 5 ? LEVEL.warn : LEVEL.ok)}
                 {smCard('修复率', `${fr}%`, '重试后通过比例', fr >= 70 ? LEVEL.ok : fr >= 50 ? LEVEL.warn : LEVEL.err)}
                 {smCard('用户好评率', `${fbr}%`, '反馈有帮助比例', fbr >= 85 ? LEVEL.ok : fbr >= 70 ? LEVEL.warn : LEVEL.err)}
-                {smCard('完整分析 90% 分位', `${Math.round(p90d / 1000)}s`, '90% 在此时间内完成', p90d < 30000 ? LEVEL.ok : LEVEL.warn)}
+                {smCard('完整分析 90% 分位', fmtSec(p90d), '90% 在此时间内完成', p90d < 30000 ? LEVEL.ok : LEVEL.warn)}
               </div>
             </div>
             <div style={{ flex: 1, minWidth: 240 }}>
@@ -244,7 +265,7 @@ export default function MonitorPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr>
-                  {['Agent', '运行', '错误', '错误率', '平均(ms)', '最大(ms)'].map((h) => (
+                  {['Agent', '运行', '错误', '错误率', '平均(s)', '最大(s)'].map((h) => (
                     <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: DARK.muted, fontSize: 11, borderBottom: `1px solid ${DARK.border}` }}>{h}</th>
                   ))}
                 </tr>
@@ -271,8 +292,8 @@ export default function MonitorPage() {
                           <span style={{ color: c, fontSize: 12, fontWeight: 600 }}>{a.error_rate}%</span>
                         </div>
                       </td>
-                      <td style={{ padding: '8px 10px', color: DARK.text }}>{a.avg_ms}</td>
-                      <td style={{ padding: '8px 10px', color: DARK.text }}>{a.max_ms}</td>
+                      <td style={{ padding: '8px 10px', color: DARK.text }}>{fmtSec(a.avg_ms)}</td>
+                      <td style={{ padding: '8px 10px', color: DARK.text }}>{fmtSec(a.max_ms)}</td>
                     </tr>
                   );
                 })}
@@ -305,7 +326,7 @@ export default function MonitorPage() {
                         <span style={{ fontSize: 11, background: '#2d2d44', color: DARK.text, borderRadius: 8, padding: '1px 8px' }}>{AGENT_LABELS[e.agent] || e.agent}</span>
                       </td>
                       <td style={{ padding: '8px 10px', color: DARK.text }}>{ERR_CN[e.error] || e.error || ''}</td>
-                      <td style={{ padding: '8px 10px', color: DARK.muted, fontSize: 12, whiteSpace: 'nowrap', width: 90 }}>{e.elapsed_ms || 0}ms</td>
+                      <td style={{ padding: '8px 10px', color: DARK.muted, fontSize: 12, whiteSpace: 'nowrap', width: 90 }}>{fmtSec(e.elapsed_ms)}</td>
                     </tr>
                   ))}
                 </tbody>
