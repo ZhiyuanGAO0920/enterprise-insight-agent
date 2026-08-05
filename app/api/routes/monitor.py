@@ -268,8 +268,11 @@ async def quality_overview(
             ]
 
             # ── 9. 重试率 + 修复成功率 ──
+            # 注意：report_runs 只统计 report_agent 事件。正常会话有 report + reflection
+            # 两条事件，若把两者都计入，任何会话都会 report_runs>=2，重试率恒为 100%。
             retry_rows = (await session.execute(text(f"""
-                SELECT session_id, COUNT(*) as report_runs,
+                SELECT session_id,
+                    COUNT(*) FILTER (WHERE node_name = 'report_agent') as report_runs,
                     bool_or(CASE WHEN node_name = 'reflection_agent' AND error IS NULL THEN true ELSE false END) as reflection_ok
                 FROM agent_trace_events
                 WHERE node_name IN ('report_agent', 'reflection_agent') AND {ae_sql}

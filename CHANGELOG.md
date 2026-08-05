@@ -1,5 +1,13 @@
 # CHANGELOG — V4 修复与优化记录
 
+## V4.6.2 (2026-08-05)
+
+### 🐛 修复：监控页重试率虚高（统计口径 bug）
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 1 | `app/api/routes/monitor.py` | 重试率 SQL 把 `report_agent` 和 `reflection_agent` 事件**一起**计入 `report_runs`，而正常会话固定有 2 条事件（report 1 + reflection 1）→ `report_runs>=2` 恒成立 → **所有会话都被误判为"重试过"**，重试率虚高（实测近30天显示 82.9%、上月 100% 均失真）。改为 `COUNT(*) FILTER (WHERE node_name='report_agent')` 只统计 report 事件（真实重试 = reflection 失败后 report_agent 重跑，见 `graph.py` `after_reflection`）；修复后近30天 60.0%、上月 74.1%（数据含测试/每日投喂 demo 会话，偏高属正常） |
+
 ## V4.6.1 (2026-08-04)
 
 ### 🐛 修复：SSE 流式分析超时误杀（心跳保活）
