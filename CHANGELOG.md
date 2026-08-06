@@ -8,7 +8,7 @@ V4.6.3 三态 hero 卡片之后，监控页仍有三块质检信号缺失：未�
 
 | # | 文件 | 优化 |
 |---|------|------|
-| 1 | `app/api/static/views.js` | **质检未过原因分布（四维）卡片**：复用 overview 已返回的 `reflection_issue_dist`（一致性/逻辑/可操作性/完整性计数，0 后端改动），条形展示占比 + 总数；全通过时显示 ✅ |
+| 1 | `app/api/static/views.js` + `web/src/pages/Monitor.tsx` + `app/api/static/index.html` | **质检未过原因分布（四维）独立板块 + ECharts 横向条形图**：复用 overview 已返回的 `reflection_issue_dist`（0 后端改动）。初版以 `flex-basis:100%` 塞进质量指标组——但 `.mq-group-cards` 是 **grid 布局，flex-basis 无效**，卡片被压成单格窄卡（172px）4 行条形全挤一起，排版畸形（用户反馈）。重构为独立 section（对齐 Agent 健康度/最近错误的板块风格），ECharts 横向条形图全宽展示（647px），tooltip 显示条数+占比；`views.js` bump `?v=4.52` 强制刷新缓存（项目惯例：static 改版 bump 版本号）。双版本同步 |
 | 2 | `app/api/routes/monitor.py` + `views.js` + `web/src/pages/Monitor.tsx` | **兜底报告下钻**：新增 `/monitor/reflection-fallback` 端点（按 `reflection_issues LIKE '%Reflection did not return structured result%'` 检出，含 total 总数 + 明细）；hero 卡片「解析兜底 N 条」可点击弹出明细列表（问题文本 + 时间 + 「兜底 ≠ 质检通过」警示）。双版本同步 |
 | 3 | `app/api/routes/feedback.py` + `views.js` | **反馈历史带质检徽标**：`/feedback/history` 查询左联补 `a.reflection_passed` 返回；前端对质检未过（`reflection_passed=false`）的反馈显示「⚠️ 质检未过」徽标，hover 注明「DB 无法区分跳过与未过」（同三态口径边界，诚实标注）。让「不准确反馈 × 质检状态」在界面上直接可见——V4.6.3 离线关联分析的日常化 |
 

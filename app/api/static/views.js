@@ -581,36 +581,42 @@ function renderMonitorView(ov,er){
     '<div class="mq-sm-card '+(rr>10?'red':rr>5?'amber':'green')+'"><div class="mq-sm-card-label">重试率</div><div class="mq-sm-card-value">'+rr+'%</div><div class="mq-sm-sub">修复率 '+fr+'%</div></div>'+
     '<div class="mq-sm-card '+(fr>=70?'green':fr>=50?'amber':'red')+'"><div class="mq-sm-card-label">修复率</div><div class="mq-sm-card-value">'+fr+'%</div><div class="mq-sm-sub">重试后通过比例</div></div>'+
     '<div class="mq-sm-card '+(fbr>=85?'green':fbr>=70?'amber':'red')+'"><div class="mq-sm-card-label">用户好评率</div><div class="mq-sm-card-value">'+fbr+'%</div><div class="mq-sm-sub">反馈有帮助比例</div></div>'+
-    '<div class="mq-sm-card '+(dur<30000?'green':'amber')+'"><div class="mq-sm-card-label">完整分析 P90</div><div class="mq-sm-card-value">'+fmtSec(p90d)+'</div><div class="mq-sm-sub">90% 在此时间内完成</div></div>'+
-    _issueDistHtml(ov)+'</div></div>'+
+    '<div class="mq-sm-card '+(dur<30000?'green':'amber')+'"><div class="mq-sm-card-label">完整分析 P90</div><div class="mq-sm-card-value">'+fmtSec(p90d)+'</div><div class="mq-sm-sub">90% 在此时间内完成</div></div></div></div>'+
     '<div class="mq-group"><div class="mq-group-title">💰 成本指标</div><div class="mq-group-cards">'+
     '<div class="mq-sm-card '+(dcost>0.05?'amber':'green')+'"><div class="mq-sm-card-label">日均成本</div><div class="mq-sm-card-value">¥'+(ov.total_analyses?dcost.toFixed(4):'—')+'</div><div class="mq-sm-sub">每日 LLM 调用费用</div></div>'+
     '<div class="mq-sm-card '+(mcost>1?'amber':'green')+'"><div class="mq-sm-card-label">月均成本</div><div class="mq-sm-card-value">¥'+(ov.total_analyses?mcost.toFixed(4):'—')+'</div><div class="mq-sm-sub">累计 Token 消耗</div></div></div></div></div>'+
+    _issueDistSection(ov)+
     '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🤖 Agent 健康度</div><div class="mq-section-subtitle">错误率排行 · 性能指标</div></div><div class="mq-table-wrap"><table class="mq-table"><thead><tr><th>Agent</th><th>运行</th><th>错误</th><th>错误率</th><th>平均(s)</th><th>最大(s)</th></tr></thead><tbody>'+ah+'</tbody></table></div></div>'+
     '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">❌ 最近错误</div><div class="mq-section-subtitle">按时间倒序</div></div>'+ei+'</div>'+
     (ch?'<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">📊 Token 消耗趋势</div><div class="mq-section-subtitle">近 '+show.length+' 天 · 含 Input/Output/Cost</div></div>'+ch+'</div>':'');
 }
 
-/* 质检未过原因分布（四维）—— 后端 overview 已返回 reflection_issue_dist，纯前端渲染 */
-function _issueDistHtml(ov){
+/* 质检未过原因分布（四维）—— 独立 section + ECharts 横向条形图。
+   初版用 flex-basis:100% 塞进质量指标组，但 .mq-group-cards 是 grid 布局，
+   flex-basis 无效 → 卡片被压成单格窄卡（172px），4 行条形全挤一起。改为独立板块。 */
+function _issueDistSection(ov){
   var idist=ov.reflection_issue_dist||{},qcn=[['consistency','一致性'],['logic','逻辑'],['actionability','可操作性'],['completeness','完整性']];
-  var idTotal=0;qcn.forEach(function(c){idTotal+=idist[c[0]]||0;});
-  var h='<div class="mq-sm-card blue" style="flex-basis:100%"><div class="mq-sm-card-label">质检未过原因分布</div>';
-  if(idTotal>0){
-    qcn.forEach(function(c){
-      var n=idist[c[0]]||0,pct=Math.round(n*100/idTotal);
-      h+='<div style="display:flex;align-items:center;gap:8px;font-size:11px;margin-top:6px">'+
-        '<span style="color:var(--muted);width:52px">'+c[1]+'</span>'+
-        '<span style="color:var(--muted);width:28px">'+n+'条</span>'+
-        '<div style="flex:1;height:6px;background:var(--border-subtle);border-radius:4px;overflow:hidden">'+
-        '<div style="width:'+pct+'%;height:100%;background:var(--semantic-warning);border-radius:4px"></div></div>'+
-        '<span style="color:var(--muted);width:36px;text-align:right">'+pct+'%</span></div>';
-    });
-    h+='<div style="font-size:10px;color:var(--muted);margin-top:6px">共 '+idTotal+' 条未过 · 一个报告可命中多维度</div>';
-  }else{
-    h+='<div style="font-size:12px;color:var(--semantic-success);margin-top:4px">✅ 全部通过质检</div>';
+  var total=0;qcn.forEach(function(c){total+=idist[c[0]]||0;});
+  var sub='近 '+(ov.period_days||30)+' 天 · 共 '+total+' 条未过 · 一个报告可命中多维度';
+  if(total===0){
+    return '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🔬 质检未过原因分布</div><div class="mq-section-subtitle">近 '+(ov.period_days||30)+' 天</div></div><div style="padding:28px;text-align:center;color:var(--semantic-success);font-size:13px">✅ 全部通过质检</div></div>';
   }
-  return h+'</div>';
+  setTimeout(function(){
+    var el=document.getElementById('mID');if(!el)return;
+    if(window._issueChart)window._issueChart.dispose();window._issueChart=echarts.init(el);
+    var cats=[],vals=[];
+    qcn.forEach(function(c){cats.push(c[1]);vals.push(idist[c[0]]||0);});
+    window._issueChart.setOption({
+      tooltip:{trigger:'axis',backgroundColor:'rgba(30,35,55,0.95)',borderColor:'#334155',textStyle:{color:'#e2e8f0',fontSize:12},
+        formatter:function(p){return p[0].name+'：'+p[0].value+' 条（'+Math.round(p[0].value*100/total)+'%）';}},
+      grid:{left:64,right:56,top:10,bottom:28},
+      xAxis:{type:'value',minInterval:1,axisLabel:{color:'#94a3b8',fontSize:10},splitLine:{lineStyle:{color:'#1e293b'}}},
+      yAxis:{type:'category',data:cats,axisLabel:{color:'#94a3b8',fontSize:11},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
+      series:[{type:'bar',data:vals,barWidth:14,itemStyle:{color:'#f59e0b',borderRadius:[0,4,4,0]},
+        label:{show:true,position:'right',color:'#e2e8f0',fontSize:11,formatter:function(p){return p.value+' 条';}}}]
+    });
+  },100);
+  return '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🔬 质检未过原因分布</div><div class="mq-section-subtitle">'+sub+'</div></div><div class="mq-chart-box"><div class="mq-chart" id="mID" style="height:200px"></div></div></div>';
 }
 
 /* 兜底报告明细弹窗 —— hero 卡片「解析兜底 N 条」点击下钻 */

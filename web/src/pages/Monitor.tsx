@@ -186,6 +186,17 @@ export default function MonitorPage() {
   })();
   const trendSum = (ov?.token_trend || []).slice(-14).reduce((acc, t) => ({ in: acc.in + (t.input_tokens || 0), out: acc.out + (t.output_tokens || 0), cost: acc.cost + (t.cost || 0) }), { in: 0, out: 0, cost: 0 });
 
+  /* V4.6.4: 质检未过原因分布（四维）—— 独立板块 + 横向条形图（对齐原生 _issueDistSection） */
+  const issueItems: Array<[string, string]> = [['consistency', '一致性'], ['logic', '逻辑'], ['actionability', '可操作性'], ['completeness', '完整性']];
+  const issueTotal = (ov?.reflection_issue_dist ? issueItems.reduce((s, [k]) => s + (ov.reflection_issue_dist![k as keyof typeof ov.reflection_issue_dist] || 0), 0) : 0);
+  const issueOption = issueTotal > 0 ? {
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(30,35,55,0.95)', borderColor: '#334155', textStyle: { color: '#e2e8f0', fontSize: 12 }, formatter: (p: Array<{ name: string; value: number }>) => `${p[0].name}：${p[0].value} 条（${Math.round((p[0].value * 100) / issueTotal)}%）` },
+    grid: { left: 64, right: 56, top: 10, bottom: 28 },
+    xAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#94a3b8', fontSize: 10 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+    yAxis: { type: 'category', data: issueItems.map(([, l]) => l), axisLabel: { color: '#94a3b8', fontSize: 11 }, axisLine: { lineStyle: { color: '#334155' } }, axisTick: { show: false } },
+    series: [{ type: 'bar', data: issueItems.map(([k]) => ov?.reflection_issue_dist?.[k as keyof typeof ov.reflection_issue_dist] || 0), barWidth: 14, itemStyle: { color: LEVEL.warn, borderRadius: [0, 4, 4, 0] }, label: { show: true, position: 'right', color: '#e2e8f0', fontSize: 11, formatter: (p: { value: number }) => `${p.value} 条` } }],
+  } : null;
+
   /* 小卡片 */
   const smCard = (label: string, value: string, sub: string, color: string) => (
     <div style={{ flex: 1, minWidth: 150, background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 12, padding: '14px 16px' }}>
@@ -265,38 +276,6 @@ export default function MonitorPage() {
                 {smCard('修复率', `${fr}%`, '重试后通过比例', fr >= 70 ? LEVEL.ok : fr >= 50 ? LEVEL.warn : LEVEL.err)}
                 {smCard('用户好评率', `${fbr}%`, '反馈有帮助比例', fbr >= 85 ? LEVEL.ok : fbr >= 70 ? LEVEL.warn : LEVEL.err)}
                 {smCard('完整分析 90% 分位', fmtSec(p90d), '90% 在此时间内完成', p90d < 30000 ? LEVEL.ok : LEVEL.warn)}
-                {/* V4.6.4: 质检未过原因分布（四维，对齐原生 _issueDistHtml） */}
-                {(() => {
-                  const dist = ov.reflection_issue_dist || {};
-                  const items: Array<[string, string]> = [['consistency', '一致性'], ['logic', '逻辑'], ['actionability', '可操作性'], ['completeness', '完整性']];
-                  const total = items.reduce((s, [k]) => s + (dist[k as keyof typeof dist] || 0), 0);
-                  return (
-                    <div style={{ flexBasis: '100%', background: 'rgba(59,130,246,.08)', borderRadius: 10, padding: '14px 16px' }}>
-                      <div style={{ fontSize: 11, color: DARK.muted, marginBottom: 8 }}>质检未过原因分布</div>
-                      {total > 0 ? (
-                        <>
-                          {items.map(([k, label]) => {
-                            const n = dist[k as keyof typeof dist] || 0;
-                            const pct = Math.round((n * 100) / total);
-                            return (
-                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, marginTop: 6 }}>
-                                <span style={{ color: DARK.muted, width: 52 }}>{label}</span>
-                                <span style={{ color: DARK.muted, width: 28 }}>{n}条</span>
-                                <div style={{ flex: 1, height: 6, background: DARK.border, borderRadius: 4, overflow: 'hidden' }}>
-                                  <div style={{ width: `${pct}%`, height: '100%', background: LEVEL.warn, borderRadius: 4 }} />
-                                </div>
-                                <span style={{ color: DARK.muted, width: 36, textAlign: 'right' }}>{pct}%</span>
-                              </div>
-                            );
-                          })}
-                          <div style={{ fontSize: 10, color: DARK.muted, marginTop: 6 }}>共 {total} 条未过 · 一个报告可命中多维度</div>
-                        </>
-                      ) : (
-                        <div style={{ fontSize: 12, color: LEVEL.ok }}>✅ 全部通过质检</div>
-                      )}
-                    </div>
-                  );
-                })()}
               </div>
             </div>
             <div style={{ flex: 1, minWidth: 240 }}>
@@ -306,6 +285,17 @@ export default function MonitorPage() {
                 {smCard('月均成本', `¥${ov.total_analyses ? mcost.toFixed(4) : '—'}`, '累计 Token 消耗', mcost > 1 ? LEVEL.warn : LEVEL.ok)}
               </div>
             </div>
+          </div>
+
+          {/* ── 质检未过原因分布（独立板块 + 横向条形图，对齐原生 _issueDistSection） ── */}
+          <div style={{ background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 14, padding: 18, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: DARK.text, marginBottom: 4 }}>🔬 质检未过原因分布</div>
+            <div style={{ fontSize: 11, color: DARK.muted, marginBottom: 12 }}>近 {ov.period_days} 天 · 共 {issueTotal} 条未过 · 一个报告可命中多维度</div>
+            {issueOption ? (
+              <ReactECharts option={issueOption} style={{ height: 200 }} notMerge />
+            ) : (
+              <div style={{ color: LEVEL.ok, fontSize: 13, padding: '8px 0' }}>✅ 全部通过质检</div>
+            )}
           </div>
 
           {/* ── Agent 健康度（对齐原生 mq-table，错误率进度条） ── */}
