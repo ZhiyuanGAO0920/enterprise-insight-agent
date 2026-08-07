@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Typography, Input, Button, Space, Spin, Empty, Tag } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
@@ -23,17 +23,21 @@ export default function HistoryPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const PAGE_SIZE = 20;
+  /* 请求序号：搜索关键词/加载更多并发时，只采纳最后一次请求的响应（旧慢响应直接丢弃） */
+  const seqRef = useRef(0);
 
   const load = useCallback(async (pageNum: number, keyword: string) => {
+    const seq = ++seqRef.current;
     setLoading(true);
     try {
       const res = await client.get('/analysis/history', {
         params: { page: pageNum, page_size: PAGE_SIZE, ...(keyword ? { search: keyword } : {}) },
       });
+      if (seq !== seqRef.current) return; /* 已有更新的请求发出，丢弃旧响应 */
       setRecords((prev) => (pageNum === 1 ? res.data.records : [...prev, ...res.data.records]));
       setTotal(res.data.total || 0);
     } catch { /* noop */ }
-    finally { setLoading(false); }
+    finally { if (seq === seqRef.current) setLoading(false); }
   }, []);
 
   /* 搜索输入防抖 300ms，避免每敲一个字符发一次请求 */

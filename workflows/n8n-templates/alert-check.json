@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8002/api/v1/alerts/check",
+        "url": "http://host.docker.internal:8002/api/v1/alerts/check",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,

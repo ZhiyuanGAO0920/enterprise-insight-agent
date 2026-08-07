@@ -384,7 +384,14 @@ export default function DashboardPage() {
             <Col xs={24} lg={12}>
               <Card title="门店退款率 Top 10" size="small" style={{ ...CARD_STYLE, height: '100%' }}
                 styles={{ header: { color: DARK.text, borderColor: DARK.border }, body: { paddingTop: 8 } }}>
-                <ReactECharts option={refundOption} style={{ height: 330 }} notMerge />
+                {/* 无退款率数据时渲染 Empty 占位，避免 setOption(null) 抛异常（对齐区域饼图处理方式） */}
+                {refundOption ? (
+                  <ReactECharts option={refundOption} style={{ height: 330 }} notMerge />
+                ) : (
+                  <div style={{ height: 330, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无退款率数据" />
+                  </div>
+                )}
               </Card>
             </Col>
           </Row>

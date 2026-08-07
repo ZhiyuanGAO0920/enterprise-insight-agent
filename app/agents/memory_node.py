@@ -43,6 +43,13 @@ async def save_memory_node(state: AnalysisState) -> dict:
             logger.info("无报告内容，跳过")
             return {"memory_record_id": None}
 
+        # V4.6.2: simple 查询按设计跳过质检（graph.after_report），
+        # 但 reflection_passed 默认 False 会被误记为"质检未过"，污染通过率指标。
+        # 未跑过质检（无 reflection_feedback）的简单查询统一视为通过。
+        reflection_passed = state.get("reflection_passed", False)
+        if state.get("query_type") == "simple" and not state.get("reflection_feedback"):
+            reflection_passed = True
+
         reflection_feedback = state.get("reflection_feedback")
         reflection_issues = []
         if reflection_feedback:
@@ -89,7 +96,7 @@ async def save_memory_node(state: AnalysisState) -> dict:
             finance_result=state.get("finance_result"),
             inventory_result=state.get("inventory_result"),
             supply_chain_result=state.get("supply_chain_result"),
-            reflection_passed=state.get("reflection_passed", False),
+            reflection_passed=reflection_passed,
             user_id=state.get("user_id"),
             input_tokens=input_tokens,
             output_tokens=output_tokens,

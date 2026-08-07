@@ -85,23 +85,18 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    """HTTPException 也经过友好错误映射，统一输出格式。
+    """HTTPException 统一输出格式。
 
-    50x 类错误（服务端错误）直接透传 detail，不经过友好映射，
-    避免 weasyprint 未安装等已知信息被通用的 fallback 消息覆盖。
+    4xx 的 detail 是后端手写的业务文案（「用户名或密码错误」「账户已被禁用」
+    「用户名已存在」等），必须原样透传——此前统一经过 to_user_message 友好映射，
+    登录/创建用户等业务失败会被吞成通用兜底"系统遇到一个意外问题"，
+    前端拿不到真实原因，表现为"没提示"。
+    5xx 服务端错误同样透传原文（已知信息不被 fallback 覆盖）。
     """
     detail_str = str(exc.detail) if not isinstance(exc.detail, str) else exc.detail
-    if exc.status_code >= 500:
-        friendly = {"user_message": detail_str, "icon": "⚠️", "action": "none"}
-    else:
-        friendly = to_user_message(detail_str)
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "detail": friendly["user_message"],
-            "icon": friendly["icon"],
-            "action": friendly["action"],
-        },
+        content={"detail": detail_str},
     )
 
 

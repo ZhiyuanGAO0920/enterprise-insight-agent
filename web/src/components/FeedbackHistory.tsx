@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Modal, List, Tag, Typography, Empty, Spin } from 'antd';
 import client from '../api/client';
+import { formatShortTime } from '../lib/format';
 
 const { Text } = Typography;
 
 interface FeedbackItem {
   id: number;
-  rating: 'helpful' | 'bad';
+  rating: string; /* helpful / bad / contact（意见反馈）/ inaccurate / not_relevant */
   reason?: string | null;
   question?: string | null;
   created_at?: string;
 }
+
+const ratingTag = (rating: string) => {
+  if (rating === 'helpful') return <Tag color="green">👍 有帮助</Tag>;
+  if (rating === 'contact') return <Tag color="blue">💬 意见反馈</Tag>;
+  return <Tag color="red">👎 没有帮助</Tag>;
+};
 
 /* 我的反馈（对齐原生 showFeedbackHistory → /feedback/history） */
 export default function FeedbackHistoryModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -21,7 +28,7 @@ export default function FeedbackHistoryModal({ open, onClose }: { open: boolean;
     if (!open) return;
     setLoading(true);
     client.get('/feedback/history?limit=20')
-      .then((res) => setItems(res.data.records || res.data || []))
+      .then((res) => setItems(res.data.entries || res.data.records || res.data || []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, [open]);
@@ -38,11 +45,9 @@ export default function FeedbackHistoryModal({ open, onClose }: { open: boolean;
               <List.Item style={{ borderBlockEnd: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Tag color={f.rating === 'helpful' ? 'green' : 'red'}>
-                      {f.rating === 'helpful' ? '👍 有帮助' : '👎 没有帮助'}
-                    </Tag>
+                    {ratingTag(f.rating)}
                     <Text style={{ fontSize: 11, color: '#94a3b8' }}>
-                      {f.created_at ? f.created_at.slice(0, 16) : ''}
+                      {formatShortTime(f.created_at)}
                     </Text>
                   </div>
                   {f.question && <Text style={{ fontSize: 12, color: '#e0e0e0', display: 'block', marginTop: 4 }}>{f.question}</Text>}

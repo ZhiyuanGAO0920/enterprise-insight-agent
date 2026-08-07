@@ -2,7 +2,7 @@
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
@@ -215,6 +215,45 @@ async def get_feedback_stats(
                 "不相关": row[3] or 0,
             },
         }
+
+
+@router.get("/admin-list", summary="反馈明细（管理员/区域经理）")
+async def list_all_feedback(
+    limit: int = Query(100, ge=1, le=500, description="返回条数"),
+    user: dict = Depends(require_permission("alert:view")),
+):
+    """返回全量反馈明细（含提交人），供管理端查看反馈内容。
+
+    /stats 只返回聚合数字；反馈内容明细（时间/用户/类型/内容/关联问题）
+    由此接口提供，驱动 Admin「反馈统计」页的明细表格。
+    """
+    settings = get_settings()
+    if not settings.feature_feedback:
+        return {"enabled": False, "entries": []}
+
+    async with get_session() as session:
+        rows = await session.execute(text("""
+            SELECT f.id, u.username, f.rating, f.reason, f.created_at,
+                   a.question, a.id as analysis_id
+            FROM user_feedback f
+            LEFT JOIN users u ON f.user_id = u.id
+            LEFT JOIN analysis_history a ON f.analysis_history_id = a.id
+            ORDER BY f.created_at DESC
+            LIMIT :lim
+        """), {"lim": limit})
+        entries = [
+            {
+                "id": row.id,
+                "username": row.username or "(未知用户)",
+                "rating": row.rating,
+                "reason": row.reason or "",
+                "created_at": row.created_at.isoformat() if row.created_at else "",
+                "question": row.question[:200] if row.question else "",
+                "analysis_id": row.analysis_id,
+            }
+            for row in rows.fetchall()
+        ]
+        return {"enabled": True, "entries": entries}
 
 
 @router.get("/analyze", summary="分析反馈数据 — 按 Agent 维度聚合")

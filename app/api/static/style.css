@@ -288,7 +288,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .tab-btn{font-size:12px;padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
 .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .tab-btn:hover:not(.active){border-color:var(--accent);color:var(--accent-hover)}
-.dashboard-view{padding:16px 0;overflow-y:auto}
+.dashboard-view{padding:16px 0;overflow-y:auto;flex:1;min-height:0}
 .dash-kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
 .dash-kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 14px;text-align:center;box-shadow:var(--shadow-md);transition:box-shadow .2s,transform .2s}
 .dash-kpi:hover{box-shadow:0 4px 16px rgba(0,0,0,.25);transform:translateY(-2px)}
@@ -379,8 +379,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .mq-pill:hover{color:var(--text)}
 .mq-pill.active{background:var(--accent);color:#fff;font-weight:500}
 
-/* ── 2. Hero 卡片行（3 大核心指标） ── */
-.mq-hero{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px}
+/* ── 2. Hero 卡片行（量·质·速·稳 4 大核心指标，V4.6.6 扩为四列） ── */
+.mq-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
 .mq-hero-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;position:relative;overflow:hidden;transition:border-color .2s}
 .mq-hero-card:hover{border-color:var(--accent)}
 .mq-hero-card::after{content:'';position:absolute;top:0;right:0;width:100px;height:100px;border-radius:50%;opacity:.05;pointer-events:none}
@@ -398,7 +398,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .mq-hero-status.bad{background:rgba(239,68,68,.15);color:var(--semantic-error)}
 .mq-hero-value{font-size:32px;font-weight:800;letter-spacing:-1px;line-height:1.2;margin-bottom:4px}
 .mq-hero-label{font-size:13px;color:var(--muted)}
-.mq-hero-sub{font-size:12px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:6px}
+.mq-hero-sub{font-size:12px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 
 /* ── 3. 二级指标网格 ── */
 .mq-groups{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px}
@@ -446,23 +446,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 .mq-table .mq-pct.warn{color:var(--semantic-warning)}
 .mq-table .mq-pct.err{color:var(--semantic-error)}
 
-/* ── 6. 错误时间线 ── */
+/* ── 6. 错误时间线（两段式：元信息行 + 完整消息块） ── */
 .mq-error-list{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.mq-error-header{display:flex;align-items:center;gap:12px;padding:10px 16px;font-size:11px;color:var(--text-secondary);font-weight:600;border-bottom:1px solid var(--border);background:var(--bg);letter-spacing:.3px;text-transform:uppercase}
-.mq-error-header .mh-time{width:110px;flex-shrink:0}
-.mq-error-header .mh-agent{width:60px;flex-shrink:0;text-align:center}
-.mq-error-header .mh-msg{flex:1;overflow:hidden;text-overflow:ellipsis}
-.mq-error-header .mh-dur{width:70px;text-align:right;flex-shrink:0}
-.mq-error-item{display:flex;align-items:center;gap:12px;padding:10px 16px;transition:background .15s}
+.mq-error-item{display:block;padding:10px 16px;transition:background .15s}
 .mq-error-item:hover{background:var(--bg)}
 .mq-error-item+.mq-error-item{border-top:1px solid var(--border-subtle)}
+.mq-error-meta{display:flex;align-items:center;gap:12px}
 .mq-error-icon{font-size:14px;flex-shrink:0;width:24px;text-align:center}
-.mq-error-body{flex:1;min-width:0;display:flex;align-items:center;gap:12px}
 .mq-error-time{font-size:12px;color:var(--muted);white-space:nowrap;width:110px;flex-shrink:0}
 .mq-error-agent-tag{font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(239,68,68,.12);color:var(--semantic-error);white-space:nowrap;width:60px;text-align:center;flex-shrink:0}
-.mq-error-msg{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-.mq-error-dur{font-size:12px;color:var(--muted);white-space:nowrap;width:70px;text-align:right;flex-shrink:0}
+.mq-error-dur{font-size:12px;color:var(--muted);white-space:nowrap;margin-left:auto;flex-shrink:0}
+.mq-error-msg{font-size:13px;color:var(--text);line-height:1.55;word-break:break-word;overflow-wrap:anywhere;margin-top:5px;padding-left:36px}
+.mq-err-chip{display:inline-block;font-size:11px;font-weight:600;color:var(--semantic-warning);background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:4px;padding:1px 7px;margin-right:8px;vertical-align:1px}
 .mq-error-empty{padding:36px 20px;text-align:center;color:var(--muted);font-size:13px}
+/* V4.6.5: 最近错误「展开全部/收起」按钮 */
+.mq-error-toggle{text-align:center;padding:12px 16px;border-top:1px solid var(--border-subtle)}
+.mq-error-toggle button{background:transparent;border:1px dashed var(--border);color:var(--muted);border-radius:8px;padding:7px 18px;font-size:12px;cursor:pointer;transition:color .15s,border-color .15s}
+.mq-error-toggle button:hover{color:var(--text);border-color:var(--accent)}
 
 /* ── 7. Token 趋势图表 ── */
 .mq-chart-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
@@ -481,20 +481,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei','PingFang SC
 /* ── 9. 响应式 ── */
 @media(max-width:1200px){
   .mq-hero{grid-template-columns:1fr 1fr}
-  .mq-hero-card:last-child{grid-column:1/-1}
+  /* V4.6.6: 4 卡时 2×2 干净网格（原 3 卡 2+1 布局的 last-child 全宽规则不再适用） */
+  .mq-hero-card:last-child{grid-column:auto}
 }
 @media(max-width:900px){
   .monitor-view{padding:20px 20px}
   .mq-groups{grid-template-columns:1fr}
   .mq-hero{grid-template-columns:1fr}
   .mq-hero-card:last-child{grid-column:auto}
-  .mq-error-msg{max-width:200px}
 }
 @media(max-width:600px){
   .monitor-view{padding:16px}
   .mq-group-cards{grid-template-columns:1fr}
   .mq-header{flex-direction:column;align-items:flex-start}
-  .mq-error-msg{max-width:120px}
+  .mq-error-msg{padding-left:0}
 }
 .admin-form .form-hint{font-size:11px;color:var(--muted)}
 .admin-form .form-row{display:flex;gap:10px}

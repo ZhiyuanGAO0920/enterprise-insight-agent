@@ -321,7 +321,22 @@ async def quality_overview(
                 for row in agent_errors.fetchall()
             ]
 
-            # 3. P50/P95 延迟
+            # 3. 异常会话统计（V4.6.6）—— 技术异常事件基本为超时（SQL 错误被 Agent 内部自愈，
+            #    不落 trace），口径如实标注：异常会话 = 至少一次 error 事件的会话，多数经重试自愈仍产出报告
+            abnormal_row = (await session.execute(text(f"""
+                SELECT
+                    COUNT(*) FILTER (WHERE error IS NOT NULL) AS abnormal_events,
+                    COUNT(DISTINCT session_id) FILTER (WHERE error IS NOT NULL AND session_id IS NOT NULL) AS abnormal_sessions,
+                    COUNT(DISTINCT session_id) FILTER (WHERE session_id IS NOT NULL) AS total_trace_sessions
+                FROM agent_trace_events
+                WHERE {ae_sql}
+            """), ae_params)).fetchone()
+            abnormal_sessions = abnormal_row.abnormal_sessions or 0
+            abnormal_events = abnormal_row.abnormal_events or 0
+            total_trace_sessions = abnormal_row.total_trace_sessions or 0
+            abnormal_rate = round(abnormal_sessions * 100.0 / total_trace_sessions, 1) if total_trace_sessions else 0
+
+            # 4. P50/P95 延迟
             latency = await session.execute(text(f"""
                 SELECT
                     ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY elapsed_ms)) as p50,
@@ -331,7 +346,7 @@ async def quality_overview(
             """), ae_params)
             lat = latency.fetchone()
 
-            # 4. 反馈统计（user_feedback 用 created_at）
+            # 5. 反馈统计（user_feedback 用 created_at）
             uf_sql, uf_params = _time_filter(days, start_date, end_date, col="created_at")
             feedback = await session.execute(text(f"""
                 SELECT
@@ -343,7 +358,7 @@ async def quality_overview(
             """), uf_params)
             fb = feedback.fetchone()
 
-            # 5. 每日分析量
+            # 6. 每日分析量
             daily = await session.execute(text(f"""
                 SELECT DATE(create_time) as dt, COUNT(*) as cnt
                 FROM analysis_history
@@ -354,15 +369,19 @@ async def quality_overview(
 
             total_analyses = r.total
 
-            # 6. 真实成本（从 analysis_history.llm_cost 汇总）
+            # 7. 真实成本（从 analysis_history.llm_cost 汇总）
             cost_row = (await session.execute(text(f"""
-                SELECT COALESCE(SUM(llm_cost), 0) as total_cost
+                SELECT COALESCE(SUM(llm_cost), 0) as total_cost,
+                       COUNT(*) as n
                 FROM analysis_history
                 WHERE {ah_sql}
             """), ah_params)).fetchone()
             total_cost = float(cost_row.total_cost) if cost_row else 0.0
+            total_count = cost_row.n if cost_row else 0
+            # V4.6.6: 单任务平均成本（全部分析口径，含 llm_cost 为 NULL 的 0 成本记录）
+            avg_cost_per_task = round(total_cost / total_count, 4) if total_count else 0
 
-            # 7. Reflection 失败原因分布（从 reflection_issues JSON 中统计）
+            # 8. Reflection 失败原因分布（从 reflection_issues JSON 中统计）
             issues_row = (await session.execute(text(f"""
                 SELECT
                     COALESCE(COUNT(CASE WHEN reflection_issues::jsonb @> '[{{"category":"consistency"}}]' THEN 1 END), 0) as consistency,
@@ -456,6 +475,11 @@ async def quality_overview(
                 "feedback_helpful_rate": fb.helpful_pct if fb.total > 0 else 0,
                 "latency_p50_ms": lat.p50 or 0,
                 "latency_p95_ms": lat.p95 or 0,
+                # V4.6.6: 异常会话（技术异常=超时，多数经重试自愈仍产出报告）+ 单任务平均成本
+                "abnormal_sessions": abnormal_sessions,
+                "abnormal_events": abnormal_events,
+                "abnormal_rate": abnormal_rate,
+                "avg_cost_per_task": avg_cost_per_task,
                 "estimated_daily_cost": round(total_cost / period_days, 4),
                 "estimated_monthly_cost": round(total_cost / period_days * 30, 4),
                 "agents": agents,

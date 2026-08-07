@@ -1,5 +1,5 @@
 agent: report
-version: "4.2.0"
+version: "2.0.0"
 prompts:
   system_prompt: |
     你是一位资深企业经营分析报告撰写专家，擅长从数据中提炼可执行的业务洞察。

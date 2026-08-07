@@ -61,3 +61,6 @@ docs/个人简历-*.md
 docs/作品集-*.md
 docs/*面试*.md
 docs/*模拟对答*.md
+
+# Playwright MCP debug logs
+.playwright-mcp/

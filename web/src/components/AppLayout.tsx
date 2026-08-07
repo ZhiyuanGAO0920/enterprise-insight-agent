@@ -207,15 +207,14 @@ export default function AppLayout() {
           </div>
         </header>
 
-        {/* 内容区 */}
+        {/* 内容区：路由守卫改为条件渲染——非管理员直访 /admin 时不渲染 <Outlet />，
+            直接重定向回看板，避免 AdminPanel 先挂载发 3 组请求（403 报错 toast 后跳转） */}
         <main style={{ padding: 24 }}>
-          <Outlet />
+          {isAdminRoute && role !== 'admin' && role !== 'regional_director'
+            ? <Navigate to="/dashboard" replace />
+            : <Outlet />}
         </main>
       </div>
-
-      {/* 路由守卫：非管理员直访 /admin 重定向回看板（导航入口已按角色过滤）。
-          必须放在所有 hooks 之后，保证 hook 调用顺序稳定（rules-of-hooks） */}
-      {isAdminRoute && role !== 'admin' && role !== 'regional_director' && <Navigate to="/dashboard" replace />}
 
       {/* ═══════════ 移动端：导航抽屉 ═══════════ */}
       <Drawer

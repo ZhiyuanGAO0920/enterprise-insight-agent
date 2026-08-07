@@ -536,7 +536,7 @@ git commit -m "feat: 执行摘要 + 六维雷达图"
         <tr><td>数据诚实</td><td><span class="tag tag-success">深入</span></td><td>架构级保障（sql_runner 唯一路径），非仅 Prompt 约束。</td></tr>
         <tr><td>Reflection 质检</td><td><span class="tag tag-success">扎实</span></td><td>4 维度 + 1 次重试，从 BadCase 归纳。但维度选择缺乏理论对比。</td></tr>
         <tr><td>流式优先</td><td><span class="tag tag-success">扎实</span></td><td>SSE 流式 + 缓存（5 分钟 TTL），95%+ 新问题不缓存。</td></tr>
-        <tr><td>Schema 三层适配</td><td><span class="tag tag-success">深入</span></td><td>自动发现→YAML 映射→Prompt 生成，是"零驻场部署"产品价值的核心实现。</td></tr>
+        <tr><td>数据库结构三层适配</td><td><span class="tag tag-success">深入</span></td><td>自动发现→YAML 映射→Prompt 生成，是"零驻场部署"产品价值的核心实现。</td></tr>
       </tbody>
     </table>
     <p style="margin-top:12px;">与业界 AI PM 方法论对比：Google PAIR 强调"以人为本的 AI 设计"，Microsoft Responsible AI 强调"公平/可靠/安全/隐私/包容/透明/问责"。EIA V4 在可靠性（Reflection + 数据诚实）和安全性（RLS + RBAC）上对齐较好，在公平性、包容性、透明度上未涉及——对于 B 端经营分析工具是合理的取舍。</p>
@@ -782,7 +782,7 @@ git commit -m "feat: 开发师视角评估 — 架构 + 代码审计 + 安全 + 
     </div>
     <div class="card defense-card">
       <div class="card-header">⚠️ 当前薄弱点</div>
-      <p>部分决策的"数据支撑"是估算而非实测（如"上下文竞争 3000 token Schema"、"修复率 60%"）。面试官可能追问具体测量方法。</p>
+      <p>部分决策的"数据支撑"是估算而非实测（如"上下文竞争 3000 token 数据库结构"、"修复率 60%"）。面试官可能追问具体测量方法。</p>
       <div class="strategy">
         <strong>🛡️ 防守策略：</strong>
         <ol style="padding-left: 20px; line-height: 2;">
@@ -812,7 +812,7 @@ git commit -m "feat: 开发师视角评估 — 架构 + 代码审计 + 安全 + 
         <strong>🛡️ 防守策略：</strong>
         <ol style="padding-left: 20px; line-height: 2;">
           <li><strong>正确定位：</strong>"这是一个产品原型 + 技术验证项目，不是已上线产品。它的价值在于验证了 Multi-Agent 架构在经营分析场景下的可行性，以及沉淀了一套可复用的产品方法论。"</li>
-          <li><strong>准备落地路径：</strong>"如果拿到真实客户，第一步是 Schema 三层适配器对接客户数据库——这是我在架构设计时就预留的接口，不需要改代码。第二步是收集 30-50 条真实问题，微调 Prompt 和评估集。第三步是观察 2 周，找到 AI 最常犯错的场景，针对性优化。"</li>
+          <li><strong>准备落地路径：</strong>"如果拿到真实客户，第一步是数据库结构三层适配器对接客户数据库——这是我在架构设计时就预留的接口，不需要改代码。第二步是收集 30-50 条真实问题，微调 Prompt 和评估集。第三步是观察 2 周，找到 AI 最常犯错的场景，针对性优化。"</li>
           <li><strong>强调生产就绪度：</strong>n8n 定时调度 + 飞书/钉钉/企微通知 + Docker 5 容器生产部署 + 数据备份 + 升级回滚流程。</li>
         </ol>
       </div>
@@ -838,8 +838,8 @@ git commit -m "feat: 开发师视角评估 — 架构 + 代码审计 + 安全 + 
         <strong>🛡️ 防守策略：</strong>
         <ol style="padding-left: 20px; line-height: 2;">
           <li><strong>核心差异化叙事：</strong>"AI 降低了分析门槛"——BI 工具需要懂 SQL、会拖拽，EIA V4 用自然语言。目标用户不是数据分析师，而是门店管理者/区域经理等非技术角色。</li>
-          <li><strong>3 种客户画像 + 定价：</strong>中小连锁（50-100 门店，¥2000/月，自助部署）→ 区域连锁（100-500 门店，¥8000/月，定制 Schema）→ 大型连锁（500+ 门店，¥50000/月，私有化部署 + SLA）。</li>
-          <li><strong>成本优势讲商业可行性：</strong>DeepSeek ¥0.04/次 vs GPT-4o ¥1.2/次，意味着即使月分析 1000 次，成本也仅 ¥40/月。Schema 三层适配器降低交付成本（从 2 周驻场→1 天远程配置）。</li>
+          <li><strong>3 种客户画像 + 定价：</strong>中小连锁（50-100 门店，¥2000/月，自助部署）→ 区域连锁（100-500 门店，¥8000/月，定制数据库结构）→ 大型连锁（500+ 门店，¥50000/月，私有化部署 + SLA）。</li>
+          <li><strong>成本优势讲商业可行性：</strong>DeepSeek ¥0.04/次 vs GPT-4o ¥1.2/次，意味着即使月分析 1000 次，成本也仅 ¥40/月。数据库结构三层适配器降低交付成本（从 2 周驻场→1 天远程配置）。</li>
           <li><strong>vs ChatGPT 的差异化：</strong>ChatGPT 不知道你的数据库结构，不能直接查 SQL，没有行级安全隔离，不能嵌入飞书/钉钉/企微的工作流。EIA V4 是"ChatGPT + BI + 工作流"的垂直整合。</li>
         </ol>
       </div>

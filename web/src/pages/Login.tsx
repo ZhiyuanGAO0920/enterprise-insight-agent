@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { App as AntApp, Card, Form, Input, Button, Typography } from 'antd';
 import { UserOutlined, LockOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useAuth } from '../hooks/useAuth';
@@ -9,6 +10,7 @@ const { Title, Text } = Typography;
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
   /* antd v5 推荐用 App.useApp() 获取 message（静态 message 有 context 告警） */
   const { message } = AntApp.useApp();
 
@@ -17,6 +19,9 @@ export default function LoginPage() {
     try {
       await login(values.username, values.password);
       message.success('登录成功');
+      /* 登录后固定进经营看板：仅靠 token 状态切换路由时，若登录页 URL 非 /（深层链接/401 刷新），
+         会错误停留在原路径而不是默认看板（对齐原生登录后默认 tab=dashboard） */
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       message.error(errMsg(err, '登录失败'));
     } finally {

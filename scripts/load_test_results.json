@@ -1,0 +1,174 @@
+{
+ "ts": "2026-08-03 16:45:36",
+ "results": [
+  {
+   "question": "上个月销售额最高的五家门店",
+   "type": "simple",
+   "tag": "baseline",
+   "duration": 0.0,
+   "status": "ok",
+   "report_len": 1711,
+   "agent_errors": []
+  },
+  {
+   "question": "最近30天华东区销售为什么下降了？分析具体原因并给出改进建议",
+   "type": "comprehensive",
+   "tag": "baseline",
+   "duration": 393.7,
+   "status": "ok",
+   "report_len": 5698,
+   "agent_errors": []
+  },
+  {
+   "question": "最近90天客单价趋势如何？找出波动原因并给出建议",
+   "type": "comprehensive",
+   "tag": "conc5",
+   "duration": 186.1,
+   "status": "ok",
+   "report_len": 3981,
+   "agent_errors": []
+  },
+  {
+   "question": "哪些会员有流失风险？分析原因并给出召回建议",
+   "type": "comprehensive",
+   "tag": "conc5",
+   "duration": 235.1,
+   "status": "ok",
+   "report_len": 5977,
+   "agent_errors": []
+  },
+  {
+   "question": "上个月库存缺货最严重的商品有哪些？怎么改进补货策略",
+   "type": "comprehensive",
+   "tag": "conc5",
+   "duration": 288.3,
+   "status": "ok",
+   "report_len": 4772,
+   "agent_errors": []
+  },
+  {
+   "question": "上季度哪些供应商延迟最严重？对门店销售有什么影响",
+   "type": "comprehensive",
+   "tag": "conc5",
+   "duration": 335.5,
+   "status": "ok",
+   "report_len": 3454,
+   "agent_errors": []
+  },
+  {
+   "question": "分析最近一周的整体经营情况，涵盖销售、会员、库存",
+   "type": "comprehensive",
+   "tag": "conc5",
+   "status": "timeout",
+   "duration": 420.0
+  },
+  {
+   "question": "最近一周库存周转率最低的五个商品",
+   "type": "simple",
+   "tag": "conc10",
+   "duration": 56.3,
+   "status": "no_report",
+   "report_len": 0,
+   "agent_errors": []
+  },
+  {
+   "question": "最近三个月销售额整体趋势如何？有没有异常月份，原因是什么",
+   "type": "comprehensive",
+   "tag": "conc10",
+   "duration": 72.5,
+   "status": "no_report",
+   "report_len": 0,
+   "agent_errors": []
+  },
+  {
+   "question": "会员总数最多的五个区域",
+   "type": "simple",
+   "tag": "conc10",
+   "duration": 83.2,
+   "status": "ok",
+   "report_len": 1171,
+   "agent_errors": []
+  },
+  {
+   "question": "退款率最高的三家门店",
+   "type": "simple",
+   "tag": "conc10",
+   "duration": 90.0,
+   "status": "ok",
+   "report_len": 792,
+   "agent_errors": []
+  },
+  {
+   "question": "分析最近一个月各品类毛利率变化，找出下滑的品类并给出建议",
+   "type": "comprehensive",
+   "tag": "conc10",
+   "duration": 119.5,
+   "status": "ok",
+   "report_len": 1313,
+   "agent_errors": []
+  },
+  {
+   "question": "上周退货金额最高的品类是哪些？退货原因分布如何",
+   "type": "comprehensive",
+   "tag": "conc10",
+   "duration": 165.6,
+   "status": "ok",
+   "report_len": 2624,
+   "agent_errors": []
+  },
+  {
+   "question": "最近14天新会员增长放缓的原因是什么？给出增长建议",
+   "type": "comprehensive",
+   "tag": "conc10",
+   "duration": 175.1,
+   "status": "ok",
+   "report_len": 2704,
+   "agent_errors": []
+  },
+  {
+   "question": "对比华东和华南两个区域的销售表现，分析差异原因",
+   "type": "comprehensive",
+   "tag": "conc10",
+   "duration": 388.0,
+   "status": "ok",
+   "report_len": 6124,
+   "agent_errors": []
+  },
+  {
+   "question": "分析门店经营健康度，找出表现最差的门店和改善方向",
+   "type": "comprehensive",
+   "tag": "conc10",
+   "duration": 412.6,
+   "status": "ok",
+   "report_len": 4241,
+   "agent_errors": []
+  },
+  {
+   "question": "本月环比上月整体销售下滑了，请做根因诊断并给出建议",
+   "type": "comprehensive",
+   "tag": "conc10",
+   "duration": 417.4,
+   "status": "ok",
+   "report_len": 2,
+   "agent_errors": []
+  },
+  {
+   "question": "最近30天华东区销售为什么下降了？分析具体原因并给出改进建议",
+   "type": "comprehensive",
+   "tag": "warm",
+   "duration": 0.0,
+   "status": "ok",
+   "report_len": 5698,
+   "agent_errors": []
+  },
+  {
+   "question": "分析上周门店销售、会员和库存的综合表现，找出三个最需要改进的方面",
+   "type": "stream_probe",
+   "tag": "stream",
+   "ttfb": null,
+   "done_at": 153.6,
+   "report_len": 3036,
+   "status": "ok"
+  }
+ ]
+}

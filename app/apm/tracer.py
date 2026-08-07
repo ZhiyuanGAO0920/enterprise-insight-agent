@@ -91,7 +91,9 @@ class AgentTracer:
                         {
                             "sid": self.session_id,
                             "node": rec["node"],
-                            "qh": int(hashlib.md5(self.question.encode()).hexdigest()[:8], 16),
+                            # V4.6.2: question_hash 列为 INT(4)，8 位十六进制可达 42 亿超上限，
+                            # 超限插入会静默失败导致整批 trace 丢失。掩码到 31 位保证可写入且确定性。
+                            "qh": int(hashlib.md5(self.question.encode()).hexdigest()[:8], 16) & 0x7FFFFFFF,
                             "ms": rec["elapsed_ms"],
                             "err": rec["error"],
                             "tid": self.trace_id or None,

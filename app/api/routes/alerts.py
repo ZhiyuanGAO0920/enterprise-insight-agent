@@ -13,7 +13,7 @@ from app.config import get_settings
 from app.database.connection import get_session
 from app.database.models import AlertRule
 from app.services.notification import send_notification
-from app.tools.anomaly_detector import run_alert_checks
+from app.tools.anomaly_detector import METRIC_NAMES, run_alert_checks
 
 router = APIRouter(prefix="/alerts", tags=["预警管理"])
 
@@ -55,7 +55,7 @@ async def check_alerts(
     # V4.1: 向已配置的 webhook 发送预警通知
     if alerts:
         alert_lines = "\n".join(
-            f"- **{a['metric']}**: {a['actual_value']:.2f} "
+            f"- **{METRIC_NAMES.get(a['metric'], a['metric'])}**: {a['actual_value']:.2f} "
             f"({'超过' if a['direction'] == 'above' else '低于'}阈值 {a['threshold']})"
             for a in alerts
         )

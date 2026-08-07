@@ -1,5 +1,70 @@
 # CHANGELOG — V4 修复与优化记录
 
+## V4.6.7 (2026-08-06)
+
+### ✨ 新增：管理端反馈明细视图 —— 反馈内容从「黑盒数字」变「可下钻清单」
+
+`/feedback/stats` 只返回聚合数字，管理员看不到反馈内容——9527 提交的「意见反馈」无处体现。新增全量明细接口 + Admin「反馈统计」Tab 明细表格（时间/用户/类型/内容/关联问题，分页 8 条/页），管理员可直接下钻查看所有用户的反馈原文。
+
+| # | 文件 | 优化 |
+|---|------|------|
+| 1 | `app/api/routes/feedback.py` | 新增 `GET /feedback/admin-list`（`alert:view` 权限）：LEFT JOIN users + analysis_history，返回全量明细（时间倒序，默认 100 条上限 500），`limit` 参数带 Query 校验；反馈功能未启用时返回 `{enabled: False}` |
+| 2 | `web/src/pages/Admin.tsx` | 「反馈统计」Tab 新增「最近反馈明细」Table：时间 130px / 用户 100px / 类型 110px（彩色标签）/ 内容 ellipsis / 关联问题 ellipsis，pagination pageSize 8 |
+| 3 | `web/src/components/FeedbackHistory.tsx` | **🐛 意见反馈（contact）此前落入红色「👎 没有帮助」**（ratingTag 只判 helpful/bad）→ 增加 contact 蓝色「💬 意见反馈」分支；**🐛 读取 `res.data.records` 但后端返回 `entries`** → 列表渲染的是对象而非数组 → 修正为 `entries \|\| records \|\| data` 兜底链 |
+
+**实测验证**：curl `/feedback/admin-list` 返回 5 条，9527 的 contact 反馈（'9527测试'）在首位 ✓；浏览器实测 Admin 反馈统计 Tab 显示「2026-08-06 08:11 / 9527 / 💬 意见反馈 / 9527测试」✓；tsc 0 错误 + eslint 全绿。
+
+### 🐛 修复：登录失败无提示 —— 三层根因逐层击穿
+
+9527 账号登录「输入用户名密码后没反应也没提示」：三层各自掩盖真实原因——① 后端 4xx 被全局 handler 过 `to_user_message` 吞成「系统遇到一个意外问题」兜底；② 前端 401 拦截器把「用户名或密码错误」的登录请求也当成会话失效 → reload 冲掉错误提示；③ 审计日志无 9527 的创建记录——该账号从未创建成功，此前失败原因被前两层吞掉，用户看到的就是"没反应"。
+
+| # | 文件 | 修复 |
+|---|------|------|
+| 1 | `app/api/main.py` | `http_exception_handler` 4xx/5xx **原样透传 detail**（此前统一经 to_user_message 友好映射）：登录「用户名或密码错误」「账户已被禁用」等业务文案是后端手写、必须原样到达前端，5xx 也透传已知信息不被 fallback 覆盖 |
+| 2 | `web/src/api/client.ts` | 401 拦截器排除登录请求（`url.includes('/auth/login')` 不触发清态 reload）——否则错误提示刚弹出就被 reload 冲掉 |
+| 3 | 验证 | 9527 重新创建后登录失败会显示真实原因；登录成功流程不受影响 |
+
+### ✨ 优化：React 版前端体验修复（审查后落地）
+
+| # | 文件 | 优化 |
+|---|------|------|
+| 1 | `web/src/pages/Analysis.tsx` + `AppLayout.tsx` | **「新建会话」不跳转**：同路径 `navigate` 是 no-op → `sessionId` 变更 effect 重置整个对话区（messages/quickStats/反馈态/输入框）+ `navigate(..., {state: null})` 清除历史详情残留 state |
+| 2 | `web/src/pages/Analysis.tsx` | **「库存预警」卡片映射错题**：此前指向「各区域经营对比」→ 修正为「缺货与滞销商品预警」（与原生版 views.js 同步） |
+| 3 | `web/src/pages/Login.tsx` | **登录后默认不进 Dashboard**：改为 `navigate('/dashboard', {replace: true})`（深链接场景保留原地址） |
+| 4 | `web/src/components/Intro.tsx` | 欢迎页补齐原生版动态渐变：组件内 `<style>` 动画（网格平移/光晕呼吸/粒子上升）+ useMemo 生成 20 粒子 + 标题渐变色 + 错峰 fadeInUp + 移动端断点 |
+
+**验证**：tsc 0 错误 + eslint 全绿；Playwright 实测新建会话清空对话区、库存卡提问正确、登录落地 Dashboard、Intro 粒子/光晕动画渲染 ✓
+
+## V4.6.6 (2026-08-06)
+
+### ✨ 优化：监控页 Hero 扩为「量·质·速·稳」四象限 + 单任务成本上屏
+
+四维度评测落地（任务结果/执行过程/成本效率/安全体验的「决策台而非数据仓库」原则）：补齐 2 项缺失指标——**异常会话数**（成功率最直接的失分项，此前只藏在最近错误摘要里）与**单任务平均成本**（¥0.022/任务是项目最值钱的卖点数据，此前只有日均/月均）。同时主动排除 4 项指标不上界面（平均步骤数/规划合理性/高危操作拦截率/幻觉错误操作率——无阈值可判或事件低频无信息量，进离线评估）。
+
+| # | 文件 | 优化 |
+|---|------|------|
+| 1 | `app/api/routes/monitor.py` | overview 新增 4 字段：`abnormal_sessions`（受影响会话数，DISTINCT session_id + error 非空）、`abnormal_events`（技术异常事件数）、`abnormal_rate`（占 trace 会话 %，与重试率同源同窗，NULLIF 防除零）、`avg_cost_per_task`（SUM(llm_cost)/COUNT(*)，cost_row 查询顺带，零新增查询）。口径如实标注：技术异常实测全为 `timeout`（SQL 错误被 Agent 内部自愈不落 trace），多数异常会话经重试自愈仍产出报告 |
+| 2 | `app/api/static/views.js` + `web/src/pages/Monitor.tsx` | **Hero 第 4 卡「⚠️ 异常会话」**：主值受影响会话数、状态徽标按异常率（<10% 优秀 / <20% 良好）、副行「事件 N 条 · 占会话 X%」、整卡可点击平滑滚动到「最近错误」板块（原生加 `mqErrorsSection` id / React 加 `mqErrors` id）。四象限叙事：📊 日均分析量 × ✅ 质检通过率 × ⚡ P50 延迟 × ⚠️ 异常会话 = 业务量·质量·速度·稳定性一眼可判，单看任何一个都会骗人（V4.6.3「质检×好评零相关」即配对检视才浮出） |
+| 3 | `app/api/static/views.js` + `web/src/pages/Monitor.tsx` | **成本组首位新增「单任务成本」卡**（¥avg_cost_per_task，阈值 >0.05 琥珀与日均成本一致），日均/月均顺延；`OverviewData` 接口补 4 字段；React `heroCard` 增加可选 `onClick` 参数。双版本同步 |
+| 4 | `app/api/static/style.css` + `index.html` | `.mq-hero` 三列 → `repeat(4,1fr)`；1200px 断点 2 列时移除原 3 卡「last-child 全宽」规则（4 卡改 2×2 干净网格）；`.mq-hero-sub` 加 `flex-wrap` 防四列窄卡副行溢出。bump `views.js?v=4.54`、`style.css?v=4.36`（项目惯例） |
+
+**实测验证**：真实服务 localhost:8002 + 真实 DB——`abnormal_sessions`（近 30 天 26 会话 / 事件 29 条）与直查 SQL 一致；`avg_cost_per_task` ¥0.0220 与全量 803 任务 ¥17.66 对账一致；hero 四卡 + 成本三卡渲染正常；异常会话卡点击平滑滚动定位最近错误 ✓；`node --check` + `tsc -b` 通过。
+
+## V4.6.5 (2026-08-06)
+
+### ✨ 优化：监控页「最近错误」降噪 —— 摘要头 + 截断 10 行 + 内联展开
+
+「最近错误」此前一次渲染 50 条全宽表格（约 2000px），把下方 Token 趋势图挤出首屏，日常查看时 50 行明细是噪声。改为：副标题显示类型分布摘要「共 N 条 · 超时 X · SQL Y · 其他 Z」，默认只渲染前 10 行，底部「展开全部 N 条」原位展开、可再收起——保留首屏可见性，异常时一键全量下钻。
+
+| # | 文件 | 优化 |
+|---|------|------|
+| 1 | `web/src/pages/Monitor.tsx` | 新增 `errorsExpanded` 状态（新数据加载自动收起）+ 摘要统计（超时/SQL/其他三桶，与错误图标共用正则）+ 默认截断 10 行 + 展开/收起按钮（虚线样式对齐暗色主题） |
+| 2 | `app/api/static/views.js` | 同逻辑；展开/收起走 30s 缓存直接重渲染（抽 `_monitorKey()` 公共缓存键，与 loadMonitorOverview 复用），缓存过期兜底重新请求、加载完成后按新开关状态渲染 |
+| 3 | `app/api/static/style.css` + `app/api/static/index.html` | 新增 `.mq-error-toggle` 按钮样式；bump `views.js?v=4.53`、`style.css?v=4.35`（项目惯例：static 改版 bump 版本号）。双版本同步 |
+| 4 | `web/src/pages/Monitor.tsx` + `app/api/static/views.js` | **顺手修复分类盲区**：错误图标/统计正则匹配不到 `timed out`（带空格）与 `deadline exceeded`——这两类实际是超时却落入「其他」（`ERR_CN` 映射早已标注），四处正则统一补齐 |
+
+**验证**：`tsc -b` + `node --check` 通过；摘要逻辑 Node 实测——50 条混合错误 →「共 50 条 · 超时 17 · SQL 17 · 其他 16」，「timed out」/「deadline exceeded」/中文「上游超时」均正确归入超时桶；浏览器实测待确认（Playwright 浏览器被实时会话占用，未强行动）
+
 ## V4.6.4 (2026-08-05)
 
 ### ✨ 优化：监控页质检信号完整可见（三态之后的三项补全）

@@ -9,6 +9,19 @@ var hiddenIds=new Set(),_isAnalyzing=false,_abortController=null,_sseParseErrs=0
 var voiceListening=false,voiceRecognition=null;
 var SEMOJIS={supervisor:'🧠',sales_agent:'📊',crm_agent:'👥',finance_agent:'💰',inventory_agent:'📦',supply_chain_agent:'🚚',aggregator:'📊',chart_advisor:'📈',report_agent:'📝',reflection_agent:'✅',save_memory:'📥'};
 
+/* ── 时间显示：后端存 naive UTC（isoformat 无时区标记），JS 会把它当本地时间 → 差 8 小时。
+   补 'Z' 按 UTC 解析再转本地时区。len=10 只显日期，len=16 显 MM-DD HH:mm ── */
+function fmtTs(ts,len){
+  if(!ts)return '';
+  var naive=/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(ts)&&!/[Zz]$/.test(ts)&&!/[+-]\d{2}:?\d{2}$/.test(ts);
+  var d=new Date(naive?ts.replace(' ','T')+'Z':ts);
+  if(isNaN(d.getTime()))return ts.slice(0,len||16);
+  function p(n){return n<10?'0'+n:''+n;}
+  var s=p(d.getFullYear())+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+  if(len===10)return s;
+  return s+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+
 /* ── 前端缓存：内存 + sessionStorage（刷新后秒级恢复看板数据） ── */
 var _cache={};
 // 缓存键按用户隔离：登出后换账号登录，不会显示上一账号的看板数据（多租户防串号）
@@ -481,9 +494,18 @@ async function impersonateUser(uid,uname){
 }
 function buildMonitorUrl(d,s,e){var u=BASE+'/monitor/overview?days='+Math.min(d,90);if(s)u+='&start_date='+s;if(e)u+='&end_date='+e;return u;}
 var _monSeq=0;
+// V4.6.5: 最近错误展开开关 —— 展开/收起时用 30s 缓存直接重渲染，不重新请求
+var _monitorErrExpanded=false;
+function _monitorKey(){return (localStorage.getItem('eia_user')||'anon')+'|monitor_'+_monitorDays+'_'+_monitorStartDate+'_'+_monitorEndDate;}
+function toggleMonitorErrors(){
+  _monitorErrExpanded=!_monitorErrExpanded;
+  var cached=_cache[_monitorKey()];
+  if(cached)renderMonitorView(cached.data.ov,cached.data.er);
+  else loadMonitorOverview(); // 缓存过期 → 重新请求，加载完成后按新开关状态渲染
+}
 function loadMonitorOverview(){
   // 缓存键按用户隔离（多租户防串号），请求带序号防快速切换时乱序覆盖
-  var mKey=(localStorage.getItem('eia_user')||'anon')+'|monitor_'+_monitorDays+'_'+_monitorStartDate+'_'+_monitorEndDate;
+  var mKey=_monitorKey();
   var mySeq=++_monSeq;
   var cached=_cache[mKey];
   // 有缓存且未过期（30s）→直接渲染，跳过加载状态
@@ -529,17 +551,35 @@ function renderMonitorView(ov,er){
   var pr=ov.reflection_pass_rate||0,p50=ov.latency_p50_ms||0,p95=ov.latency_p95_ms||0,fbr=ov.feedback_helpful_rate||0;
   var dc=_monitorDays||1,da=ov.total_analyses?Math.round(ov.total_analyses/dc):0;
   var rr=ov.retry_rate||0,fr=ov.fix_rate||0,dur=ov.p50_duration_ms||0,p90d=ov.p90_duration_ms||0;
-  var dcost=ov.estimated_daily_cost||0,mcost=ov.estimated_monthly_cost||0;
+  var dcost=ov.estimated_daily_cost||0,mcost=ov.estimated_monthly_cost||0,atask=ov.avg_cost_per_task||0;
+  var abn=ov.abnormal_sessions||0,abnE=ov.abnormal_events||0,abnR=ov.abnormal_rate||0;
   var per=_monitorPreset==='prevMonth'?'上月':_monitorPreset==='month'?'本月':_monitorPreset==='7'?'近7天':_monitorPreset==='30'?'近30天':'近'+_monitorDays+'天';
   var pills='';[['7','7天'],['30','30天'],['month','本月'],['prevMonth','上月'],['custom','自定义']].forEach(function(p){pills+='<button class="mq-pill'+(p[0]===_monitorPreset?' active':'')+'" onclick="setMonitorPreset(\''+p[0]+'\')">'+p[1]+'</button>';});
 
   var _errCn={'timeout':'超时','connection refused':'连接拒绝','deadline exceeded':'超时','refused':'拒绝','connection reset':'连接重置','closed':'连接关闭','eof':'连接断开','reset':'重置','timed out':'超时'};
   var ah='';(ov.agents||[]).forEach(function(a){var c=a.error_rate>5?'err':a.error_rate>2?'warn':'ok',bp=Math.min(a.error_rate*10,100);ah+='<tr><td><div class="mq-agent-cell"><span class="mq-agent-dot '+c+'"></span>'+esc(lm[a.agent]||a.agent)+'</div></td><td>'+a.total_runs+'</td><td>'+a.error_count+'</td><td><div class="mq-bar-wrap"><div class="mq-bar"><div class="mq-bar-fill '+c+'" style="width:'+bp+'%"></div></div><span class="mq-pct '+c+'">'+a.error_rate+'%</span></div></td><td>'+fmtSec(a.avg_ms)+'</td><td>'+fmtSec(a.max_ms)+'</td></tr>';});
   if(!ah)ah='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">暂无数据</td></tr>';
+  // V4.6.5: 摘要头（类型分布）+ 默认截断 10 行 + 内联展开（展开时用缓存重渲染）
+  var errList=er.errors||[],errSum='';
+  if(errList.length){
+    var cT=0,cS=0,cO=0;
+    errList.forEach(function(e){
+      var m=e.error||'';
+      if(m.match(/timeout|超时|time.?out|timed out|deadline exceeded/i))cT++;
+      else if(m.match(/SQL|sql|语法|column|table|relation/i))cS++;
+      else cO++;
+    });
+    var sp=[];
+    if(cT)sp.push('超时 '+cT);
+    if(cS)sp.push('SQL '+cS);
+    if(cO)sp.push('其他 '+cO);
+    errSum='共 '+errList.length+' 条'+(sp.length?' · '+sp.join(' · '):'');
+  }
   var ei='';
-  if(er.errors&&er.errors.length){
-    er.errors.forEach(function(e){
-      var icon=e.error&&e.error.match(/timeout|超时|time.?out/i)?'⏱️':e.error&&e.error.match(/SQL|sql|语法|column|table|relation/i)?'🗃️':'⚠️';
+  if(errList.length){
+    var shownErr=_monitorErrExpanded?errList:errList.slice(0,10);
+    shownErr.forEach(function(e){
+      var icon=e.error&&e.error.match(/timeout|超时|time.?out|timed out|deadline exceeded/i)?'⏱️':e.error&&e.error.match(/SQL|sql|语法|column|table|relation/i)?'🗃️':'⚠️';
       var msg=esc((_errCn[e.error])||e.error||'');
       // 质检失败消息拆成"高亮标签 + 正文"，长详情换行展示（不再单行截断）
       var chip='',tail=msg;
@@ -555,6 +595,7 @@ function renderMonitorView(ov,er){
         '<div class="mq-error-msg">'+(chip?'<span class="mq-err-chip">'+chip+'</span>':'')+tail+'</div>'+
       '</div>';
     });
+    if(errList.length>10)ei+='<div class="mq-error-toggle"><button onclick="toggleMonitorErrors()">'+(_monitorErrExpanded?'收起':'展开全部 '+errList.length+' 条')+'</button></div>';
   }else ei='<div class="mq-error-empty">✅ 无错误记录</div>';
   var ch='';
   if(ov.token_trend&&ov.token_trend.length){
@@ -576,18 +617,20 @@ function renderMonitorView(ov,er){
     '<div class="mq-header"><div class="mq-header-left"><h2>AI 质量监控</h2><span class="mq-header-period">'+per+'</span></div><div class="mq-pills">'+pills+'</div></div>'+
     '<div class="mq-hero"><div class="mq-hero-card accent"><div class="mq-hero-top"><div class="mq-hero-icon">📊</div><span class="mq-hero-status good">日均 '+da+' 次</span></div><div class="mq-hero-value">'+da+'</div><div class="mq-hero-label">日均分析量</div></div>'+
     '<div class="mq-hero-card success"><div class="mq-hero-top"><div class="mq-hero-icon">✅</div><span class="mq-hero-status '+(pr>=90?'good':pr>=75?'warn':'bad')+'">'+(pr>=90?'优秀':pr>=75?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+pr+'%</div><div class="mq-hero-label">Reflection 通过率</div><div class="mq-hero-sub">好评率 '+fbr+'% · 未过 '+(ov.reflection_failed||0)+' 条 · <span onclick="showFallbackList()" title="点击查看质检未返回结构化结果、被乐观放行的报告" style="cursor:pointer;border-bottom:1px dotted var(--muted)">解析兜底 '+(ov.reflection_fallback||0)+' 条</span></div></div>'+
-    '<div class="mq-hero-card warning"><div class="mq-hero-top"><div class="mq-hero-icon">⚡</div><span class="mq-hero-status '+(p50<500?'good':p50<1000?'warn':'bad')+'">'+(p50<500?'优秀':p50<1000?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+fmtSec(p50)+'</div><div class="mq-hero-label">P50 响应延迟</div><div class="mq-hero-sub">P95 '+fmtSec(p95)+' · 完整分析 '+fmtSec(dur)+'</div></div></div>'+
+    '<div class="mq-hero-card warning"><div class="mq-hero-top"><div class="mq-hero-icon">⚡</div><span class="mq-hero-status '+(p50<500?'good':p50<1000?'warn':'bad')+'">'+(p50<500?'优秀':p50<1000?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+fmtSec(p50)+'</div><div class="mq-hero-label">P50 响应延迟</div><div class="mq-hero-sub">P95 '+fmtSec(p95)+' · 完整分析 '+fmtSec(dur)+'</div></div>'+
+    '<div class="mq-hero-card warning" onclick="document.getElementById(\'mqErrorsSection\').scrollIntoView({behavior:\'smooth\'})" title="点击查看最近错误明细（异常多为超时，经重试自愈仍产出报告）" style="cursor:pointer"><div class="mq-hero-top"><div class="mq-hero-icon">⚠️</div><span class="mq-hero-status '+(abnR<10?'good':abnR<20?'warn':'bad')+'">'+(abnR<10?'优秀':abnR<20?'良好':'需关注')+'</span></div><div class="mq-hero-value">'+abn+'<span style="font-size:13px;color:var(--muted);margin-left:4px">个</span></div><div class="mq-hero-label">异常会话</div><div class="mq-hero-sub">事件 '+abnE+' 条 · 占会话 '+abnR+'%</div></div></div>'+
     '<div class="mq-groups"><div class="mq-group"><div class="mq-group-title">🔬 质量指标</div><div class="mq-group-cards">'+
     '<div class="mq-sm-card '+(rr>10?'red':rr>5?'amber':'green')+'"><div class="mq-sm-card-label">重试率</div><div class="mq-sm-card-value">'+rr+'%</div><div class="mq-sm-sub">修复率 '+fr+'%</div></div>'+
     '<div class="mq-sm-card '+(fr>=70?'green':fr>=50?'amber':'red')+'"><div class="mq-sm-card-label">修复率</div><div class="mq-sm-card-value">'+fr+'%</div><div class="mq-sm-sub">重试后通过比例</div></div>'+
     '<div class="mq-sm-card '+(fbr>=85?'green':fbr>=70?'amber':'red')+'"><div class="mq-sm-card-label">用户好评率</div><div class="mq-sm-card-value">'+fbr+'%</div><div class="mq-sm-sub">反馈有帮助比例</div></div>'+
     '<div class="mq-sm-card '+(dur<30000?'green':'amber')+'"><div class="mq-sm-card-label">完整分析 P90</div><div class="mq-sm-card-value">'+fmtSec(p90d)+'</div><div class="mq-sm-sub">90% 在此时间内完成</div></div></div></div>'+
     '<div class="mq-group"><div class="mq-group-title">💰 成本指标</div><div class="mq-group-cards">'+
+    '<div class="mq-sm-card '+(atask>0.05?'amber':'green')+'"><div class="mq-sm-card-label">单任务成本</div><div class="mq-sm-card-value">¥'+(ov.total_analyses?atask.toFixed(4):'—')+'</div><div class="mq-sm-sub">每次分析 LLM 费用</div></div>'+
     '<div class="mq-sm-card '+(dcost>0.05?'amber':'green')+'"><div class="mq-sm-card-label">日均成本</div><div class="mq-sm-card-value">¥'+(ov.total_analyses?dcost.toFixed(4):'—')+'</div><div class="mq-sm-sub">每日 LLM 调用费用</div></div>'+
     '<div class="mq-sm-card '+(mcost>1?'amber':'green')+'"><div class="mq-sm-card-label">月均成本</div><div class="mq-sm-card-value">¥'+(ov.total_analyses?mcost.toFixed(4):'—')+'</div><div class="mq-sm-sub">累计 Token 消耗</div></div></div></div></div>'+
     _issueDistSection(ov)+
     '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🤖 Agent 健康度</div><div class="mq-section-subtitle">错误率排行 · 性能指标</div></div><div class="mq-table-wrap"><table class="mq-table"><thead><tr><th>Agent</th><th>运行</th><th>错误</th><th>错误率</th><th>平均(s)</th><th>最大(s)</th></tr></thead><tbody>'+ah+'</tbody></table></div></div>'+
-    '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">❌ 最近错误</div><div class="mq-section-subtitle">按时间倒序</div></div>'+ei+'</div>'+
+    '<div class="mq-section" id="mqErrorsSection"><div class="mq-section-header"><div class="mq-section-title">❌ 最近错误</div><div class="mq-section-subtitle">'+(errList.length?errSum:'按时间倒序')+'</div></div>'+ei+'</div>'+
     (ch?'<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">📊 Token 消耗趋势</div><div class="mq-section-subtitle">近 '+show.length+' 天 · 含 Input/Output/Cost</div></div>'+ch+'</div>':'');
 }
 
@@ -634,7 +677,7 @@ async function showFallbackList(){
     else d.entries.forEach(function(e){
       h+='<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">'+
         '<div style="font-size:13px;color:var(--text)">'+esc(e.question)+'</div>'+
-        '<div style="font-size:11px;color:var(--muted);margin-top:4px">📅 '+((e.time||'').slice(0,16)||'')+'</div></div>';
+        '<div style="font-size:11px;color:var(--muted);margin-top:4px">📅 '+fmtTs(e.time,16)+'</div></div>';
     });
     h+='<div style="font-size:11px;color:var(--semantic-warning);margin-top:10px">⚠️ 兜底 ≠ 质检通过：这些报告质量未经验证，建议抽查复读</div></div>';
     var ov2=document.createElement('div');ov2.className='modal-overlay';ov2.id='fbListOverlay';ov2.style.display='flex';ov2.onclick=function(ev){if(ev.target===ov2)closeFallbackList();};ov2.innerHTML=h;document.body.appendChild(ov2);
@@ -686,7 +729,7 @@ function renderHistoryList(rec,q){
   if(!rec.length){document.getElementById('historyList').innerHTML='<div class="hv-empty"><div class="hv-empty-icon">🔍</div><div class="hv-empty-text">'+(q?'无匹配结果':'暂无记录')+'</div></div>';return;}
   var html='';
   rec.forEach(function(rr){
-    var ts=rr.created_at?rr.created_at.substring(0,10):(rr.create_time?rr.create_time.substring(0,10):'');
+    var ts=fmtTs(rr.created_at||rr.create_time,10);
     var qText=esc((rr.question||'').substring(0,80));
     var summary=(rr.summary||'').replace(/[*#\[\]|]/g,'').trim().substring(0,100);
     var passed=rr.reflection_passed;
@@ -972,7 +1015,7 @@ async function showFeedbackHistory(){
     if(!r.ok){toast('加载失败','error');return;}
     var d=await r.json(),h='<div class="modal-box" style="width:560px;max-width:95%;max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:18px;font-weight:700;color:var(--text)">📝 我的反馈</span>'+(d.total>0?' <span style="font-size:12px;color:var(--muted)">好评率 '+d.helpful_rate+'%</span>':'')+'<button onclick="closeFeedbackHistory()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px">&times;</button></div>';
     if(!d.entries||!d.entries.length)h+='<div style="padding:40px 0;text-align:center;color:var(--muted)">暂无记录</div>';
-    else d.entries.forEach(function(e){var ri=e.rating==='helpful'?'👍':'👎',rc=e.rating==='helpful'?'var(--green)':'var(--red)';h+='<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center">'+ri+' <span style="color:'+rc+';font-weight:600">'+(e.rating==='helpful'?'有帮助':'不准确')+'</span>'+(e.reflection_passed===false?'<span title="V4.6.2 起简单查询跳过质检，DB 无法区分跳过与未过" style="font-size:10px;color:var(--semantic-error);border:1px solid var(--semantic-error);border-radius:6px;padding:0 5px;line-height:1.6">⚠️ 质检未过</span>':'')+' <span style="color:var(--muted);font-size:11px">'+((e.created_at||'').slice(0,10)||'')+'</span></div>'+(e.question?'<div style="font-size:12px;color:var(--muted)">"'+esc(e.question)+'"</div>':'')+'</div>';});
+    else d.entries.forEach(function(e){var ri=e.rating==='helpful'?'👍':'👎',rc=e.rating==='helpful'?'var(--green)':'var(--red)';h+='<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center">'+ri+' <span style="color:'+rc+';font-weight:600">'+(e.rating==='helpful'?'有帮助':'不准确')+'</span>'+(e.reflection_passed===false?'<span title="V4.6.2 起简单查询跳过质检，DB 无法区分跳过与未过" style="font-size:10px;color:var(--semantic-error);border:1px solid var(--semantic-error);border-radius:6px;padding:0 5px;line-height:1.6">⚠️ 质检未过</span>':'')+' <span style="color:var(--muted);font-size:11px">'+fmtTs(e.created_at,10)+'</span></div>'+(e.question?'<div style="font-size:12px;color:var(--muted)">"'+esc(e.question)+'"</div>':'')+'</div>';});
     h+='</div>';
     var ov=document.createElement('div');ov.className='modal-overlay';ov.id='fbHistoryOverlay';ov.style.display='flex';ov.onclick=function(ev){if(ev.target===ov)closeFeedbackHistory();};ov.innerHTML=h;document.body.appendChild(ov);
   }catch(e){toast('加载失败','error');console.warn(e);}

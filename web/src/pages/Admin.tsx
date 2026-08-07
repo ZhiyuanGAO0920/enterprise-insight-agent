@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { App as AntApp, Table, Button, Space, Typography, Modal, Form, Input, Select, Switch, Tag, Tabs, Tooltip, Popconfirm } from 'antd';
 import {
   UserAddOutlined, ReloadOutlined, DatabaseOutlined,
@@ -6,7 +6,7 @@ import {
 } from '@ant-design/icons';
 import client from '../api/client';
 import { DARK } from '../theme';
-import { errMsg } from '../lib/format';
+import { errMsg, fmtSec, formatTime, formatShortTime } from '../lib/format';
 
 const { Text } = Typography;
 
@@ -71,6 +71,23 @@ interface FbStats {
   breakdown?: Record<string, number>;
 }
 
+interface FbEntry {
+  id: number;
+  username: string;
+  rating: string; /* helpful / bad / contact（意见反馈）/ inaccurate / not_relevant */
+  reason: string;
+  created_at: string;
+  question: string;
+  analysis_id: number | null;
+}
+
+/* 反馈类型标签（与 FeedbackHistory 的 ratingTag 保持一致） */
+const fbRatingTag = (rating: string) => {
+  if (rating === 'helpful') return <Tag color="green">👍 有帮助</Tag>;
+  if (rating === 'contact') return <Tag color="blue">💬 意见反馈</Tag>;
+  return <Tag color="red">👎 没有帮助</Tag>;
+};
+
 interface SchemaInfo {
   database_type?: string;
   database_name?: string;
@@ -85,11 +102,16 @@ export default function AdminPanel() {
   const [regions, setRegions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  /* 搜索防抖：300ms 后才把关键词传给 loadData，避免每敲一个字符发 /admin/users + /admin/stores 两个请求 */
+  const [searchDebounced, setSearchDebounced] = useState('');
   const [roleFilter, setRoleFilter] = useState<string | undefined>();
+  /* 请求序号：搜索/角色筛选/刷新并发时只采纳最后一次请求的响应 */
+  const seqRef = useRef(0);
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [schemaInfo, setSchemaInfo] = useState<SchemaInfo | null>(null);
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
   const [fbStats, setFbStats] = useState<FbStats | null>(null);
+  const [fbEntries, setFbEntries] = useState<FbEntry[]>([]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [impersonating, setImpersonating] = useState<number | null>(null);
@@ -106,22 +128,30 @@ export default function AdminPanel() {
 
   /* ── 数据加载 ── */
   const loadData = useCallback(async () => {
+    const seq = ++seqRef.current;
     setLoading(true);
     try {
       const [uRes, sRes] = await Promise.all([
-        client.get('/admin/users', { params: { search: search || undefined, role: roleFilter } }),
+        client.get('/admin/users', { params: { search: searchDebounced || undefined, role: roleFilter } }),
         client.get('/admin/stores'),
       ]);
+      if (seq !== seqRef.current) return; /* 已有更新的请求发出，丢弃旧响应 */
       setUsers(uRes.data.users || []);
       const storeList = sRes.data.stores || [];
       setStores(storeList);
       setRegions(sRes.data.regions || []);
     } catch (e) {
-      message.error(errMsg(e, '加载数据失败'));
+      if (seq === seqRef.current) message.error(errMsg(e, '加载数据失败'));
     } finally {
-      setLoading(false);
+      if (seq === seqRef.current) setLoading(false);
     }
-  }, [search, roleFilter, message]);
+  }, [searchDebounced, roleFilter, message]);
+
+  /* 搜索输入防抖 300ms（对齐 History 页做法） */
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const loadAuditLogs = async () => {
     try {
@@ -143,10 +173,11 @@ export default function AdminPanel() {
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { loadAuditLogs(); }, []);
 
-  /* 预警规则 + 反馈统计（后端有、前端此前无 UI） */
+  /* 预警规则 + 反馈统计/明细（后端有、前端此前无 UI） */
   useEffect(() => {
     client.get('/alerts/rules').then((res) => setAlertRules(res.data || [])).catch(() => setAlertRules([]));
     client.get('/feedback/stats').then((res) => setFbStats(res.data)).catch(() => setFbStats(null));
+    client.get('/feedback/admin-list?limit=100').then((res) => setFbEntries(res.data.entries || [])).catch(() => setFbEntries([]));
   }, []);
 
   /* ── 创建用户 ── */
@@ -287,9 +318,11 @@ export default function AdminPanel() {
 
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 55 },
-    { title: '用户名', dataIndex: 'username', render: (v: string, u: UserRow) => <Text style={{ fontWeight: 600 }}>{v}{u.display_name ? <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>{u.display_name}</Text> : null}</Text> },
+    { title: '用户名', dataIndex: 'username', width: 220, render: (v: string, u: UserRow) => <Text style={{ fontWeight: 600 }}>{v}{u.display_name ? <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>{u.display_name}</Text> : null}</Text> },
     { title: '角色', dataIndex: 'role', width: 100, render: (v: string) => <Tag color={ROLE_COLOR[v] || 'default'}>{v === 'admin' ? '管理员' : v === 'regional_director' ? '大区总监' : v === 'regional_manager' ? '区域经理' : v === 'store_manager' ? '店长' : v}</Tag> },
-    { title: '数据范围', dataIndex: 'scope_type', width: 150, render: (_: string, u: UserRow) => scopeLabel(u) },
+    /* 数据范围有意留宽（minWidth 300）：多门店账号的店名列表较长，需要足够展示空间；
+       只设 minWidth 不设固定 width，让该列吸收表格剩余宽度 → 表格铺满整行、其余列保持紧凑 */
+    { title: '数据范围', dataIndex: 'scope_type', minWidth: 300, render: (_: string, u: UserRow) => scopeLabel(u) },
     { title: '状态', dataIndex: 'is_active', width: 75, render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag color="red">禁用</Tag>) },
     {
       title: '操作', width: 230, render: (_: string, u: UserRow) => (
@@ -317,7 +350,8 @@ export default function AdminPanel() {
         </Form.Item>
         {editScope === 'region' && (
           <Form.Item name="region" label="所属区域" rules={[{ required: true, message: '请选择区域' }]}>
-            <Select options={regions.sort().map((r) => ({ label: r, value: r }))} placeholder="选择区域" />
+            {/* 拷贝后排序，避免渲染期原地突变 state */}
+            <Select options={[...regions].sort().map((r) => ({ label: r, value: r }))} placeholder="选择区域" />
           </Form.Item>
         )}
         {editScope === 'store' && (
@@ -410,12 +444,12 @@ export default function AdminPanel() {
                   <Table
                     dataSource={auditLogs}
                     columns={[
-                      { title: '时间', dataIndex: 'created_at', width: 180, render: (v: string) => v?.slice(0, 19) },
+                      { title: '时间', dataIndex: 'created_at', width: 180, render: (v: string) => formatTime(v) },
                       { title: '用户ID', dataIndex: 'user_id', width: 70 },
                       { title: '操作', dataIndex: 'action', width: 90 },
                       { title: '资源', dataIndex: 'resource', ellipsis: true },
                       { title: '状态码', dataIndex: 'status_code', width: 75 },
-                      { title: '耗时ms', dataIndex: 'elapsed_ms', width: 80 },
+                      { title: '耗时(s)', dataIndex: 'elapsed_ms', width: 80, render: (v: number) => fmtSec(v) },
                     ]}
                     rowKey="id" size="middle" pagination={{ pageSize: 20 }} scroll={{ x: 800 }}
                   />
@@ -439,7 +473,7 @@ export default function AdminPanel() {
                       { title: '规则名称', dataIndex: 'name' },
                       {
                         title: '监控指标', dataIndex: 'metric', width: 130,
-                        render: (v: string) => ({ refund_rate: '退款率', sales_growth: '销售增长率', member_churn: '会员流失率' }[v] || v),
+                        render: (v: string) => ({ refund_rate: '退款率', sales_growth: '销售增长率', member_churn: '会员流失率', member_count: '会员数量', total_revenue: '总营收' }[v] || v),
                       },
                       { title: '阈值', dataIndex: 'threshold', width: 80, render: (v: number) => `${v}%` },
                       { title: '方向', dataIndex: 'direction', width: 80, render: (v: string) => (v === 'above' ? '高于' : '低于') },
@@ -477,6 +511,25 @@ export default function AdminPanel() {
                       { title: '数量', dataIndex: 'count' },
                     ]}
                   />
+                  {/* 反馈明细（V4.6.6：/feedback/admin-list，管理端查看反馈内容） */}
+                  <div style={{ marginTop: 20 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: DARK.text, marginBottom: 12 }}>
+                      最近反馈明细（{fbEntries.length} 条）
+                    </div>
+                    <Table
+                      dataSource={fbEntries}
+                      rowKey="id" size="small"
+                      pagination={{ pageSize: 8, showSizeChanger: false }}
+                      locale={{ emptyText: '暂无反馈记录' }}
+                      columns={[
+                        { title: '时间', dataIndex: 'created_at', width: 130, render: (v: string) => formatShortTime(v) },
+                        { title: '用户', dataIndex: 'username', width: 100 },
+                        { title: '类型', dataIndex: 'rating', width: 110, render: (v: string) => fbRatingTag(v) },
+                        { title: '内容', dataIndex: 'reason', ellipsis: true, render: (v: string) => v || <span style={{ color: DARK.muted }}>-</span> },
+                        { title: '关联问题', dataIndex: 'question', ellipsis: true, render: (v: string) => v || <span style={{ color: DARK.muted }}>-</span> },
+                      ]}
+                    />
+                  </div>
                 </div>
               ) : (
                 <Text type="secondary">反馈统计功能未开启</Text>
@@ -529,7 +582,8 @@ export default function AdminPanel() {
                 )}
                 {createRole === 'regional_manager' && (
                   <Form.Item name="region" label="所属区域" rules={[{ required: true, message: '请选择区域' }]}>
-                    <Select options={regions.sort().map((r) => ({ label: r, value: r }))} placeholder="选择区域" />
+                    {/* 拷贝后排序，避免渲染期原地突变 state */}
+                    <Select options={[...regions].sort().map((r) => ({ label: r, value: r }))} placeholder="选择区域" />
                   </Form.Item>
                 )}
               </>

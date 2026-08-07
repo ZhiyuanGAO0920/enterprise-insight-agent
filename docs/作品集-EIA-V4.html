@@ -136,7 +136,7 @@ V4 方式：  用中文提问 → AI 自动分析 → 报告输出（60 秒）
 <h3>为什么用 10 个 Agent 而不是 1 个？</h3>
 <p>三个具体原因，实测验证：</p>
 <ol>
-<li><strong>上下文竞争</strong>：5 个领域 Schema（数据库表结构）超 3000 token，长上下文后半段注意力衰减。通过三个对照实验验证——审计 SQL → 隔离上下文 → 位置效应测试</li>
+<li><strong>上下文竞争</strong>：5 个领域数据库表结构超 3000 token，长上下文后半段注意力衰减。通过三个对照实验验证——审计 SQL → 隔离上下文 → 位置效应测试</li>
 <li><strong>故障隔离</strong>：CRM Agent 挂了不污染 Sales/Finance，Aggregator 跳过而非编造</li>
 <li><strong>迭代效率</strong>：Sales Prompt 迭代 7 版、CRM 只改 2 版——独立 Prompt，改一个不需重测全部</li>
 </ol>
@@ -177,8 +177,8 @@ V4 方式：  用中文提问 → AI 自动分析 → 报告输出（60 秒）
 </tr>
 </tbody>
 </table>
-<h3>客户 Schema 三层适配器（客户数据库结构三层适配器）</h3>
-<div class="codehilite"><pre><span></span><code>Schema 自动发现（系统自动，自动扫描客户数据库结构）→ YAML 语义映射（客户技术人员一次性）→ Prompt 动态生成（系统自动）
+<h3>客户数据库结构三层适配器</h3>
+<div class="codehilite"><pre><span></span><code>数据库结构自动发现（系统自动扫描）→ YAML 语义映射（客户技术人员一次性）→ Prompt 动态生成（系统自动）
 </code></pre></div>
 
 <p>只有第二层需要人工介入。年费 3-5 万的定价下，派工程师驻场的成本会让毛利率变负。"零驻场部署"是商业模式的必要条件。</p>

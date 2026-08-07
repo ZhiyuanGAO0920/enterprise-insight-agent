@@ -17,6 +17,15 @@ from datetime import datetime, timezone as _tz
 # 各指标专用 SQL 查询（每条返回单个标量值）
 # ---------------------------------------------------------------------------
 
+# 指标键 → 中文名（推送/展示用，客户侧不暴露英文键）
+METRIC_NAMES: dict[str, str] = {
+    "refund_rate": "退款率",
+    "sales_growth": "销售增长率",
+    "member_churn": "会员流失率",
+    "member_count": "会员数量",
+    "total_revenue": "总营收",
+}
+
 METRIC_QUERIES: dict[str, str] = {
     "refund_rate": """
         SELECT
@@ -96,13 +105,14 @@ async def check_metric(metric: str, threshold: float, direction: str) -> Optiona
         )
 
         if triggered:
+            name = METRIC_NAMES.get(metric, metric)
             return {
                 "metric": metric,
                 "actual_value": round(value, 2),
                 "threshold": threshold,
                 "direction": direction,
                 "detail": (
-                    f"指标 {metric} 当前值 {value:.2f}，"
+                    f"指标 {name} 当前值 {value:.2f}，"
                     f"{'超过' if direction == 'above' else '低于'}阈值 {threshold}，已触发预警。"
                 ),
             }

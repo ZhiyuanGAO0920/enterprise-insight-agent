@@ -68,7 +68,7 @@
       var msg=document.createElement('div');msg.className='msg assistant';
       var bubble=document.createElement('div');bubble.className='bubble';
       var html='';
-      try{html=sanitizeHtml(marked.parse(convertTextTables(expandChartTags(d.report||''))));}catch(e){html=d.report||'';}
+      try{html=sanitizeHtml(marked.parse(convertTextTables(expandChartTags(d.report||''))));}catch(e){html=esc(d.report||'');} // 兜底路径也转义，避免未净化内容直接注入
       bubble.innerHTML=html;
       msg.appendChild(bubble);
       wrap.appendChild(msg);

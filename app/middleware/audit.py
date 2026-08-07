@@ -24,16 +24,17 @@ logger = get_logger("eia.audit")
 # 跟踪审计写入任务，确保关闭前 drain
 _audit_tasks: set[asyncio.Task] = set()
 
-# 不需要审计的路径
-AUDIT_SKIP_PATHS = {"/health", "/health/ready", "/static", "/favicon.ico", "/", "/share"}
+# 不需要审计的路径。
+# ⚠️ 不要放 "/" 进集合：startswith("/") 对一切路径为 True，会把所有请求跳过（V4.6.x 曾因此审计日志全部缺失）。
+AUDIT_SKIP_PATHS = {"/health", "/health/ready", "/static", "/favicon.ico", "/share"}
 
 
 async def audit_middleware(request: Request, call_next):
     """FastAPI 原生 HTTP 中间件：记录所有 API 请求的审计日志。"""
     path = request.url.path
 
-    # 跳过非审计路径
-    if any(path.startswith(skip) for skip in AUDIT_SKIP_PATHS) or not path.startswith("/api/"):
+    # 跳过非审计路径（首页 "/" 单独精确匹配，避免 startswith 误伤）
+    if path == "/" or any(path.startswith(skip) for skip in AUDIT_SKIP_PATHS) or not path.startswith("/api/"):
         return await call_next(request)
 
     t0 = time.monotonic()

@@ -1,5 +1,5 @@
 agent: reflection
-version: "4.2.0"
+version: "2.0.0"
 prompts:
   system_prompt: |
     你是一位经验丰富的企业经营分析质量审核专家。

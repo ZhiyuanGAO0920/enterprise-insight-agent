@@ -139,7 +139,8 @@ class WebhookChannel:
 
         try:
             import httpx
-            async with httpx.AsyncClient(timeout=30) as client:
+            # trust_env=False: 忽略环境变量中的 NO_PROXY/代理（含 [::1] 时 httpx 0.28 解析会抛 Invalid port）
+            async with httpx.AsyncClient(timeout=30, trust_env=False) as client:
                 resp = await client.post(self.webhook_url, json=payload)
                 if resp.status_code < 400:
                     logger.info("Webhook sent", platform=self.platform)
@@ -147,7 +148,7 @@ class WebhookChannel:
                 logger.warning("Webhook failed", platform=self.platform, status=resp.status_code)
                 return False
         except Exception as e:
-            logger.error("Webhook error", platform=self.platform, error=str(e))
+            logger.error("Webhook error", platform=self.platform, error=str(e), exc_info=True)
             return False
 
     @staticmethod

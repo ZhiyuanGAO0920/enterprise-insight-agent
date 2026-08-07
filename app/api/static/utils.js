@@ -11,8 +11,13 @@ function formatCurrency(v){
   return'¥'+n.toLocaleString('zh-CN')
 }
 function formatPercent(v){
-  if(v===undefined||v===null||v==='-')return'-';
+  if(v===undefined||v===null||v==='-'||isNaN(Number(v)))return'-';
   return Number(v).toFixed(1)+'%'
+}
+/* 毫秒 → 秒（两位小数），如 4523 → "4.52s"、45 → "0.05s"（全站耗时统一秒单位） */
+function fmtSec(ms){
+  if(ms===undefined||ms===null||isNaN(Number(ms)))ms=0;
+  return(Number(ms)/1000).toFixed(2)+'s'
 }
 
 /* ── 转义 ── */
@@ -38,7 +43,7 @@ function buildSupervisorPlan(sp){
       inventory:'📦 库存分析',
       supply_chain:'🚚 供应链分析'
     };
-    var agents=plan.activated_agents.map(function(a){return'<span style="display:inline-block;font-size:11px;padding:2px 10px;border-radius:10px;background:rgba(99,102,241,.12);color:var(--accent-hover);margin:2px 4px 2px 0">'+(agentLabels[a]||a)+'</span>'}).join('');
+    var agents=plan.activated_agents.map(function(a){return'<span style="display:inline-block;font-size:11px;padding:2px 10px;border-radius:10px;background:rgba(99,102,241,.12);color:var(--accent-hover);margin:2px 4px 2px 0">'+esc(agentLabels[a]||a)+'</span>'}).join(''); // esc：agent 名来自 LLM 输出，可能含 HTML
     var reasoning=plan.reasoning||'';
     var analysisPlan=plan.analysis_plan||'';
     return '<details class="sup-panel" style="margin-bottom:12px;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0">'+
@@ -104,7 +109,18 @@ function toast(msg,type){
   setTimeout(function(){el.remove()},duration)
 }
 function copyToClipboard(text){
-  navigator.clipboard.writeText(text).then(function(){toast('已复制到剪贴板')}).catch(function(){toast('复制失败')})
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){toast('已复制到剪贴板')}).catch(function(){toast('复制失败','error')});
+    return;
+  }
+  // 非 https/localhost 环境无 clipboard API：降级为临时 textarea + execCommand
+  var ta=document.createElement('textarea');ta.value=text;
+  ta.style.cssText='position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta);ta.select();
+  var ok=false;
+  try{ok=document.execCommand('copy')}catch(e){}
+  ta.remove();
+  toast(ok?'已复制到剪贴板':'复制失败',ok?'':'error');
 }
 function downloadMD(report,q){
   var r=report||_lastReportText||'';
@@ -215,7 +231,7 @@ function expandChartTags(text){
       var params=JSON.parse(decodeURIComponent(encoded));
       var safe=JSON.stringify(params).replace(/'/g,'&#39;');
       result.push('<div class="chart-container" data-chart=\''+safe+'\' style="height:'+(params.height||400)+'px;width:100%"></div>')
-    }catch(e){result.push("")}
+    }catch(e){result.push(marker)} // 解析失败保留原文，不让该图表位置内容静默丢失
     i=end+1
   }
   return result.join('')
@@ -301,6 +317,8 @@ function renderCharts(html){
 
 /* ── DOM 挂载后初始化图表（修复：在 detached 元素上 init 导致黑框）── */
 function initChartsInBubble(bubbleEl){
+  if(!bubbleEl)return;
+  if(!window.echarts){onEChartsReady(function(){initChartsInBubble(bubbleEl);});return;} // echarts 未就绪时排队，避免竞态窗口内 init 抛错
   var containers=bubbleEl.querySelectorAll('.chart-container');
   if(!containers.length)return;
   containers.forEach(function(container){
@@ -331,8 +349,8 @@ function buildTracePanel(ds){
   ds.forEach(function(d,i){
     html+='<div class="trace-item"><div class="trace-claim">'+
       esc(d.agent||'Agent')+' — 第 '+d.id+' 步：'+
-      (d.claim||'')+' <span style="color:var(--muted);font-weight:400">'+
-      '（耗时 '+d.execution_time_ms+'ms，返回 '+d.row_count+' 行）</span></div>'+
+      esc(d.claim||'')+' <span style="color:var(--muted);font-weight:400">'+
+      '（耗时 '+fmtSec(d.execution_time_ms)+'，返回 '+d.row_count+' 行）</span></div>'+
       '<div class="trace-sql">'+escapeHtml(d.sql||'')+'</div></div>'
   });
   html+='</details>';

@@ -1163,7 +1163,7 @@ class DataSource(ABC):
 
     @abstractmethod
     async def get_schema(self, table: str = None) -> str:
-        """获取 Schema（数据库表结构）信息。"""
+        """获取数据库结构信息。"""
         ...
 
 # app/datasources/postgres.py

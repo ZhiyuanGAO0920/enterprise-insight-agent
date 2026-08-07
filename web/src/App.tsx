@@ -48,8 +48,6 @@ export default function App() {
           </>
         ) : (
           <>
-            {/* Intro 欢迎页：无 token 且未点击进入时显示（对齐原生 intro-overlay） */}
-            {!introDone && <Intro onEnter={() => setIntroDone(true)} />}
             <Route path="*" element={<LoginPage />} />
           </>
         )}
@@ -57,5 +55,11 @@ export default function App() {
     </Suspense>
   );
 
-  return routes;
+  return (
+    <>
+      {/* Intro 欢迎页：全屏浮层，必须在 <Routes> 之外渲染（react-router v6 要求 Routes 子元素必须是 <Route>） */}
+      {!token && !introDone && <Intro onEnter={() => setIntroDone(true)} />}
+      {routes}
+    </>
+  );
 }

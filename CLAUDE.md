@@ -56,7 +56,7 @@ Save Memory（pgvector 1024 维，BGE-M3 本地 Embedding）
 ```
 app/
 ├── agents/          # 11 个 Agent 节点（含 supervisor, 5 领域, aggregator, chart, report, reflection, memory）
-├── api/routes/      # 10 个路由组，49 个端点
+├── api/routes/      # 10 个路由组，50 个端点
 │   ├── analysis.py  # /analyze + /analyze-stream（SSE）
 │   ├── dashboard.py # /today-summary + /overview
 │   ├── alerts.py    # /check（n8n 定时触发 + 飞书/钉钉/企微通知）
@@ -81,10 +81,10 @@ workflows/n8n-templates/  # alert-check.json, weekly-report.json
 
 | # | 决策 | 一句话 |
 |---|------|--------|
-| 1 | Multi-Agent vs 单 Agent | 上下文竞争（3000 token Schema + 注意力衰减）+ 故障隔离 + 迭代效率 |
+| 1 | Multi-Agent vs 单 Agent | 上下文竞争（3000 token 数据库结构 + 注意力衰减）+ 故障隔离 + 迭代效率 |
 | 2 | Reflection 重试 1 次 | 0 次→25% 报告有问题；1 次→修复率 60%，成本 3000-5000 token；2 次边际递减 |
 | 3 | 流式优先 | 95%+ 查询是新问题，缓存命中率极低 |
-| 4 | Schema 三层适配器 | 自动发现→YAML 映射→Prompt 生成，零驻场部署 |
+| 4 | 数据库结构三层适配器 | 自动发现→YAML 映射→Prompt 生成，零驻场部署 |
 | 5 | 双模式输出 | 查询型→表格，分析型→完整报告 |
 | 6 | 经营看板作为首页 | 解决用户"冷启动焦虑" |
 | 14 | n8n vs cron | 运维可视化 + 扩展性 + 非技术人员友好 |
@@ -123,6 +123,7 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 - `AI产品经理面试作战包.md` — 15 章完整作战包（自我介绍/决策案例/BadCase/Q&A/讲稿/追问FAQ）
 - `AI产品经理核心知识手册_v1.1.md` — AI PM 理论参考书（LLM/RAG/Agent/Prompt/运维/面试）
 - `AI功能交互流程.md` — 全链路交互（正常/异常/边界）
+- `监控页指标设计原则.md` — 决策台 vs 数据仓库：13 项指标裁决表 + 四象限（V4.6.6 落地）
 - `Demo视频脚本-V4.md` — 9 段视频脚本
 - `作品集-EIA-V4.md` — 10 章作品集（截图+架构+数据）
 - `面试准备计划.md` — 5 天计划

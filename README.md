@@ -41,7 +41,7 @@
 | 管理面板 | Dashboard 快报 |
 |:---:|:---:|
 | ![管理面板](docs/screenshots/admin.png) | ![Dashboard](docs/screenshots/dashboard.png) |
-| *用户管理 + 权限分配 + Schema 配置* | *今日经营数据一屏总览* |
+| *用户管理 + 权限分配 + 数据库结构配置* | *今日经营数据一屏总览* |
 
 ---
 
@@ -51,10 +51,10 @@
 |---------|--------------------------|------------------------|------|
 | **使用方式** | 拖拽配置，需要培训 | 需要描述数据结构、写 Prompt | **直接问中文，零门槛** |
 | **输出内容** | 可视化图表看板 | 通用对话答复 | **结构化经营报告 + 图表 + 诊断 + 行动建议** |
-| **行业适配** | 通用数据平台 | 不懂零售术语 | **预置零售 SQL 模板 + 客户 Schema 自动适配** |
+| **行业适配** | 通用数据平台 | 不懂零售术语 | **预置零售 SQL 模板 + 客户数据库结构自动适配** |
 | **数据安全** | 私有化部署 | 数据上传到云端 | **私有化 Docker 部署，数据不出企业** |
 | **成本** | 数万～数十万/年 | 按 Token 计费 | **LLM 成本 ¥0.03/次，年费 ~¥300** |
-| **质量监控** | ❌ 无 | ❌ 无 | **✅ AI 质量监控面板：Reflection 通过率 / Token 成本 / Agent 错误率 / 失败原因分布** |
+| **质量监控** | ❌ 无 | ❌ 无 | **✅ AI 质量监控面板：量·质·速·稳四象限（通过率三态 / P50 延迟 / 异常会话 / 单任务成本）+ 质检四维原因分布 + 兜底报告下钻** |
 | **5 分钟部署** | 需专人实施 | 需开发集成 | ✅ **`./deploy.sh` 一键完成** |
 
 ---
@@ -219,12 +219,12 @@ enterprise-insight-agent-v4/
 │   │   ├── inventory_agent.py / supply_chain_agent.py
 │   │   ├── chart_advisor_agent.py / report_agent.py
 │   │   ├── reflection_agent.py / memory_node.py
-│   ├── adapters/          # 客户 Schema 适配层（3 层）
+│   ├── adapters/          # 客户数据库结构适配层（3 层）
 │   │   ├── schema_discovery.py    # 自动发现客户数据库结构
 │   │   ├── schema_mapping.py      # 逻辑概念 → 物理表/列映射
 │   │   └── prompt_builder.py      # 动态生成适配后的 Agent Prompt
 │   ├── api/                # FastAPI 路由 + 中间件
-│   │   ├── routes/         # 10 组路由（49 个端点）
+│   │   ├── routes/         # 10 组路由（50 个端点）
 │   │   ├── static/         # 前端静态文件
 │   │   └── dependencies.py # 认证/权限/限流 依赖注入
 │   ├── workflow/           # LangGraph 图谱定义
@@ -244,7 +244,7 @@ enterprise-insight-agent-v4/
 ├── ollama-models/          # 🆕 预打包 BGE-M3 模型目录
 ├── docker-entrypoint.sh    # 🆕 容器启动脚本
 ├── deploy.sh / deploy.bat  # 🆕 一键部署脚本
-└── customer_schema.yaml    # 客户数据库 Schema 映射配置
+└── customer_schema.yaml    # 客户数据库结构映射配置
 ```
 
 ---
@@ -260,13 +260,14 @@ enterprise-insight-agent-v4/
 | | `GET /api/v1/analysis/similar` | 向量相似搜索 |
 | **会话** | `POST /api/v1/session/create` `GET /.../{id}` | 多轮对话管理 |
 | **Dashboard** | `GET /api/v1/dashboard/today-summary` | 今日经营快报 |
-| **反馈** | `POST /api/v1/feedback/submit` `GET /.../stats` `.../analyze` | 用户反馈闭环 |
+| **反馈** | `POST /api/v1/feedback/submit` `.../contact` `GET /.../history` | 用户反馈闭环（提交/意见反馈/我的历史） |
+| | `GET /api/v1/feedback/stats` `.../admin-list` `.../analyze` | 管理端反馈统计 / 明细（admin-list V4.6.7） / Agent 聚合 |
 | **管理** | `GET/POST/PUT/DELETE /api/v1/admin/users` | 用户 CRUD |
 | | `POST /api/v1/admin/users/{id}/reset-password` | 密码重置 |
 | | `POST /api/v1/admin/users/batch-import` | 批量导入 |
 | | `POST /api/v1/admin/impersonate/{id}` 🆕 | 模拟登录 |
 | | `GET /api/v1/admin/audit-logs` 🆕 | 审计日志查询 |
-| | `GET /api/v1/admin/schema/discover` | Schema 自动发现 |
+| | `GET /api/v1/admin/schema/discover` | 数据库结构自动发现 |
 | | `POST /api/v1/admin/schema/preview-yaml` | 预览 YAML 映射 |
 | | `GET /api/v1/admin/schema/test-connection` | 测试 DB 连接 |
 | **Prompt** | `GET /api/v1/prompts` `.../{agent}` `POST .../reload` | Prompt 管理 + 热重载 |

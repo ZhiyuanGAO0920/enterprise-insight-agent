@@ -4,7 +4,7 @@ import ReactECharts from 'echarts-for-react';
 import dayjs from 'dayjs';
 import client from '../api/client';
 import { DARK } from '../theme';
-import { fmtSec } from '../lib/format';
+import { fmtSec, formatShortTime } from '../lib/format';
 
 const { Title } = Typography;
 
@@ -44,6 +44,11 @@ interface OverviewData {
   p90_duration_ms: number;
   estimated_daily_cost: number;
   estimated_monthly_cost: number;
+  // V4.6.6: 异常会话（技术异常=超时，多数经重试自愈仍产出报告）+ 单任务平均成本
+  abnormal_sessions: number;
+  abnormal_events: number;
+  abnormal_rate: number;
+  avg_cost_per_task: number;
   agents: { agent: string; total_runs: number; error_count: number; error_rate: number; avg_ms: number; max_ms: number }[];
   token_trend?: { date: string; input_tokens: number; output_tokens: number; cost: number }[];
   health?: Record<string, string>;
@@ -62,7 +67,7 @@ function fmtTokens(v: number): string {
   return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v >= 1000 ? (v / 1000).toFixed(1) + 'K' : String(v);
 }
 function errIcon(msg: string): string {
-  if (/timeout|超时|time.?out/i.test(msg)) return '⏱️';
+  if (/timeout|超时|time.?out|timed out|deadline exceeded/i.test(msg)) return '⏱️';
   if (/SQL|sql|语法|column|table|relation/i.test(msg)) return '🗃️';
   return '⚠️';
 }
@@ -82,6 +87,8 @@ export default function MonitorPage() {
   /* V4.6.4: 兜底报告下钻弹窗 */
   const [fbOpen, setFbOpen] = useState(false);
   const [fbData, setFbData] = useState<{ total: number; entries: { id: number; question: string; time: string }[] } | null>(null);
+  /* V4.6.5: 最近错误默认截断 10 行，展开后显示全部 */
+  const [errorsExpanded, setErrorsExpanded] = useState(false);
   const openFallback = async () => {
     try {
       const params: Record<string, unknown> = { days: Math.min(days, 90) };
@@ -111,7 +118,7 @@ export default function MonitorPage() {
         client.get('/monitor/errors', { params: { days: Math.min(d, 90), limit: 50 } }),
       ]);
       cacheRef.current = { key, time: Date.now(), ov: oRes.data, er: eRes.data };
-      setOv(oRes.data); setEr(eRes.data);
+      setOv(oRes.data); setEr(eRes.data); setErrorsExpanded(false);
     } catch { setError(true); }
   }, []);
 
@@ -153,6 +160,11 @@ export default function MonitorPage() {
   const p90d = ov?.p90_duration_ms || 0;
   const dcost = ov?.estimated_daily_cost || 0;
   const mcost = ov?.estimated_monthly_cost || 0;
+  const atask = ov?.avg_cost_per_task || 0;
+  const abn = ov?.abnormal_sessions || 0;
+  const abnE = ov?.abnormal_events || 0;
+  const abnR = ov?.abnormal_rate || 0;
+  const scrollToErrors = () => document.getElementById('mqErrors')?.scrollIntoView({ behavior: 'smooth' });
 
   /* ── Token 消耗趋势（对齐原生 mTC 图，双 Y 轴） ── */
   const tokenOption = (() => {
@@ -197,6 +209,24 @@ export default function MonitorPage() {
     series: [{ type: 'bar', data: issueItems.map(([k]) => ov?.reflection_issue_dist?.[k as keyof typeof ov.reflection_issue_dist] || 0), barWidth: 14, itemStyle: { color: LEVEL.warn, borderRadius: [0, 4, 4, 0] }, label: { show: true, position: 'right', color: '#e2e8f0', fontSize: 11, formatter: (p: { value: number }) => `${p.value} 条` } }],
   } : null;
 
+  /* V4.6.5: 最近错误 —— 摘要头（类型分布）+ 默认截断 10 行 + 内联展开 */
+  const errList = er?.errors || [];
+  const errSummary = errList.length ? (() => {
+    const c = { timeout: 0, sql: 0, other: 0 };
+    errList.forEach((e) => {
+      const m = e.error || '';
+      if (/timeout|超时|time.?out|timed out|deadline exceeded/i.test(m)) c.timeout++;
+      else if (/SQL|sql|语法|column|table|relation/i.test(m)) c.sql++;
+      else c.other++;
+    });
+    const parts: string[] = [];
+    if (c.timeout) parts.push(`超时 ${c.timeout}`);
+    if (c.sql) parts.push(`SQL ${c.sql}`);
+    if (c.other) parts.push(`其他 ${c.other}`);
+    return `共 ${errList.length} 条` + (parts.length ? ' · ' + parts.join(' · ') : '');
+  })() : '';
+  const shownErrors = errorsExpanded ? errList : errList.slice(0, 10);
+
   /* 小卡片 */
   const smCard = (label: string, value: string, sub: string, color: string) => (
     <div style={{ flex: 1, minWidth: 150, background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 12, padding: '14px 16px' }}>
@@ -206,8 +236,8 @@ export default function MonitorPage() {
     </div>
   );
 
-  const heroCard = (icon: string, label: string, value: string, status: { label: string; color: string }, sub?: React.ReactNode) => (
-    <div style={{ flex: 1, minWidth: 220, background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 14, padding: '18px 20px' }}>
+  const heroCard = (icon: string, label: string, value: string, status: { label: string; color: string }, sub?: React.ReactNode, onClick?: () => void) => (
+    <div style={{ flex: 1, minWidth: 220, background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 14, padding: '18px 20px', ...(onClick ? { cursor: 'pointer' } : {}) }} onClick={onClick}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 18 }}>{icon}</span>
         <span style={{ fontSize: 11, color: status.color, fontWeight: 600 }}>{status.label}</span>
@@ -265,6 +295,9 @@ export default function MonitorPage() {
                   解析兜底 {ov?.reflection_fallback ?? 0} 条
                 </span></>)}
             {heroCard('⚡', '中位响应延迟', fmtSec(p50), rateLevel(100 - Math.min(p50 / 10, 100), 95, 90), `95% 请求 ${fmtSec(p95)} 内 · 完整分析 ${fmtSec(ov.p50_duration_ms)}`)}
+            {/* V4.6.6: 第 4 卡「异常会话」—— 量·质·速·稳 四象限（点击滚动到最近错误） */}
+            {heroCard('⚠️', '异常会话', `${abn} 个`, abnR < 10 ? { label: '优秀', color: LEVEL.ok } : abnR < 20 ? { label: '良好', color: LEVEL.warn } : { label: '需关注', color: LEVEL.err },
+              <>事件 {abnE} 条 · 占会话 {abnR}% · <span style={{ borderBottom: `1px dotted ${DARK.muted}` }}>点击查看明细</span></>, scrollToErrors)}
           </div>
 
           {/* ── 质量指标 + 成本指标（对齐原生 mq-groups） ── */}
@@ -281,6 +314,7 @@ export default function MonitorPage() {
             <div style={{ flex: 1, minWidth: 240 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: DARK.text, marginBottom: 8 }}>💰 成本指标</div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {smCard('单任务成本', `¥${ov.total_analyses ? atask.toFixed(4) : '—'}`, '每次分析 LLM 费用', atask > 0.05 ? LEVEL.warn : LEVEL.ok)}
                 {smCard('日均成本', `¥${ov.total_analyses ? dcost.toFixed(4) : '—'}`, '每日 LLM 调用费用', dcost > 0.05 ? LEVEL.warn : LEVEL.ok)}
                 {smCard('月均成本', `¥${ov.total_analyses ? mcost.toFixed(4) : '—'}`, '累计 Token 消耗', mcost > 1 ? LEVEL.warn : LEVEL.ok)}
               </div>
@@ -342,35 +376,45 @@ export default function MonitorPage() {
           </div>
 
           {/* ── 最近错误（带表头表格，对齐 Agent 健康度风格：时间/类型/详情/耗时） ── */}
-          <div style={{ background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 14, padding: 18, marginBottom: 16 }}>
+          <div id="mqErrors" style={{ background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 14, padding: 18, marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: DARK.text, marginBottom: 4 }}>❌ 最近错误</div>
-            <div style={{ fontSize: 11, color: DARK.muted, marginBottom: 12 }}>按时间倒序</div>
-            {!er?.errors?.length ? (
+            <div style={{ fontSize: 11, color: DARK.muted, marginBottom: 12 }}>{errSummary || '按时间倒序'}</div>
+            {!errList.length ? (
               <div style={{ color: LEVEL.ok, fontSize: 13, padding: '8px 0' }}>✅ 无错误记录</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr>
-                    {['时间', '类型', '错误详情', '耗时'].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: DARK.muted, fontSize: 11, borderBottom: `1px solid ${DARK.border}` }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {er.errors.map((e, i) => (
-                    <tr key={i}>
-                      <td style={{ padding: '8px 10px', color: DARK.muted, fontSize: 12, whiteSpace: 'nowrap' }}>
-                        {errIcon(e.error || '')} {(e.time || '').slice(5, 16)}
-                      </td>
-                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontSize: 11, background: '#2d2d44', color: DARK.text, borderRadius: 8, padding: '1px 8px' }}>{AGENT_LABELS[e.agent] || e.agent}</span>
-                      </td>
-                      <td style={{ padding: '8px 10px', color: DARK.text }}>{ERR_CN[e.error] || e.error || ''}</td>
-                      <td style={{ padding: '8px 10px', color: DARK.muted, fontSize: 12, whiteSpace: 'nowrap', width: 90 }}>{fmtSec(e.elapsed_ms)}</td>
+              <>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr>
+                      {['时间', '类型', '错误详情', '耗时'].map((h) => (
+                        <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: DARK.muted, fontSize: 11, borderBottom: `1px solid ${DARK.border}` }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {shownErrors.map((e, i) => (
+                      <tr key={i}>
+                        <td style={{ padding: '8px 10px', color: DARK.muted, fontSize: 12, whiteSpace: 'nowrap' }}>
+                          {errIcon(e.error || '')} {(e.time || '').slice(5, 16)}
+                        </td>
+                        <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 11, background: '#2d2d44', color: DARK.text, borderRadius: 8, padding: '1px 8px' }}>{AGENT_LABELS[e.agent] || e.agent}</span>
+                        </td>
+                        <td style={{ padding: '8px 10px', color: DARK.text }}>{ERR_CN[e.error] || e.error || ''}</td>
+                        <td style={{ padding: '8px 10px', color: DARK.muted, fontSize: 12, whiteSpace: 'nowrap', width: 90 }}>{fmtSec(e.elapsed_ms)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {errList.length > 10 && (
+                  <div style={{ textAlign: 'center', marginTop: 10, borderTop: `1px solid ${DARK.border}`, paddingTop: 10 }}>
+                    <button onClick={() => setErrorsExpanded(!errorsExpanded)}
+                      style={{ background: 'transparent', border: `1px dashed ${DARK.border}`, color: DARK.muted, borderRadius: 8, padding: '7px 18px', fontSize: 12, cursor: 'pointer' }}>
+                      {errorsExpanded ? '收起' : `展开全部 ${errList.length} 条`}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -403,7 +447,7 @@ export default function MonitorPage() {
           fbData.entries.map((e) => (
             <div key={e.id} style={{ background: DARK.bg, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
               <div style={{ fontSize: 13, color: DARK.text }}>{e.question}</div>
-              <div style={{ fontSize: 11, color: DARK.muted, marginTop: 4 }}>📅 {(e.time || '').slice(0, 16) || ''}</div>
+              <div style={{ fontSize: 11, color: DARK.muted, marginTop: 4 }}>📅 {formatShortTime(e.time)}</div>
             </div>
           ))
         )}

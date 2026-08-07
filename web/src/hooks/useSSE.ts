@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import type { DataSource } from '../lib/report';
 
 interface SSEEvent {
@@ -19,6 +19,8 @@ interface SSEEvent {
 
 /* 无数据看门狗：超过该时长没有收到任何字节则判定连接挂死 */
 const WATCHDOG_MS = 45_000;
+/* 连接看门狗：fetch 阶段 30s 内未返回响应则判定连接超时（读流阶段由 WATCHDOG_MS 接管） */
+const FETCH_TIMEOUT_MS = 30_000;
 
 export function useSSE() {
   const [steps, setSteps] = useState<Record<string, string>>({});
@@ -29,7 +31,16 @@ export function useSSE() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const watchdogRef = useRef<number | null>(null);
+  const fetchTimerRef = useRef<number | null>(null);
   const timedOutRef = useRef(false);
+  const fetchTimedOutRef = useRef(false);
+
+  /* 组件卸载时中止未完成的请求并清掉看门狗定时器（避免定时器泄漏与卸载后 setState） */
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    if (watchdogRef.current !== null) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
+    if (fetchTimerRef.current !== null) { clearTimeout(fetchTimerRef.current); fetchTimerRef.current = null; }
+  }, []);
 
   const analyze = useCallback(async (question: string, sessionId: string | null) => {
     setIsStreaming(true);
@@ -39,6 +50,7 @@ export function useSSE() {
     setFinalData(null);
     setError(null);
     timedOutRef.current = false;
+    fetchTimedOutRef.current = false;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -49,6 +61,12 @@ export function useSSE() {
         watchdogRef.current = null;
       }
     };
+    const clearFetchTimer = () => {
+      if (fetchTimerRef.current !== null) {
+        clearTimeout(fetchTimerRef.current);
+        fetchTimerRef.current = null;
+      }
+    };
     const armWatchdog = () => {
       clearWatchdog();
       watchdogRef.current = window.setTimeout(() => {
@@ -56,6 +74,13 @@ export function useSSE() {
         controller.abort();
       }, WATCHDOG_MS);
     };
+
+    // fetch 阶段看门狗：30s 未返回响应则判定连接超时（fetch 返回后即清除，交给流看门狗）
+    clearFetchTimer();
+    fetchTimerRef.current = window.setTimeout(() => {
+      fetchTimedOutRef.current = true;
+      controller.abort();
+    }, FETCH_TIMEOUT_MS);
 
     try {
       const res = await fetch('/api/v1/analysis/analyze-stream', {
@@ -67,6 +92,9 @@ export function useSSE() {
         body: JSON.stringify({ question, session_id: sessionId }),
         signal: controller.signal,
       });
+
+      // fetch 已返回：清除连接超时定时器，进入读流阶段（由 WATCHDOG_MS 看门狗接管）
+      clearFetchTimer();
 
       // 非 2xx：读出后端 detail 展示真实原因（401/500 不再静默）
       if (!res.ok) {
@@ -115,7 +143,9 @@ export function useSSE() {
         }
       }
     } catch (err: unknown) {
-      if (timedOutRef.current) {
+      if (fetchTimedOutRef.current) {
+        setError('连接超时（30 秒无响应），请重试');
+      } else if (timedOutRef.current) {
         setError('分析超时（45 秒无响应），请重试');
       } else if (err instanceof DOMException && err.name === 'AbortError') {
         /* 用户主动停止：静默 */
@@ -128,7 +158,9 @@ export function useSSE() {
       }
     } finally {
       clearWatchdog();
+      clearFetchTimer();
       timedOutRef.current = false;
+      fetchTimedOutRef.current = false;
       setIsStreaming(false);
     }
   }, []);

@@ -1,5 +1,5 @@
 agent: finance
-version: "1.0.0"
+version: "2.0.0"
 prompts:
   system_prompt: |
     你是一位资深财务数据分析师。

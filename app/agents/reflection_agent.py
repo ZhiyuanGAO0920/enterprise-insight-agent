@@ -31,11 +31,28 @@ logger = get_logger("eia.agent.reflection")
 
 
 def _extract_json(text: str) -> dict | None:
-    """用括号计数从文本中提取最外层 JSON 对象，不受嵌套层级影响。"""
+    """用括号计数从文本中提取最外层 JSON 对象。
+
+    V4.6.2 加固：
+      1. 字符串感知 —— 引号内的 { } 不参与计数（此前字符串里含大括号会提前截断）
+      2. 解析失败继续向后找下一个候选，而不是立即放弃
+    """
+    in_str = False
+    escape = False
     stack = []
     start = -1
     for i, ch in enumerate(text):
-        if ch == "{":
+        if in_str:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
             if not stack:
                 start = i
             stack.append(ch)
@@ -46,7 +63,27 @@ def _extract_json(text: str) -> dict | None:
                     try:
                         return json.loads(text[start : i + 1])
                     except json.JSONDecodeError:
-                        return None
+                        # 这段不是合法 JSON，重置继续向后找
+                        start = -1
+    return None
+
+
+def _parse_reflection_args(response) -> dict | None:
+    """从 LLM 响应中提取结构化参数。
+
+    tool_calls 优先（DeepSeek 工具调用），否则从文本中提取 JSON。
+    两者都拿不到时返回 None（由调用方决定重问/兜底）。
+    """
+    if response.tool_calls:
+        return response.tool_calls[0]["args"]
+    _text = response.content or ""
+    _parsed_json = _extract_json(_text)
+    if _parsed_json is not None:
+        return {
+            "passed": _parsed_json.get("passed", False),
+            "issues": _parsed_json.get("issues", []),
+            "summary": _parsed_json.get("summary", "") or "Extracted from text",
+        }
     return None
 
 
@@ -177,27 +214,31 @@ async def reflection_agent_node(state: AnalysisState) -> dict:
 
         response = await llm_with_schema.ainvoke(messages)
 
-        # 解析工具调用中的结构化输出
-        if response.tool_calls:
-            args = response.tool_calls[0]["args"]
-        else:
-            # 兜底：思考模型可能不调工具，从文本中提取 JSON
-            _text = response.content or ""
-            # 用括号计数法提取 JSON（支持嵌套 {}，[^}]* 正则遇到嵌套 } 会断裂）
-            _parsed_json = _extract_json(_text)
-            if _parsed_json is not None:
-                try:
-                    _parsed = _parsed_json
-                    args = {
-                        "passed": _parsed.get("passed", False),
-                        "issues": _parsed.get("issues", []),
-                        "summary": _parsed.get("summary", "") or "Extracted from text",
-                    }
-                except Exception:
-                    args = {"passed": False, "issues": [{"severity":"high","category":"completeness","description":"Reflection response could not be parsed"}], "summary":"Parse error"}
-            else:
-                # 完全无结构化输出时，不放过（而非硬编码 passed=True）
-                args = {"passed": False, "issues": [{"severity":"high","category":"completeness","description":"Reflection did not return structured result"}], "summary":"No structured output"}
+        # 解析工具调用中的结构化输出（tool_calls 优先，文本 JSON 兜底）
+        args = _parse_reflection_args(response)
+        if args is None:
+            # V4.6.2: 思考模型偶发不输出工具调用或文本不可解析 —— 重问一次
+            # 追加"只输出 JSON"指令，避免因格式问题误杀报告（此前直接判"未过"并触发重写）
+            logger.warning("Reflection 输出不可解析，重问一次")
+            try:
+                _retry = messages + [HumanMessage(
+                    content="你的上一条回复无法解析为结构化结果。请只输出一个 JSON 对象，"
+                            "包含 passed（布尔）、issues（数组）、summary（字符串）三个字段，不要任何解释文字。"
+                )]
+                args = _parse_reflection_args(await llm_with_schema.ainvoke(_retry))
+            except Exception as e:
+                logger.warning("Reflection 解析重试调用失败: %s", e)
+                args = None
+        if args is None:
+            # 重问仍无结构化输出 —— 不硬判"未过"（可能误杀好报告），
+            # 标记为解析失败并视为通过，summary 里带 PARSING_FALLBACK 供监控区分
+            logger.error("Reflection 两次尝试均无结构化输出，按通过处理（PARSING_FALLBACK）")
+            args = {
+                "passed": True,
+                "issues": [{"severity": "high", "category": "completeness",
+                            "description": "Reflection did not return structured result"}],
+                "summary": "PARSING_FALLBACK: no structured output",
+            }
 
         elapsed = time.monotonic() - t_start
         logger.info("执行完成 (%.1fs) - 通过: %s", elapsed, args.get("passed", False))

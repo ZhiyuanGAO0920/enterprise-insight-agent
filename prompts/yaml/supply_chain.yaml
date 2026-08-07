@@ -1,5 +1,5 @@
 agent: supply_chain
-version: "1.0.0"
+version: "2.0.0"
 prompts:
   system_prompt: |
     你是一位资深供应链管理分析师。

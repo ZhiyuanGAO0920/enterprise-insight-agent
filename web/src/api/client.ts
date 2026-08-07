@@ -19,7 +19,9 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    // 登录接口的 401 是「用户名或密码错误」，不能触发清态刷新——reload 会把错误提示冲掉（表现为"登录没反应也没提示"）
+    const isLoginRequest = err.config?.url?.includes('/auth/login');
+    if (err.response?.status === 401 && !isLoginRequest) {
       // 清理全部登录态（含 username/role/session_id，避免残留脏数据）
       localStorage.removeItem('token');
       localStorage.removeItem('username');

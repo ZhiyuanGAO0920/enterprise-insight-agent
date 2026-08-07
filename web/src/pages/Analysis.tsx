@@ -12,7 +12,7 @@ import { useSSE } from '../hooks/useSSE';
 import { useAppStore } from '../stores/appStore';
 import client from '../api/client';
 import { DARK } from '../theme';
-import { formatMoney, errMsg } from '../lib/format';
+import { formatMoney, fmtSec, errMsg } from '../lib/format';
 import {
   processReport, renderMarkdown, convertTextTables, stripFollowupTags,
   buildEChartsOption, type ChartSpec, type DataSource, type SupervisorPlanData,
@@ -248,7 +248,7 @@ function MessageBubble({ index, msg, feedback, onFeedback, onFollowup, onCopy, o
                   <div key={i} style={{ marginBottom: 8 }}>
                     <Text style={{ fontSize: 12, color: DARK.text }}>
                       {d.agent || 'Agent'} — 第 {d.id} 步：{d.claim || ''}{' '}
-                      <Text type="secondary" style={{ fontSize: 11 }}>（耗时 {d.execution_time_ms}ms，返回 {d.row_count} 行）</Text>
+                      <Text type="secondary" style={{ fontSize: 11 }}>（耗时 {fmtSec(d.execution_time_ms)}，返回 {d.row_count} 行）</Text>
                     </Text>
                     <pre style={{
                       background: '#15152a', border: `1px solid ${DARK.border}`, borderRadius: 6,
@@ -260,22 +260,25 @@ function MessageBubble({ index, msg, feedback, onFeedback, onFollowup, onCopy, o
             />
           )}
 
-          {/* 追问按钮 */}
-          {!!msg.followups?.length && (
-            <Space wrap style={{ marginTop: 10 }}>
-              {msg.followups.map((q, i) => (
-                <Button key={i} size="small" onClick={() => onFollowup(q)}
-                  style={{ background: DARK.bg, borderColor: DARK.border, color: DARK.text, fontSize: 12 }}>
-                  💬 {q}
-                </Button>
-              ))}
-            </Space>
-          )}
-
           {/* 信任分级（对齐原生 trustFooter） */}
           {msg.html && <TrustFooter />}
 
-          {/* 操作条 + 反馈 */}
+          {/* 推荐追问（对齐原生 buildFollowupButtons：报告正文下方独立区块，每个问题单独一行） */}
+          {!!msg.followups?.length && (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
+              marginTop: 14, paddingTop: 12, borderTop: `1px solid ${DARK.border}`,
+            }}>
+              {msg.followups.map((q, i) => (
+                <Button key={i} size="small" onClick={() => onFollowup(q)}
+                  style={{ background: DARK.bg, borderColor: DARK.accent, color: DARK.accent, fontSize: 12, borderRadius: 16 }}>
+                  💬 {q}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {/* 操作条 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
             {msg.recordId && <Text style={{ fontSize: 10, color: DARK.muted, marginRight: 'auto' }}>#{msg.recordId}</Text>}
             <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => onCopy(msg.html || msg.content)}
@@ -292,7 +295,11 @@ function MessageBubble({ index, msg, feedback, onFeedback, onFollowup, onCopy, o
               <Button size="small" type="text" icon={<ShareAltOutlined />} onClick={() => onShare(msg.recordId ?? null)}
                 style={{ color: DARK.muted }}>分享</Button>
             )}
-            <span style={{ fontSize: 12, color: DARK.muted }}>有帮助吗？</span>
+          </div>
+
+          {/* 反馈（对齐原生 feedback-bar：单独一行） */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${DARK.border}`, fontSize: 12, color: DARK.muted, flexWrap: 'wrap' }}>
+            <span>有帮助吗？</span>
             <Button size="small" type="text" icon={<span>👍</span>} disabled={!!feedback}
               onClick={() => onFeedback('helpful')}
               style={{ color: feedback === 'helpful' ? DARK.up : DARK.muted }}>有帮助</Button>
@@ -387,16 +394,21 @@ export default function AnalysisPage() {
   const [shareModal, setShareModal] = useState<{ open: boolean; url: string; recordId: number | null }>({ open: false, url: '', recordId: null });
   const [exporting, setExporting] = useState<'image' | 'pdf' | null>(null);
   const [similar, setSimilar] = useState<{ id: number; question: string }[]>([]);
+  /* 相似推荐请求序号：输入变化时递增，旧关键词慢响应到达后直接丢弃（防乱序覆盖） */
+  const similarSeqRef = useRef(0);
 
   const voice = useVoice((text) => setQuestion(text));
 
   /* 相似历史问题推荐（后端 /analysis/similar 向量搜索） */
   useEffect(() => {
     const q = question.trim();
+    /* 每次输入变化都递增请求序号：旧关键词的慢响应一律丢弃 */
+    const seq = ++similarSeqRef.current;
     if (!q || q.length < 4 || isStreaming) { setSimilar([]); return; }
     const t = setTimeout(async () => {
       try {
         const res = await client.get('/analysis/similar', { params: { query: q, limit: 3 } });
+        if (seq !== similarSeqRef.current) return; /* 已有更新的输入，丢弃旧响应 */
         /* 清洗：去掉历史脏数据里 [系统指令] ranking hint（换行后的系统注释），只保留原始问题 */
         const cleanQ = (s: string) => s.split('\n')[0].trim().replace(/\s*\[系统指令\].*$/, '');
         setSimilar(
@@ -405,7 +417,7 @@ export default function AnalysisPage() {
             .filter((r: { question: string }) => r.question && r.question !== q)
             .slice(0, 3),
         );
-      } catch { setSimilar([]); }
+      } catch { if (seq === similarSeqRef.current) setSimilar([]); }
     }, 400);
     return () => clearTimeout(t);
   }, [question, isStreaming]);
@@ -575,8 +587,8 @@ export default function AnalysisPage() {
           recordId: d.id ?? null, supervisorPlan: d.supervisor_plan || undefined, time: d.created_at,
         },
       ]);
-    } catch (e) { console.error(e); }
-  }, []);
+    } catch (e) { console.error(e); message.error(errMsg(e, '加载历史记录失败')); }
+  }, [message]);
 
   /* ── MD 下载（对齐原生 downloadMD） ── */
   const handleDownloadMd = (msg: Msg) => {
@@ -724,7 +736,8 @@ export default function AnalysisPage() {
 
           {isStreaming && streamText && (
             <Card size="small" style={{ marginBottom: 12, background: DARK.cardBg, borderLeft: `3px solid ${DARK.accent}` }}>
-              <div style={{ color: DARK.text, whiteSpace: 'pre-wrap' }}>{streamText}</div>
+              {/* 去掉 [FOLLOWUP...] 标签：追问在报告完成后以按钮形式展示在报告下方，不在流式正文中出现 */}
+              <div style={{ color: DARK.text, whiteSpace: 'pre-wrap' }}>{stripFollowupTags(streamText)}</div>
             </Card>
           )}
         </div>
@@ -744,7 +757,11 @@ export default function AnalysisPage() {
             <Input.TextArea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              onPressEnter={(e) => { e.preventDefault(); handleSend(); }}
+              onPressEnter={(e) => {
+                /* Shift+Enter 换行 / 中文输入法组词中不触发发送 */
+                if (e.shiftKey || (e.nativeEvent as KeyboardEvent).isComposing) return;
+                e.preventDefault(); handleSend();
+              }}
               placeholder="输入经营问题，例如：分析华东区最近一周的销售趋势..."
               autoSize={{ minRows: 1, maxRows: 4 }}
               disabled={isStreaming}

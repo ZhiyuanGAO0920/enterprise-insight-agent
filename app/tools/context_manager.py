@@ -144,16 +144,27 @@ class ContextManager:
     def __init__(self, session_id: str):
         self.session_id = session_id
         self.settings = get_settings()
+        # V4.6.1: 实例级缓存 —— 一次请求内 is_followup / get_context_for_llm /
+        # resolve_references 各调一次 _load() 会重复 GET 同一份 Redis session 数据，
+        # 首读后缓存，后续复用（跨请求是新实例，天然拿到最新数据）。
+        self._data: dict = {}
+        self._loaded = False
 
     # ---- Redis 辅助方法 ----
 
     async def _load(self) -> dict:
-        """从 Redis 加载会话数据。"""
+        """从 Redis 加载会话数据（实例内只读一次，后续复用）。"""
+        if self._loaded:
+            return self._data
         if not self.settings.feature_multi_turn:
-            return {}
+            self._loaded = True
+            self._data = {}
+            return self._data
         r = get_redis()
-        data = await r.get(f"{SESSION_PREFIX}{self.session_id}")
-        return json.loads(data) if data else {}
+        raw = await r.get(f"{SESSION_PREFIX}{self.session_id}")
+        self._data = json.loads(raw) if raw else {}
+        self._loaded = True
+        return self._data
 
     async def _save(self, data: dict) -> None:
         """将会话数据保存到 Redis。"""
