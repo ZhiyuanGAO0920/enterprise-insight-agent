@@ -148,7 +148,12 @@ async def rate_limit_ip(
             ...
     """
     try:
-        client_ip = request.client.host if request.client else "unknown"
+        # 对抗审查 M9：部署在反代后时 request.client.host 恒为反代 IP，
+        # 所有用户共享一个限速窗口（10 次/分钟全局锁，可被刷成对所有人的 DoS）。
+        # 优先取 X-Forwarded-For 首个 IP（反代写入的客户端真实 IP）；
+        # 注意这是限速而非认证，伪造 XFF 只能影响自己的限速配额，风险可接受。
+        forwarded = request.headers.get("x-forwarded-for", "")
+        client_ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
         endpoint = request.url.path
         ip_key = int(hashlib.md5(f"{client_ip}:{endpoint}".encode()).hexdigest(), 16) % (2**31)
         allowed, remaining = await check_rate_limit(

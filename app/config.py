@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # --- WeChat Mini Program ---
     wechat_appid: str = ""
     wechat_secret: str = ""
+    # Demo 后门开关：未配置 WECHAT_APPID 时，_wechat_code2session 返回固定 openid
+    # （demo_wechat_dev_user）——任何请求方可用任意 code 换取该 openid 绑定账号的 JWT。
+    # 仅允许单用户 Demo/本地开发使用；生产必须置 false 并配置真实 WECHAT_APPID/SECRET。
+    wechat_demo_mode: bool = True
 
     # --- CORS ---
     cors_origins: str = "http://localhost:5173,http://localhost:3000"  # 逗号分隔，"*" 表示全部允许（仅开发）

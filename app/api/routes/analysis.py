@@ -229,6 +229,15 @@ async def analyze(
             reflection_passed=False,
             agent_errors=[{"agent": "system", "error": "分析链路超时，请简化问题后重试"}],
         )
+    except asyncio.CancelledError:
+        # 对抗审查（低危）：请求中断时 similar_task 不会自动取消，
+        # 会泄漏 embedding 调用与 DB 会话直到跑完——与主链路一起取消
+        similar_task.cancel()
+        raise
+    except Exception:
+        # 图执行抛其他异常（LLM 失败等）时同样取消，避免悬挂任务
+        similar_task.cancel()
+        raise
 
     logger.info("分析链路完成", reflection_passed=state.get("reflection_passed", False))
     # Flush APM traces (non-blocking)
@@ -758,7 +767,9 @@ async def analyze_stream(
                     yield item
         except asyncio.TimeoutError:
             logger.warning("SSE 流式分析超时")
-            yield json.dumps({"type": "done", "report": None, "errors": [{"agent": "system", "error": "分析链路超时，请简化问题后重试"}], "reflection_passed": False}) + "\n"
+            # 对抗审查 M5：必须是合法 SSE 帧（data: 前缀 + 空行结尾），
+            # 否则前端按规范解析时该行不触发任何 onmessage，用户看到流静默截断。
+            yield f"data: {json.dumps({'type': 'done', 'report': None, 'errors': [{'agent': 'system', 'error': '分析链路超时，请简化问题后重试'}], 'reflection_passed': False}, ensure_ascii=False)}\n\n"
     return StreamingResponse(
         _timeout_wrapper(),
         media_type="text/event-stream",

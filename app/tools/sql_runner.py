@@ -93,6 +93,90 @@ def _detect_store_column(sql: str) -> Optional[str]:
     return "store_id"
 
 
+_CLAUSE_KEYWORDS = ("WHERE", "GROUP BY", "ORDER BY", "LIMIT", "HAVING", "UNION", "INTERSECT", "EXCEPT")
+
+
+def _locate_outer_clauses(sql: str) -> tuple[int, int, int]:
+    """定位最外层子句关键字（字符串 / 注释 / 括号深度全感知）。
+
+    对抗审查 M1/M2：原实现用正则匹配 \bWHERE\b / \bGROUP BY\b，
+    既不感知字符串字面量（字符串内关键字导致截断、注入后 SQL 语法损坏），
+    也不感知 SQL 注释（注释内 WHERE 干扰定位、注入点可能被注释吞掉导致 RLS 过滤缺失）。
+
+    Returns:
+        (where_pos, first_clause_pos, where_end_pos)
+          - where_pos：最外层 WHERE 关键字起始位置（-1 = 不存在）
+          - first_clause_pos：最外层首个关键字位置（WHERE/GROUP BY/...；len(sql) = 不存在）
+          - where_end_pos：最外层 WHERE 条件的结束位置（下一个子句关键字处；len(sql) = 到末尾）
+    """
+    n = len(sql)
+    where_pos = -1
+    first_clause_pos = n
+    where_end_pos = n
+    i, depth = 0, 0
+    in_string = False
+    while i < n:
+        # 注释（仅非字符串状态匹配）
+        if not in_string and sql.startswith("--", i):
+            nl = sql.find("\n", i)
+            i = n if nl == -1 else nl + 1
+            continue
+        if not in_string and sql.startswith("/*", i):
+            end = sql.find("*/", i + 2)
+            i = n if end == -1 else end + 2
+            continue
+        # 字符串字面量（PG 转义 '' 跳过）
+        if ch := sql[i]:
+            if ch == "'" and (i == 0 or sql[i - 1] != "\\"):
+                if sql.startswith("''", i):
+                    i += 2
+                    continue
+                in_string = not in_string
+                i += 1
+                continue
+        if in_string:
+            i += 1
+            continue
+        if ch == "(":
+            depth += 1
+            i += 1
+            continue
+        if ch == ")":
+            depth -= 1
+            i += 1
+            continue
+        if depth == 0:
+            for kw in _CLAUSE_KEYWORDS:
+                if sql.upper().startswith(kw, i):
+                    prev_ok = i == 0 or not (sql[i - 1].isalnum() or sql[i - 1] == "_")
+                    after = i + len(kw)
+                    next_ok = after >= n or not (sql[after].isalnum() or sql[after] == "_")
+                    if prev_ok and next_ok:
+                        if first_clause_pos == n:
+                            first_clause_pos = i
+                        if kw == "WHERE" and where_pos < 0:
+                            where_pos = i
+                        elif where_pos >= 0:
+                            where_end_pos = i
+                            return where_pos, first_clause_pos, where_end_pos
+                        break
+        i += 1
+    return where_pos, first_clause_pos, where_end_pos
+
+
+def has_outer_set_operator(sql: str) -> bool:
+    """检测最外层是否存在 UNION / INTERSECT / EXCEPT（字符串/注释感知）。
+
+    对抗审查 H5：RLS 注入只能约束单个 SELECT 语句，多分支集合查询中
+    其他分支无门店过滤（实测：空权限 UNION 查询可读全表 orders）。
+    调用方（run_sql）对命中查询直接拒绝，由 Agent 重写。
+    """
+    _, first_clause_pos, _ = _locate_outer_clauses(sql)
+    if first_clause_pos >= len(sql):
+        return False
+    return any(sql.upper().startswith(kw, first_clause_pos) for kw in ("UNION", "INTERSECT", "EXCEPT"))
+
+
 def inject_store_filter(sql: str, store_ids: list[str], store_column: str = None) -> str:
     """向 SQL WHERE 子句注入 store_id IN (...) 过滤条件。
 
@@ -107,65 +191,21 @@ def inject_store_filter(sql: str, store_ids: list[str], store_column: str = None
     Returns:
         注入了 RLS 过滤条件后的 SQL。
     """
-    # 找到最外层 WHERE 的位置（括号深度 + 字符串字面量感知）
-    # 跳过子查询内的 WHERE 和字符串字面量中的 WHERE（防 RLS 绕过）
-    where_matches = list(re.finditer(r'\bWHERE\b', sql, re.IGNORECASE))
-    outer_where_pos = -1
-    if where_matches:
-        depth = 0
-        in_string = False
-        depth_at_pos: dict[int, int] = {}
-        i = 0
-        while i < len(sql):
-            ch = sql[i]
-            if ch == "'" and (i == 0 or sql[i-1] != '\\'):
-                # SQL 中单引号转义用 ''，跳过连续两个单引号
-                if i + 1 < len(sql) and sql[i+1] == "'":
-                    i += 2
-                    continue
-                in_string = not in_string
-            if not in_string:
-                if ch == '(': depth += 1
-                elif ch == ')': depth -= 1
-            depth_at_pos[i] = depth
-            i += 1
-        best_where = where_matches[0]
-        best_depth = depth_at_pos.get(best_where.start(), 0)
-        for wm in where_matches:
-            d = depth_at_pos.get(wm.start(), 0)
-            # 只选择不在字符串内的 WHERE（depth_at_pos 可能标记为 in_string 区间）
-            if d <= best_depth:
-                best_depth = d
-                best_where = wm
-        outer_where_pos = best_where.start()
-
-    # 辅助函数：找到 WHERE 子句的结束位置（在 GROUP BY / ORDER BY / LIMIT / HAVING 之前）
-    def _where_clause_end(start_pos):
-        end = len(sql)
-        remaining = sql[start_pos:]
-        for kw in ['GROUP BY', 'ORDER BY', 'LIMIT', 'HAVING', 'UNION', 'INTERSECT', 'EXCEPT']:
-            m = re.search(rf'\b{kw}\b', remaining, re.IGNORECASE)
-            if m:
-                pos = start_pos + m.start()
-                if pos < end:
-                    end = pos
-        return end
+    # 对抗审查 M1/M2：字符串 / 注释 / 括号全感知的定位（替换原正则实现）
+    outer_where_pos, first_clause_pos, where_end_pos = _locate_outer_clauses(sql)
 
     if not store_ids:
         # 用户无门店访问权限 → 强制返回空结果，防止数据泄露
         if outer_where_pos >= 0:
-            where_content_start = outer_where_pos + 6
-            clause_end = _where_clause_end(where_content_start)
-            original = sql[where_content_start:clause_end].strip()
+            original = sql[outer_where_pos + 6:where_end_pos].strip()
             return (
                 sql[:outer_where_pos]
                 + f"WHERE (1=0) AND ({original})"
-                + sql[clause_end:]
+                + sql[where_end_pos:]
             )
-        for keyword in ['GROUP BY', 'ORDER BY', 'LIMIT', 'HAVING']:
-            if re.search(rf'\b{keyword}\b', sql, re.IGNORECASE):
-                return re.sub(rf'\b{keyword}\b', f'WHERE 1=0 {keyword}', sql, count=1, flags=re.IGNORECASE)
-        return sql + ' WHERE 1=0'
+        if first_clause_pos < len(sql):
+            return sql[:first_clause_pos] + "WHERE 1=0 " + sql[first_clause_pos:]
+        return sql + " WHERE 1=0"
 
     # 自动检测正确的 RLS 列
     if store_column is None:
@@ -178,26 +218,16 @@ def inject_store_filter(sql: str, store_ids: list[str], store_column: str = None
 
     # 情况 1：查询有最外层 WHERE —— 用括号包围原始条件，防止 AND/OR 优先级绕过 RLS
     if outer_where_pos >= 0:
-        where_content_start = outer_where_pos + 6
-        clause_end = _where_clause_end(where_content_start)
-        original = sql[where_content_start:clause_end].strip()
+        original = sql[outer_where_pos + 6:where_end_pos].strip()
         return (
             sql[:outer_where_pos]
             + f"WHERE ({filter_clause}) AND ({original})"
-            + sql[clause_end:]
+            + sql[where_end_pos:]
         )
 
-    # 情况 2：无 WHERE —— 插入到 GROUP BY / ORDER BY / LIMIT / HAVING 之前
-    for keyword in ['GROUP BY', 'ORDER BY', 'LIMIT', 'HAVING']:
-        pattern = rf'\b{keyword}\b'
-        if re.search(pattern, sql, re.IGNORECASE):
-            return re.sub(
-                pattern,
-                f"WHERE {filter_clause} {keyword}",
-                sql,
-                count=1,
-                flags=re.IGNORECASE,
-            )
+    # 情况 2：无 WHERE —— 插入到首个最外层子句关键字（GROUP BY/ORDER BY/LIMIT/HAVING/...）之前
+    if first_clause_pos < len(sql):
+        return sql[:first_clause_pos] + f"WHERE {filter_clause} " + sql[first_clause_pos:]
 
     # 情况 3：简单查询，无任何子句 —— 在末尾追加 WHERE
     return f"{sql.rstrip(';').rstrip()} WHERE {filter_clause}"
@@ -227,6 +257,11 @@ async def run_sql(
     """
     # ---- 1. 注入 RLS 门店过滤 ----
     if store_ids is not None:
+        # 对抗审查 H5：UNION/INTERSECT/EXCEPT 的每个分支都无法注入门店过滤
+        # （实测：空权限的 "SELECT * FROM orders UNION SELECT ..." 中 orders 全表无约束）。
+        # 直接拒绝，由 Agent 重写为单查询。
+        if has_outer_set_operator(query):
+            return "[SQL_ERROR] RLS: UNION/INTERSECT/EXCEPT queries are not supported (row-level security cannot be enforced across all branches)"
         query = inject_store_filter(query, store_ids)
 
     # ---- 2. 强制最小行数限制 ----

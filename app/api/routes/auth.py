@@ -173,7 +173,16 @@ async def wechat_login(
     流程：wx.login() → code → 后端换 openid → 查绑定表：
     - 已绑定 → 直接签发 JWT
     - 未绑定 → 返回 200 + need_bind=true（前端跳转绑定页）
+
+    安全：未配置 WECHAT_APPID 且 WECHAT_DEMO_MODE=false 时拒绝服务——
+    Demo 模式的固定 openid 是"任意 code 换取他人 JWT"的后门（对抗审查 H2），
+    仅允许单用户开发环境启用。
     """
+    if not settings.wechat_appid and not settings.wechat_demo_mode:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="微信登录未配置：请设置 WECHAT_APPID/WECHAT_SECRET，或将 WECHAT_DEMO_MODE=true（仅限单用户开发环境）",
+        )
     openid = await _wechat_code2session(req.code)
 
     async with get_session() as session:
@@ -219,7 +228,14 @@ async def wechat_bind(
     """将微信 openid 绑定到现有系统账号。
 
     首次使用微信登录时调用。验证系统账号密码后建立绑定关系。
+
+    安全：与 wechat-login 相同的 Demo 后门开关（对抗审查 H2）。
     """
+    if not settings.wechat_appid and not settings.wechat_demo_mode:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="微信登录未配置：请设置 WECHAT_APPID/WECHAT_SECRET，或将 WECHAT_DEMO_MODE=true（仅限单用户开发环境）",
+        )
     openid = await _wechat_code2session(req.code)
 
     async with get_session() as session:

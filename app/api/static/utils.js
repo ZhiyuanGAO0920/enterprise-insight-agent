@@ -237,6 +237,20 @@ function expandChartTags(text){
   return result.join('')
 }
 
+/* 对抗审查 H1：ECharts tooltip 默认以 HTML 渲染（renderMode:'html'，innerHTML 写入），
+ * 轴类目/系列名等 DB 可控数据（门店名、区域名）直接进 tooltip 会执行注入的
+ * <img onerror=...> 等 → 统一安全 formatter，所有文本经 esc() 转义。
+ * 用法：所有图表 setOption 的 tooltip 增加 formatter:safeTooltipFormatter */
+function safeTooltipFormatter(p){
+  var item=Array.isArray(p)?p[0]:p;
+  if(!item)return '';
+  var parts=[];
+  if(item.axisValue!=null&&item.axisValue!=='')parts.push(esc(String(item.axisValue)));
+  if(item.name!=null)parts.push(esc(String(item.name)));
+  if(item.value!=null)parts.push(esc(String(item.value)));
+  return parts.join('<br/>');
+}
+
 /* ── ECharts 统一暗色主题 ── */
 function echartsTheme(){
   return {
@@ -292,7 +306,7 @@ function buildEChartsOption(type,config){
   var th=echartsTheme();
   var opt={
     backgroundColor:'transparent',
-    tooltip:{...th.tooltip,trigger:type==='pie'?'item':'axis'},
+    tooltip:{...th.tooltip,trigger:type==='pie'?'item':'axis',formatter:safeTooltipFormatter},
     grid:{...th.grid,containLabel:true},
     xAxis:{...th.xAxis,data:config.xData,axisLabel:{...th.xAxis.axisLabel,rotate:config.xData&&config.xData.length>8?35:0}},
     yAxis:{...th.yAxis,axisLabel:{...th.yAxis.axisLabel,formatter:formatAxisValue}}

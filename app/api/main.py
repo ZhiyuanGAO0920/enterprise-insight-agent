@@ -248,6 +248,23 @@ async def startup_event():
     setup_logging()
     logger.info("EIA V4 服务启动 — 日志系统已初始化")
 
+    # 对抗审查 H2：微信登录 Demo 后门警告（固定 openid 可被任意 code 换取绑定账号 JWT）
+    if not settings.wechat_appid and settings.wechat_demo_mode:
+        logger.warning(
+            "微信登录处于 DEMO 后门模式（固定 openid demo_wechat_dev_user）——"
+            "生产部署必须配置 WECHAT_APPID/WECHAT_SECRET 并设置 WECHAT_DEMO_MODE=false，"
+            "否则任何请求方可用任意 code 换取已绑定账号的登录令牌"
+        )
+
+    # 对抗审查（低危）：n8n webhook 密钥为默认值时告警——
+    # 默认值硬编码在仓库，任何人可用 Authorization: Bearer whsec-default
+    # 触发告警检查/周报生成（完整 LLM 图执行）
+    if settings.n8n_webhook_secret in ("", "whsec-default"):
+        logger.warning(
+            "N8N_WEBHOOK_SECRET 使用默认值 whsec-default——生产部署必须设置强随机密钥，"
+            "否则任何请求方可伪造 webhook 触发告警检查与周报生成（消耗 LLM 成本）"
+        )
+
 
 @app.on_event("shutdown")
 async def shutdown_event():

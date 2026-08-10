@@ -247,13 +247,13 @@ async function loadDashboard(){
     onEChartsReady(function(echarts){
     var th=echartsTheme();
     if(!_dashCharts.t)_dashCharts.t=echarts.init(document.getElementById('dashTrendChart'));
-    _dashCharts.t.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis'},
+    _dashCharts.t.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis',formatter:safeTooltipFormatter},
       grid:{left:50,right:20,bottom:30,top:10},
       xAxis:{type:'category',data:d.trend_dates,axisLabel:{color:'#94a3b8',fontSize:9,rotate:35},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
       yAxis:{type:'value',axisLabel:{color:'#94a3b8',fontSize:9,formatter:function(v){return v>=10000?(v/10000).toFixed(0)+'万':v}},splitLine:{lineStyle:{color:'rgba(51,65,85,0.5)'}}},
       series:[{type:'line',data:d.trend_values,smooth:true,symbol:'circle',symbolSize:4,lineStyle:{width:2,color:th.color[0]},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:th.color[0]+'4d'},{offset:1,color:th.color[0]+'00'}]}}}]});
     if(!_dashCharts.s)_dashCharts.s=echarts.init(document.getElementById('dashStoreChart'));
-    _dashCharts.s.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis'},
+    _dashCharts.s.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis',formatter:safeTooltipFormatter},
       grid:{left:110,right:20,bottom:20,top:10},
       xAxis:{type:'value',axisLabel:{color:'#94a3b8',fontSize:9,formatter:function(v){return v>=10000?(v/10000).toFixed(0)+'万':v}},splitLine:{lineStyle:{color:'rgba(51,65,85,0.5)'}}},
       yAxis:{type:'category',data:(d.top_stores||[]).slice().reverse(),axisLabel:{color:'#f1f5f9',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
@@ -264,7 +264,7 @@ async function loadDashboard(){
     function dr(){
       var f=regs.filter(function(r){return regSel[r.name];});
       if(!_dashCharts.r)_dashCharts.r=echarts.init(rc);
-      _dashCharts.r.setOption({backgroundColor:'transparent',tooltip:{trigger:'item'},series:[{type:'pie',radius:['35%','60%'],data:f,label:{color:'#f1f5f9',fontSize:11,formatter:'{b}: {d}%'},itemStyle:{borderColor:'transparent',borderWidth:2},color:th.color}]});
+      _dashCharts.r.setOption({backgroundColor:'transparent',tooltip:{trigger:'item',formatter:safeTooltipFormatter},series:[{type:'pie',radius:['35%','60%'],data:f,label:{color:'#f1f5f9',fontSize:11,formatter:'{b}: {d}%'},itemStyle:{borderColor:'transparent',borderWidth:2},color:th.color}]});
     }
     var fb=rc.parentNode.querySelector('.rf');
     if(!fb){
@@ -282,7 +282,7 @@ async function loadDashboard(){
     if(d.top_refund_stores&&d.top_refund_stores.length){
       if(!_dashCharts.rf)_dashCharts.rf=echarts.init(document.getElementById('dashRefundChart'));
       var rfData=(d.top_refund_stores||[]).map(function(n,i){return{name:n,value:d.top_refund_values[i]||0};}).sort(function(a,b){return a.value-b.value;});
-      _dashCharts.rf.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis',formatter:function(p){return p[0].name+'<br/>退款率: '+p[0].value+'%';}},
+      _dashCharts.rf.setOption({backgroundColor:'transparent',tooltip:{trigger:'axis',formatter:function(p){return esc(p[0].name)+'<br/>退款率: '+p[0].value+'%';}},
         grid:{left:110,right:30,bottom:20,top:10},
         xAxis:{type:'value',axisLabel:{color:'#94a3b8',fontSize:9,formatter:function(v){return v+'%';}},splitLine:{lineStyle:{color:'rgba(51,65,85,0.5)'}}},
         yAxis:{type:'category',data:rfData.map(function(d){return d.name;}),axisLabel:{color:'#f1f5f9',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
@@ -333,7 +333,7 @@ function renderUserList(){
   function sn(ids){if(!ids||!ids.length)return '';return ids.map(function(id){return sm[String(id)]||'#'+id;}).filter(Boolean).join('、');}
   var html=f.map(function(u){
     var sids=u.store_ids||u.stores||[],st=u.scope_type==='all'?'全部门店':u.scope_type==='region'?u.region||'区域':sids.length>3?sids.length+'家门店':(sn(sids)||'—');
-    return '<tr data-uid="'+u.id+'"><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+(u.role==='admin'?'<span class="badge admin-badge">管理员</span>':u.role==='regional_manager'?'<span class="badge region-badge">区域经理</span>':'<span class="badge store-badge">店长</span>')+'</td><td>'+st+'</td><td>'+(u.is_active===false?'<span class="badge inactive">禁用</span>':'<span class="badge admin-badge">启用</span>')+'</td><td><a class="action-link" data-action="edit">编辑</a><a class="action-link" data-action="impersonate" data-uname="'+jsEscape(u.username)+'">模拟</a><a class="action-link danger" data-action="delete" data-uname="'+jsEscape(u.username)+'">删除</a><a class="action-link" data-action="reset-pw">重置密码</a></td></tr>';
+    return '<tr data-uid="'+u.id+'"><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+(u.role==='admin'?'<span class="badge admin-badge">管理员</span>':u.role==='regional_manager'?'<span class="badge region-badge">区域经理</span>':'<span class="badge store-badge">店长</span>')+'</td><td>'+esc(st)+'</td><td>'+(u.is_active===false?'<span class="badge inactive">禁用</span>':'<span class="badge admin-badge">启用</span>')+'</td><td><a class="action-link" data-action="edit">编辑</a><a class="action-link" data-action="impersonate" data-uname="'+jsEscape(u.username)+'">模拟</a><a class="action-link danger" data-action="delete" data-uname="'+jsEscape(u.username)+'">删除</a><a class="action-link" data-action="reset-pw">重置密码</a></td></tr>';
   }).join('');
   document.getElementById('apUserList').innerHTML=html;
 }
@@ -605,7 +605,7 @@ function renderMonitorView(ov,er){
     setTimeout(function(){
       var el=document.getElementById('mTC');if(!el)return;
       if(window._monitorChart)window._monitorChart.dispose();window._monitorChart=echarts.init(el);
-      window._monitorChart.setOption({tooltip:{trigger:'axis',backgroundColor:'rgba(30,35,55,0.95)',borderColor:'#334155',textStyle:{color:'#e2e8f0',fontSize:12}},
+      window._monitorChart.setOption({tooltip:{trigger:'axis',formatter:safeTooltipFormatter,backgroundColor:'rgba(30,35,55,0.95)',borderColor:'#334155',textStyle:{color:'#e2e8f0',fontSize:12}},
         legend:{data:['Input','Output','Cost(x¥1e4)'],textStyle:{color:'#94a3b8',fontSize:11},top:0,right:0,icon:'circle',itemWidth:8,itemHeight:8},
         grid:{left:50,right:20,top:40,bottom:30},
         xAxis:{type:'category',data:dates,axisLabel:{color:'#94a3b8',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},

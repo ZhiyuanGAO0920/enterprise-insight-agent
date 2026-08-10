@@ -126,6 +126,19 @@ async def check_rate_limit(
         sha = await _get_rate_limit_sha(r)
         allowed, remaining = await r.evalsha(sha, 1, key, now, window_seconds, max_requests)
         return bool(allowed), int(remaining)
+    except redis.asyncio.exceptions.ResponseError as e:
+        # 对抗审查（低危）：Redis FLUSHSCRIPT / 版本变更后 evalsha 报 NOSCRIPT
+        # → 重新 script_load 并重试，避免限流永久静默失效（原实现只降级放行不恢复）
+        if "NOSCRIPT" in str(e):
+            global _RATE_LIMIT_SCRIPT_SHA
+            _RATE_LIMIT_SCRIPT_SHA = None
+            try:
+                sha = await _get_rate_limit_sha(r)
+                allowed, remaining = await r.evalsha(sha, 1, key, now, window_seconds, max_requests)
+                return bool(allowed), int(remaining)
+            except Exception:
+                pass
+        return True, max_requests
     except Exception:
         # 降级：Lua 脚本执行失败时放行（避免 Redis 问题阻塞业务）
         return True, max_requests

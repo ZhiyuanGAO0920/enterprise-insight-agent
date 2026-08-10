@@ -14,7 +14,10 @@ from app.logging_config import bind_context, get_logger
 
 logger = get_logger("eia.tenant")
 
-TENANT_SKIP_PATHS = {"/health", "/health/ready", "/static", "/favicon.ico", "/", "/share", "/docs", "/openapi.json"}
+# ⚠️ 不要放 "/" 进集合：startswith("/") 对一切路径为 True，会把所有请求跳过，
+# 导致 request.state.tenant_id 恒为 None、审计日志 tenant_id 全空（V4.6.x 审计中间件
+# 曾因同样问题全部缺失，此处沿用 audit.py 的 path == "/" 精确匹配修复）。
+TENANT_SKIP_PATHS = {"/health", "/health/ready", "/static", "/favicon.ico", "/share", "/docs", "/openapi.json"}
 
 
 async def tenant_middleware(request: Request, call_next):
@@ -24,7 +27,7 @@ async def tenant_middleware(request: Request, call_next):
     与审计中间件相同的注册方式，确保异常正确传播。
     """
     path = request.url.path
-    if any(path.startswith(skip) for skip in TENANT_SKIP_PATHS):
+    if path == "/" or any(path.startswith(skip) for skip in TENANT_SKIP_PATHS):
         return await call_next(request)
 
     # 从 JWT 直接解析 tenant_id（认证依赖当前不设置 request.state.user，

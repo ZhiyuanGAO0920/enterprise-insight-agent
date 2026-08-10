@@ -36,7 +36,11 @@ services:
       - EMBEDDING_PROVIDER=ollama
       - LOG_LEVEL=${LOG_LEVEL:-WARNING}
       - LOG_FORMAT=${LOG_FORMAT:-json}
-      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      # 安全：禁止默认 *（与 allow_credentials=True 组合可被任意站点跨域调用）。
+      # 必须显式配置前端域名，逗号分隔。
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8000}
+      # 安全：微信登录 Demo 后门默认关闭（对抗审查 H2）。配置真实 WECHAT_APPID/SECRET 后方可登录。
+      - WECHAT_DEMO_MODE=${WECHAT_DEMO_MODE:-false}
     env_file:
       - .env
     secrets:

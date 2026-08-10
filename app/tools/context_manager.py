@@ -153,29 +153,52 @@ class ContextManager:
     # ---- Redis 辅助方法 ----
 
     async def _load(self) -> dict:
-        """从 Redis 加载会话数据（实例内只读一次，后续复用）。"""
+        """从 Redis 加载会话数据（实例内只读一次，后续复用）。
+
+        对抗审查 M6：与 _save 相同的降级语义——Redis 故障时返回空会话，
+        不阻断主流程（此前 _load 裸奔，add_turn 在第一步就抛异常导致
+        分析成功却整体 500，用户重试再花一遍 Token）。
+        """
         if self._loaded:
             return self._data
         if not self.settings.feature_multi_turn:
             self._loaded = True
             self._data = {}
             return self._data
-        r = get_redis()
-        raw = await r.get(f"{SESSION_PREFIX}{self.session_id}")
-        self._data = json.loads(raw) if raw else {}
+        try:
+            r = get_redis()
+            raw = await r.get(f"{SESSION_PREFIX}{self.session_id}")
+            self._data = json.loads(raw) if raw else {}
+        except Exception:
+            import logging
+            logging.getLogger("eia.context").warning(
+                "会话读取失败（Redis 不可用），降级为空会话", exc_info=True
+            )
+            self._data = {}
         self._loaded = True
         return self._data
 
     async def _save(self, data: dict) -> None:
-        """将会话数据保存到 Redis。"""
+        """将会话数据保存到 Redis。
+
+        对抗审查 M6：Redis 故障时降级跳过——分析结果已经生成，
+        对话记忆丢失不应让整个请求 500（此前 add_turn 裸奔，
+        Redis 宕机时用户在 Token 已花完后看到失败并重试再花一遍）。
+        """
         if not self.settings.feature_multi_turn:
             return
-        r = get_redis()
-        await r.setex(
-            f"{SESSION_PREFIX}{self.session_id}",
-            SESSION_TTL,
-            json.dumps(data, ensure_ascii=False),
-        )
+        try:
+            r = get_redis()
+            await r.setex(
+                f"{SESSION_PREFIX}{self.session_id}",
+                SESSION_TTL,
+                json.dumps(data, ensure_ascii=False),
+            )
+        except Exception:
+            import logging
+            logging.getLogger("eia.context").warning(
+                "会话保存失败（Redis 不可用），降级跳过", exc_info=True
+            )
 
     # ---- 核心操作 ----
 

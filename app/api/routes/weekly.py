@@ -54,7 +54,17 @@ async def generate_weekly_report(
     question = "生成本周经营分析周报，包含销售、会员和财务数据分析"
     system_uid = settings.system_user_id
 
-    state = await graph.ainvoke({"question": question, "user_id": system_uid})
+    # 对抗审查 M7：与 /analyze 的 420s 超时对齐，防止 LLM 挂起时 webhook 无限挂起
+    # （n8n 若设超时重试，无超时的端点会并发叠跑重复完整 LLM 成本）
+    import asyncio
+    try:
+        state = await asyncio.wait_for(
+            graph.ainvoke({"question": question, "user_id": system_uid}),
+            timeout=420,
+        )
+    except asyncio.TimeoutError:
+        logger.error("周报生成超时（>420s）")
+        raise HTTPException(status_code=504, detail="周报生成超时，请稍后重试")
 
     report = state.get("report", "")
 

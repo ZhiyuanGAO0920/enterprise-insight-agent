@@ -68,11 +68,20 @@ async def _set_cached_embedding(text: str, vec: list[float]) -> None:
         pass
 
 
+# 对抗审查（低危）：_coalesce_locks 按文本哈希建锁、永不清理，长期运行内存缓慢增长。
+# 超过阈值时清理无人持有的锁（持有中的锁跳过，等待中的请求不受影响）。
+_COALESCE_LOCK_MAX = 500
+
+
 async def _coalesce_lock(text: str) -> asyncio.Lock:
     """获取（或创建）文本对应的进程内锁，用于并发请求合并。"""
     key = _cache_key(text)
     async with _coalesce_locks_guard:
         if key not in _coalesce_locks:
+            if len(_coalesce_locks) >= _COALESCE_LOCK_MAX:
+                stale = [k for k, lk in _coalesce_locks.items() if not lk.locked()]
+                for k in stale:
+                    del _coalesce_locks[k]
             _coalesce_locks[key] = asyncio.Lock()
         return _coalesce_locks[key]
 
