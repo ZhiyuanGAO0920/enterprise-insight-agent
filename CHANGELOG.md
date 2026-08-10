@@ -1,5 +1,32 @@
 # CHANGELOG — V4 修复与优化记录
 
+## V4.7 (2026-08-10)
+
+### ✨ 新增：金丝雀闭环 —— 每日固定子集跑分落库（带 model_version），漂移自动告警
+
+外部 LLM 模型漂移是"无通知、渐进式"的：供应商推新版本后，Prompt 输出风格可能悄悄变差。此前 eval 结果只落文件、无模型版本维度、靠人工跑——漂移检测闭环不成立。本轮：eval 结果落库 `eval_runs`（迁移 014），16 条金丝雀子集每日自动跑，与上一次**同模型**基线对比，超阈值（通过率 -5% / 维度覆盖率 -10% / 延迟 +5s / Reflection 严格通过率 -8%）即 `drift=true` 供 n8n 推送告警。
+
+| # | 文件 | 改动 |
+|---|------|------|
+| 1 | `app/services/eval_metrics.py` | 🆕 指标纯函数从 tests/run_eval.py 抽取（compute_metrics / cross_check / compute_sql_accuracy / classify_reflection 等），金丝雀端点与 run_eval 共用同一口径，避免双份逻辑漂移 |
+| 2 | `tests/run_eval.py` | 改用共享指标模块；新增 `--canary`（只跑 eval_set 中 canary=true 的子集）与 `--save-db`（落库 + 自动对比上一次同模型运行算漂移）；评估请求带 `bypass_cache=true`（修复潜在隐患：重复问题命中 Redis 缓存会测不出漂移且污染生产缓存） |
+| 3 | `tests/eval_set.json` | 16 条打标 canary（5 lookup + 7 analysis + 4 edge，覆盖 5 领域 + 综合 + 边界：闲聊/空输入/算术/SQL 注入），metrics 记录子集构成 |
+| 4 | `app/database/models.py` + `__init__.py` | 🆕 `EvalRun` ORM 模型（run_at / model_version / canary / 各指标列 / drift / drift_summary / metrics_json），`__all__` 导出 |
+| 5 | `alembic/versions/014_eval_runs.py` | 🆕 迁移 014：创建 eval_runs 表（run_at、canary 建索引）——已 `alembic upgrade head` 执行 |
+| 6 | `app/api/routes/eval.py` | 🆕 `POST /eval/canary`（阻塞式子进程跑 run_eval --canary --save-db，并发锁防重入，返回 drift 信号供 n8n 判断）+ `GET /eval/runs`（近 30 次运行趋势，`user:manage` 权限） |
+| 7 | `app/api/routes/analysis.py` | `AnalysisRequest` 新增 `bypass_cache` 字段：评估请求绕过 Redis 缓存读与写（缓存命中会掩盖漂移；评估结果不入生产缓存） |
+| 8 | `workflows/n8n-templates/eval-canary.json` | 🆕 n8n 模板：每天 07:17 触发（避开 10:00 Demo 数据投喂，避免数据变化干扰漂移判定）→ POST /eval/canary（超时放宽至 10 分钟）→ drift=true 分支挂通知 webhook |
+
+**实测验证**：迁移 014 执行成功；EvalRun 插入/查询/删除冒烟通过；run_eval 导入共享模块后全部函数可用；py_compile 全绿。金丝雀端点实跑需服务在线（约 3-8 分钟），n8n 工作流导入后即生效。
+
+### 📝 文档同步：第三方审查结论入库（WorkBuddy 对照评估）
+
+2026-08-10 用户请 WorkBuddy 依据《AI产品经理核心知识手册》对项目做了对照审查（已逐条核实属实），结论落到三处文档：
+
+- `docs/AI产品经理面试作战包.md`：新增「决策 15：让第三方 AI 审查自己的项目」（评估体系的自我校准，含 Reflection 零相关 / 四维偏文字层 / RAG SQL 0% 命中 / 硬护栏缺口四项发现与处理方式）；「什么是 RAG」「如何设计 RAG 和知识库」两题补"NL2SQL + 向量记忆替代文档 RAG"边界话术
+- `docs/AI-PRD-V4.md`：4.3 安全与合规新增「⭐ 接大客户前必修项」（PII 脱敏 / 成本硬限额 / 模型版本锁定 + 金丝雀 / Reflection 维度重构）；5.3 成本监控补硬限额行；第 9 章风险表更新漂移/成本/安全行
+- 金丝雀闭环即本轮 V4.7 落地项，与文档声明对应
+
 ## V4.6.7 (2026-08-06)
 
 ### ✨ 新增：管理端反馈明细视图 —— 反馈内容从「黑盒数字」变「可下钻清单」
