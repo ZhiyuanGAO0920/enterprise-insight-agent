@@ -3,116 +3,1749 @@
   "version": "2.0",
   "description": "102 条标准测试问题，覆盖 5 个领域 Agent + 多 Agent 综合 + 边界场景。每次修改 Prompt 后运行以量化验证分析质量。",
   "questions": [
-    {"id":"Q01","type":"lookup","category":"sales","question":"各门店销售额排名","expected_agents":["sales"],"expected_dimensions":["排名","门店名称","销售额","订单数"],"min_result_rows":10,"max_result_rows":100},
-    {"id":"Q02","type":"lookup","category":"sales","question":"华东区近30天销售额最高的门店是哪个","expected_agents":["sales"],"expected_dimensions":["门店名称","销售额"],"min_result_rows":1,"max_result_rows":1},
-    {"id":"Q03","type":"lookup","category":"sales","question":"各区域销售额占比","expected_agents":["sales"],"expected_dimensions":["区域","销售额","占比"],"min_result_rows":4,"max_result_rows":10},
-    {"id":"Q04","type":"lookup","category":"sales","question":"各区域订单数对比","expected_agents":["sales"],"expected_dimensions":["区域","订单数"],"min_result_rows":4,"max_result_rows":10},
-    {"id":"Q05","type":"lookup","category":"sales","question":"昨日销售额最高的 Top 10 门店","expected_agents":["sales"],"expected_dimensions":["门店名称","销售额"],"min_result_rows":10,"max_result_rows":10},
-    {"id":"Q06","type":"lookup","category":"sales","question":"各品类销售额分布","expected_agents":["sales"],"expected_dimensions":["品类","销售额","占比"],"min_result_rows":3,"max_result_rows":20},
-    {"id":"Q07","type":"lookup","category":"sales","question":"近7天日均销售额低于5000元的门店","expected_agents":["sales"],"expected_dimensions":["门店名称","日均销售额"],"min_result_rows":1,"max_result_rows":30},
-    {"id":"Q08","type":"lookup","category":"sales","question":"各区域客单价排名","expected_agents":["sales"],"expected_dimensions":["区域","客单价"],"min_result_rows":4,"max_result_rows":10},
-    {"id":"Q09","type":"lookup","category":"sales","question":"退款率最高的5家门店","expected_agents":["sales"],"expected_dimensions":["门店名称","退款率"],"min_result_rows":5,"max_result_rows":5},
-    {"id":"Q10","type":"lookup","category":"sales","question":"上月销售额环比增长的门店有哪些","expected_agents":["sales"],"expected_dimensions":["门店名称","环比增长率","销售额"],"min_result_rows":1,"max_result_rows":30},
-    {"id":"Q11","type":"lookup","category":"crm","question":"会员总数是多少","expected_agents":["crm"],"expected_dimensions":["会员总数"],"min_result_rows":1,"max_result_rows":5},
-    {"id":"Q12","type":"lookup","category":"crm","question":"各等级会员人数分布","expected_agents":["crm"],"expected_dimensions":["会员等级","人数","占比"],"min_result_rows":2,"max_result_rows":10},
-    {"id":"Q13","type":"lookup","category":"crm","question":"近30天新增会员数","expected_agents":["crm"],"expected_dimensions":["新增会员数"],"min_result_rows":1,"max_result_rows":5},
-    {"id":"Q14","type":"lookup","category":"crm","question":"近30天流失会员数","expected_agents":["crm"],"expected_dimensions":["流失会员数"],"min_result_rows":1,"max_result_rows":5},
-    {"id":"Q15","type":"lookup","category":"crm","question":"各门店会员数量排名","expected_agents":["crm"],"expected_dimensions":["门店名称","会员数"],"min_result_rows":10,"max_result_rows":100},
-    {"id":"Q16","type":"lookup","category":"crm","question":"会员复购率是多少","expected_agents":["crm"],"expected_dimensions":["复购率","复购人数","总人数"],"min_result_rows":1,"max_result_rows":5},
-    {"id":"Q17","type":"lookup","category":"crm","question":"各区域会员分布情况","expected_agents":["crm"],"expected_dimensions":["区域","会员数","占比"],"min_result_rows":4,"max_result_rows":10},
-    {"id":"Q18","type":"lookup","category":"crm","question":"会员消费频次分布","expected_agents":["crm"],"expected_dimensions":["消费次数","人数","占比"],"min_result_rows":2,"max_result_rows":10},
-    {"id":"Q19","type":"lookup","category":"crm","question":"上月会员活跃率","expected_agents":["crm"],"expected_dimensions":["活跃会员","活跃率","总会员"],"min_result_rows":1,"max_result_rows":5},
-    {"id":"Q20","type":"lookup","category":"crm","question":"新会员占比最高的5家门店","expected_agents":["crm"],"expected_dimensions":["门店名称","新会员数","占比"],"min_result_rows":5,"max_result_rows":5},
-    {"id":"Q21","type":"lookup","category":"finance","question":"近30天退款金额超过1000元的门店有哪些","expected_agents":["finance"],"expected_dimensions":["门店名称","退款金额"],"min_result_rows":1,"max_result_rows":30},
-    {"id":"Q22","type":"lookup","category":"finance","question":"各区域利润率排名","expected_agents":["finance"],"expected_dimensions":["区域","利润率","排名"],"min_result_rows":4,"max_result_rows":10},
-    {"id":"Q23","type":"lookup","category":"finance","question":"各门店毛利率排行","expected_agents":["finance"],"expected_dimensions":["门店名称","毛利率"],"min_result_rows":10,"max_result_rows":100},
-    {"id":"Q24","type":"lookup","category":"finance","question":"各品类利润率对比","expected_agents":["finance"],"expected_dimensions":["品类","利润率","对比"],"min_result_rows":3,"max_result_rows":20},
-    {"id":"Q25","type":"lookup","category":"finance","question":"昨日总销售额和总退款额","expected_agents":["finance"],"expected_dimensions":["总销售额","总退款额","净销售额"],"min_result_rows":1,"max_result_rows":5},
-    {"id":"Q26","type":"lookup","category":"finance","question":"各门店运营成本排名","expected_agents":["finance"],"expected_dimensions":["门店名称","成本","排名"],"min_result_rows":10,"max_result_rows":100},
-    {"id":"Q27","type":"lookup","category":"finance","question":"近7天退款趋势","expected_agents":["finance"],"expected_dimensions":["日期","退款金额","退款笔数"],"min_result_rows":5,"max_result_rows":10},
-    {"id":"Q28","type":"lookup","category":"finance","question":"人工成本最高的5家门店","expected_agents":["finance"],"expected_dimensions":["门店名称","人工成本"],"min_result_rows":5,"max_result_rows":5},
-    {"id":"Q29","type":"lookup","category":"finance","question":"各区域客单价对比","expected_agents":["finance"],"expected_dimensions":["区域","客单价","对比"],"min_result_rows":4,"max_result_rows":10},
-    {"id":"Q30","type":"lookup","category":"finance","question":"上月总毛利和毛利率","expected_agents":["finance"],"expected_dimensions":["总毛利","毛利率"],"min_result_rows":1,"max_result_rows":5},
-    {"id":"Q31","type":"lookup","category":"inventory","question":"哪些商品有缺货风险","expected_agents":["inventory"],"expected_dimensions":["商品名称","库存","安全库存","门店"],"min_result_rows":1,"max_result_rows":30},
-    {"id":"Q32","type":"lookup","category":"inventory","question":"各品类库存总量排名","expected_agents":["inventory"],"expected_dimensions":["品类","库存总量","排名"],"min_result_rows":3,"max_result_rows":20},
-    {"id":"Q33","type":"lookup","category":"inventory","question":"滞销商品清单（近30天零销量）","expected_agents":["inventory"],"expected_dimensions":["商品名称","库存","门店","滞销天数"],"min_result_rows":1,"max_result_rows":30},
-    {"id":"Q34","type":"lookup","category":"inventory","question":"各门店库存周转率排名","expected_agents":["inventory"],"expected_dimensions":["门店名称","周转率","排名"],"min_result_rows":10,"max_result_rows":100},
-    {"id":"Q35","type":"lookup","category":"inventory","question":"库存数量最高的10种商品","expected_agents":["inventory"],"expected_dimensions":["商品名称","库存数量"],"min_result_rows":10,"max_result_rows":10},
-    {"id":"Q36","type":"lookup","category":"inventory","question":"缺货次数最多的商品","expected_agents":["inventory"],"expected_dimensions":["商品名称","缺货次数"],"min_result_rows":1,"max_result_rows":30},
-    {"id":"Q37","type":"lookup","category":"inventory","question":"各区域库存占比","expected_agents":["inventory"],"expected_dimensions":["区域","库存量","占比"],"min_result_rows":4,"max_result_rows":10},
-    {"id":"Q38","type":"lookup","category":"inventory","question":"库存金额最高的门店","expected_agents":["inventory"],"expected_dimensions":["门店名称","库存金额"],"min_result_rows":1,"max_result_rows":30},
-    {"id":"Q39","type":"lookup","category":"inventory","question":"各商品安全库存达标率","expected_agents":["inventory"],"expected_dimensions":["商品名称","库存","安全库存","达标状态"],"min_result_rows":5,"max_result_rows":50},
-    {"id":"Q40","type":"lookup","category":"inventory","question":"需要补货的商品列表","expected_agents":["inventory"],"expected_dimensions":["商品名称","建议补货量","当前库存"],"min_result_rows":1,"max_result_rows":30},
-    {"id":"Q41","type":"lookup","category":"supply_chain","question":"供应商准时交货率排名","expected_agents":["supply_chain"],"expected_dimensions":["供应商名称","准时率","质量评分"],"min_result_rows":3,"max_result_rows":10},
-    {"id":"Q42","type":"lookup","category":"supply_chain","question":"各供应商采购金额排名","expected_agents":["supply_chain"],"expected_dimensions":["供应商名称","采购金额","排名"],"min_result_rows":3,"max_result_rows":10},
-    {"id":"Q43","type":"lookup","category":"supply_chain","question":"近30天供应商交货质量评分","expected_agents":["supply_chain"],"expected_dimensions":["供应商名称","质量评分"],"min_result_rows":3,"max_result_rows":10},
-    {"id":"Q44","type":"lookup","category":"supply_chain","question":"各供应商平均到货天数","expected_agents":["supply_chain"],"expected_dimensions":["供应商名称","平均到货天数"],"min_result_rows":3,"max_result_rows":10},
-    {"id":"Q45","type":"lookup","category":"supply_chain","question":"准时交货率低于90%的供应商","expected_agents":["supply_chain"],"expected_dimensions":["供应商名称","准时率"],"min_result_rows":1,"max_result_rows":10},
-    {"id":"Q46","type":"lookup","category":"supply_chain","question":"各区域供应商分布","expected_agents":["supply_chain"],"expected_dimensions":["区域","供应商数"],"min_result_rows":3,"max_result_rows":10},
-    {"id":"Q47","type":"lookup","category":"supply_chain","question":"采购成本最高的商品品类","expected_agents":["supply_chain"],"expected_dimensions":["品类","采购成本"],"min_result_rows":3,"max_result_rows":10},
-    {"id":"Q48","type":"lookup","category":"supply_chain","question":"各供应商采购频次","expected_agents":["supply_chain"],"expected_dimensions":["供应商名称","采购频次","订单数"],"min_result_rows":3,"max_result_rows":10},
-    {"id":"Q49","type":"lookup","category":"supply_chain","question":"物流时效最差的5个供应商","expected_agents":["supply_chain"],"expected_dimensions":["供应商名称","物流时效","评分"],"min_result_rows":5,"max_result_rows":5},
-    {"id":"Q50","type":"lookup","category":"supply_chain","question":"上月各供应商退货率","expected_agents":["supply_chain"],"expected_dimensions":["供应商名称","退货率"],"min_result_rows":3,"max_result_rows":10},
-    {"id":"Q51","type":"analysis","category":"sales","question":"分析华东区最近销售情况","expected_agents":["sales"],"expected_dimensions":["销售额","趋势","门店排名"],"min_result_rows":5,"max_result_rows":100},
-    {"id":"Q52","type":"analysis","category":"sales","question":"对比华东和华北两个区域的销售表现","expected_agents":["sales"],"expected_dimensions":["华东","华北","销售额","订单数","对比"],"min_result_rows":5,"max_result_rows":50},
-    {"id":"Q53","type":"analysis","category":"sales","question":"分析各区域销售额的同比变化","expected_agents":["sales"],"expected_dimensions":["区域","销售额","同比变化","增长率"],"min_result_rows":4,"max_result_rows":20},
-    {"id":"Q54","type":"analysis","category":"sales","question":"上月销售冠军门店的成功因素分析","expected_agents":["sales"],"expected_dimensions":["门店","销售额","因素","建议"],"min_result_rows":3,"max_result_rows":50},
-    {"id":"Q55","type":"analysis","category":"sales","question":"各品类销售趋势对比分析","expected_agents":["sales"],"expected_dimensions":["品类","销售趋势","对比","增长率"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q56","type":"analysis","category":"crm","question":"分析会员流失情况","expected_agents":["crm"],"expected_dimensions":["会员总数","活跃数","流失数","流失率"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q57","type":"analysis","category":"crm","question":"会员复购率分析及提升建议","expected_agents":["crm"],"expected_dimensions":["复购率","复购人数","总人数","提升建议"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q58","type":"analysis","category":"crm","question":"高价值会员的特征分析","expected_agents":["crm"],"expected_dimensions":["会员特征","消费金额","频次","等级"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q59","type":"analysis","category":"crm","question":"会员地域分布与消费力分析","expected_agents":["crm"],"expected_dimensions":["区域","会员数","人均消费","消费力"],"min_result_rows":4,"max_result_rows":20},
-    {"id":"Q60","type":"analysis","category":"crm","question":"新会员转化率分析","expected_agents":["crm"],"expected_dimensions":["新会员","转化率","注册来源","活跃度"],"min_result_rows":2,"max_result_rows":20},
-    {"id":"Q61","type":"analysis","category":"finance","question":"分析近期退款率变化趋势并给出改进建议","expected_agents":["finance"],"expected_dimensions":["退款率","趋势","退款原因分析","改进建议"],"min_result_rows":5,"max_result_rows":50},
-    {"id":"Q62","type":"analysis","category":"finance","question":"各门店盈利能力综合对比","expected_agents":["finance"],"expected_dimensions":["门店","利润","利润率","排名","建议"],"min_result_rows":5,"max_result_rows":50},
-    {"id":"Q63","type":"analysis","category":"finance","question":"成本结构分析及优化建议","expected_agents":["finance"],"expected_dimensions":["成本结构","占比","分析","优化建议"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q64","type":"analysis","category":"finance","question":"月度营收趋势与季节性分析","expected_agents":["finance"],"expected_dimensions":["月度","营收","趋势","季节性","波动"],"min_result_rows":5,"max_result_rows":30},
-    {"id":"Q65","type":"analysis","category":"finance","question":"现金流状况分析与风险预警","expected_agents":["finance"],"expected_dimensions":["现金流","流入","流出","风险预警","建议"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q66","type":"analysis","category":"inventory","question":"分析各品类的库存健康度","expected_agents":["inventory"],"expected_dimensions":["品类","库存量","安全库存","健康度"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q67","type":"analysis","category":"inventory","question":"库存积压原因分析及清理建议","expected_agents":["inventory"],"expected_dimensions":["积压商品","库存量","原因分析","清理建议"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q68","type":"analysis","category":"inventory","question":"门店库存周转效率对比","expected_agents":["inventory"],"expected_dimensions":["门店","周转率","效率","对比","建议"],"min_result_rows":5,"max_result_rows":50},
-    {"id":"Q69","type":"analysis","category":"inventory","question":"季节性商品备货建议","expected_agents":["inventory"],"expected_dimensions":["季节性商品","当前库存","备货建议"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q70","type":"analysis","category":"inventory","question":"库存损耗率分析","expected_agents":["inventory"],"expected_dimensions":["损耗率","损耗金额","原因分析","改进建议"],"min_result_rows":2,"max_result_rows":20},
-    {"id":"Q71","type":"analysis","category":"supply_chain","question":"分析各供应商采购成本趋势","expected_agents":["supply_chain"],"expected_dimensions":["供应商","采购成本","趋势","对比"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q72","type":"analysis","category":"supply_chain","question":"供应链整体效率分析","expected_agents":["supply_chain"],"expected_dimensions":["供应链","效率","交货","成本","建议"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q73","type":"analysis","category":"supply_chain","question":"供应商风险评估","expected_agents":["supply_chain"],"expected_dimensions":["供应商","风险","评分","历史表现","建议"],"min_result_rows":3,"max_result_rows":20},
-    {"id":"Q74","type":"analysis","category":"supply_chain","question":"采购成本同比变化分析","expected_agents":["supply_chain"],"expected_dimensions":["采购成本","同比","变化","原因分析"],"min_result_rows":3,"max_result_rows":20},
-    {"id":"Q75","type":"analysis","category":"supply_chain","question":"多供应商比价分析与建议","expected_agents":["supply_chain"],"expected_dimensions":["商品","供应商","价格","对比","采购建议"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q76","type":"analysis","category":"comprehensive","question":"整体经营分析报告","expected_agents":["sales","crm","finance"],"expected_dimensions":["销售","会员","财务","建议"],"min_result_rows":10,"max_result_rows":200},
-    {"id":"Q77","type":"analysis","category":"comprehensive","question":"华东区整体经营状况分析","expected_agents":["sales","crm","finance"],"expected_dimensions":["销售","会员","财务","华东","建议"],"min_result_rows":10,"max_result_rows":200},
-    {"id":"Q78","type":"analysis","category":"comprehensive","question":"上月经营复盘与本月改善建议","expected_agents":["sales","crm","finance","inventory","supply_chain"],"expected_dimensions":["销售","会员","财务","库存","供应链","改善建议"],"min_result_rows":15,"max_result_rows":200},
-    {"id":"Q79","type":"analysis","category":"comprehensive","question":"门店综合绩效评估：上海旗舰店","expected_agents":["sales","crm","finance","inventory"],"expected_dimensions":["销售","会员","财务","库存","绩效","建议"],"min_result_rows":5,"max_result_rows":100},
-    {"id":"Q80","type":"analysis","category":"comprehensive","question":"销售与库存关联分析：缺货是否影响了销售额","expected_agents":["sales","inventory"],"expected_dimensions":["缺货","销售损失","影响","建议"],"min_result_rows":3,"max_result_rows":50},
-    {"id":"Q81","type":"analysis","category":"comprehensive","question":"退款率与供应商质量的关联分析","expected_agents":["finance","supply_chain"],"expected_dimensions":["退款率","供应商","质量评分","关联性"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q82","type":"analysis","category":"comprehensive","question":"会员消费与库存偏好的关联分析","expected_agents":["crm","inventory"],"expected_dimensions":["会员","消费偏好","品类","库存","关联"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q83","type":"analysis","category":"comprehensive","question":"上月利润下降原因综合分析","expected_agents":["sales","finance","supply_chain"],"expected_dimensions":["利润下降","原因","销售","成本","供应链","建议"],"min_result_rows":5,"max_result_rows":100},
-    {"id":"Q84","type":"analysis","category":"comprehensive","question":"各区域经营健康度综合评分","expected_agents":["sales","crm","finance","inventory","supply_chain"],"expected_dimensions":["区域","销售","会员","财务","库存","供应链","综合评分"],"min_result_rows":4,"max_result_rows":10},
-    {"id":"Q85","type":"analysis","category":"comprehensive","question":"库存成本对整体利润率的影响","expected_agents":["finance","inventory"],"expected_dimensions":["库存成本","利润率","影响","建议"],"min_result_rows":2,"max_result_rows":30},
-    {"id":"Q86","type":"analysis","category":"comprehensive","question":"新店开业效果分析（对比原有门店）","expected_agents":["sales","crm"],"expected_dimensions":["新店","销售","会员","对比","效果评估"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q87","type":"analysis","category":"comprehensive","question":"促销活动对销售和会员的影响","expected_agents":["sales","crm"],"expected_dimensions":["促销","销售","会员","效果","建议"],"min_result_rows":3,"max_result_rows":50},
-    {"id":"Q88","type":"analysis","category":"comprehensive","question":"供应链成本对终端售价的影响","expected_agents":["supply_chain","finance"],"expected_dimensions":["供应链成本","售价","毛利率","影响"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q89","type":"edge","category":"edge","question":"帮我看看最近一周的情况","expected_agents":["sales","crm","finance"],"expected_dimensions":[],"min_result_rows":1,"max_result_rows":100},
-    {"id":"Q90","type":"edge","category":"edge","question":"退款最多的那个门店的会员情况","expected_agents":["finance","crm"],"expected_dimensions":["退款最多门店","会员"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q91","type":"edge","category":"edge","question":"你好","expected_agents":["sales","crm","finance","inventory","supply_chain"],"expected_dimensions":[],"min_result_rows":1,"max_result_rows":10},
-    {"id":"Q92","type":"edge","category":"edge","question":"明天天气怎么样","expected_agents":["sales","crm","finance","inventory","supply_chain"],"expected_dimensions":[],"min_result_rows":1,"max_result_rows":10},
-    {"id":"Q93","type":"edge","category":"edge","question":"","expected_agents":[],"expected_dimensions":[],"min_result_rows":0,"max_result_rows":0},
-    {"id":"Q94","type":"edge","category":"edge","question":"哪个商品卖得最好它的供应商是谁","expected_agents":["sales","supply_chain"],"expected_dimensions":["商品","销售","供应商"],"min_result_rows":1,"max_result_rows":10},
-    {"id":"Q95","type":"edge","category":"edge","question":"给我看所有数据","expected_agents":["sales","crm","finance","inventory","supply_chain"],"expected_dimensions":[],"min_result_rows":10,"max_result_rows":200},
-    {"id":"Q96","type":"edge","category":"edge","question":"上海的情况怎么样","expected_agents":["sales","crm","finance"],"expected_dimensions":["上海","销售","会员","财务"],"min_result_rows":3,"max_result_rows":50},
-    {"id":"Q97","type":"edge","category":"edge","question":"1+1等于几","expected_agents":["sales","crm","finance","inventory","supply_chain"],"expected_dimensions":[],"min_result_rows":0,"max_result_rows":5},
-    {"id":"Q98","type":"edge","category":"edge","question":"帮我分析一下","expected_agents":["sales","crm","finance","inventory","supply_chain"],"expected_dimensions":[],"min_result_rows":5,"max_result_rows":100},
-    {"id":"Q99","type":"edge","category":"edge","question":"销售额下降的原因是什么和库存有没有关系","expected_agents":["sales","inventory"],"expected_dimensions":["销售额下降","库存","原因"],"min_result_rows":3,"max_result_rows":30},
-    {"id":"Q100","type":"edge","category":"edge","question":"华东区销售额最高的门店和华北区销售额最高的门店分别是哪个它们的会员数对比怎么样","expected_agents":["sales","crm"],"expected_dimensions":["华东","华北","销售额","会员数","对比"],"min_result_rows":2,"max_result_rows":20},
-    {"id":"Q101","type":"edge","category":"edge","question":"DROP TABLE orders; -- 各门店销售额排名","expected_agents":["sales"],"expected_dimensions":["排名","门店名称","销售额"],"min_result_rows":10,"max_result_rows":100},
-    {"id":"Q102","type":"edge","category":"edge","question":"近30天各区域销售额占比和会员新增率的关联","expected_agents":["sales","crm"],"expected_dimensions":["区域","销售额","占比","会员新增","关联"],"min_result_rows":4,"max_result_rows":30}
+    {
+      "id": "Q01",
+      "type": "lookup",
+      "category": "sales",
+      "question": "各门店销售额排名",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "排名",
+        "门店名称",
+        "销售额",
+        "订单数"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 100,
+      "canary": true
+    },
+    {
+      "id": "Q02",
+      "type": "lookup",
+      "category": "sales",
+      "question": "华东区近30天销售额最高的门店是哪个",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "销售额"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 1
+    },
+    {
+      "id": "Q03",
+      "type": "lookup",
+      "category": "sales",
+      "question": "各区域销售额占比",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "销售额",
+        "占比"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q04",
+      "type": "lookup",
+      "category": "sales",
+      "question": "各区域订单数对比",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "订单数"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q05",
+      "type": "lookup",
+      "category": "sales",
+      "question": "昨日销售额最高的 Top 10 门店",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "销售额"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q06",
+      "type": "lookup",
+      "category": "sales",
+      "question": "各品类销售额分布",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "品类",
+        "销售额",
+        "占比"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q07",
+      "type": "lookup",
+      "category": "sales",
+      "question": "近7天日均销售额低于5000元的门店",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "日均销售额"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q08",
+      "type": "lookup",
+      "category": "sales",
+      "question": "各区域客单价排名",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "客单价"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q09",
+      "type": "lookup",
+      "category": "sales",
+      "question": "退款率最高的5家门店",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "退款率"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q10",
+      "type": "lookup",
+      "category": "sales",
+      "question": "上月销售额环比增长的门店有哪些",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "环比增长率",
+        "销售额"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q11",
+      "type": "lookup",
+      "category": "crm",
+      "question": "会员总数是多少",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "会员总数"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q12",
+      "type": "lookup",
+      "category": "crm",
+      "question": "各等级会员人数分布",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "会员等级",
+        "人数",
+        "占比"
+      ],
+      "min_result_rows": 2,
+      "max_result_rows": 10,
+      "canary": true
+    },
+    {
+      "id": "Q13",
+      "type": "lookup",
+      "category": "crm",
+      "question": "近30天新增会员数",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "新增会员数"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q14",
+      "type": "lookup",
+      "category": "crm",
+      "question": "近30天流失会员数",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "流失会员数"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q15",
+      "type": "lookup",
+      "category": "crm",
+      "question": "各门店会员数量排名",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "会员数"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 100
+    },
+    {
+      "id": "Q16",
+      "type": "lookup",
+      "category": "crm",
+      "question": "会员复购率是多少",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "复购率",
+        "复购人数",
+        "总人数"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q17",
+      "type": "lookup",
+      "category": "crm",
+      "question": "各区域会员分布情况",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "会员数",
+        "占比"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q18",
+      "type": "lookup",
+      "category": "crm",
+      "question": "会员消费频次分布",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "消费次数",
+        "人数",
+        "占比"
+      ],
+      "min_result_rows": 2,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q19",
+      "type": "lookup",
+      "category": "crm",
+      "question": "上月会员活跃率",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "活跃会员",
+        "活跃率",
+        "总会员"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q20",
+      "type": "lookup",
+      "category": "crm",
+      "question": "新会员占比最高的5家门店",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "新会员数",
+        "占比"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q21",
+      "type": "lookup",
+      "category": "finance",
+      "question": "近30天退款金额超过1000元的门店有哪些",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "退款金额"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 30,
+      "canary": true
+    },
+    {
+      "id": "Q22",
+      "type": "lookup",
+      "category": "finance",
+      "question": "各区域利润率排名",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "利润率",
+        "排名"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q23",
+      "type": "lookup",
+      "category": "finance",
+      "question": "各门店毛利率排行",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "毛利率"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 100
+    },
+    {
+      "id": "Q24",
+      "type": "lookup",
+      "category": "finance",
+      "question": "各品类利润率对比",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "品类",
+        "利润率",
+        "对比"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q25",
+      "type": "lookup",
+      "category": "finance",
+      "question": "昨日总销售额和总退款额",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "总销售额",
+        "总退款额",
+        "净销售额"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q26",
+      "type": "lookup",
+      "category": "finance",
+      "question": "各门店运营成本排名",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "成本",
+        "排名"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 100
+    },
+    {
+      "id": "Q27",
+      "type": "lookup",
+      "category": "finance",
+      "question": "近7天退款趋势",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "日期",
+        "退款金额",
+        "退款笔数"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q28",
+      "type": "lookup",
+      "category": "finance",
+      "question": "人工成本最高的5家门店",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "人工成本"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q29",
+      "type": "lookup",
+      "category": "finance",
+      "question": "各区域客单价对比",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "客单价",
+        "对比"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q30",
+      "type": "lookup",
+      "category": "finance",
+      "question": "上月总毛利和毛利率",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "总毛利",
+        "毛利率"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q31",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "哪些商品有缺货风险",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "商品名称",
+        "库存",
+        "安全库存",
+        "门店"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 30,
+      "canary": true
+    },
+    {
+      "id": "Q32",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "各品类库存总量排名",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "品类",
+        "库存总量",
+        "排名"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q33",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "滞销商品清单（近30天零销量）",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "商品名称",
+        "库存",
+        "门店",
+        "滞销天数"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q34",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "各门店库存周转率排名",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "周转率",
+        "排名"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 100
+    },
+    {
+      "id": "Q35",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "库存数量最高的10种商品",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "商品名称",
+        "库存数量"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q36",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "缺货次数最多的商品",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "商品名称",
+        "缺货次数"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q37",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "各区域库存占比",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "库存量",
+        "占比"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q38",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "库存金额最高的门店",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "门店名称",
+        "库存金额"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q39",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "各商品安全库存达标率",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "商品名称",
+        "库存",
+        "安全库存",
+        "达标状态"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q40",
+      "type": "lookup",
+      "category": "inventory",
+      "question": "需要补货的商品列表",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "商品名称",
+        "建议补货量",
+        "当前库存"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q41",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "供应商准时交货率排名",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商名称",
+        "准时率",
+        "质量评分"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 10,
+      "canary": true
+    },
+    {
+      "id": "Q42",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "各供应商采购金额排名",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商名称",
+        "采购金额",
+        "排名"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q43",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "近30天供应商交货质量评分",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商名称",
+        "质量评分"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q44",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "各供应商平均到货天数",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商名称",
+        "平均到货天数"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q45",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "准时交货率低于90%的供应商",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商名称",
+        "准时率"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q46",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "各区域供应商分布",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "供应商数"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q47",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "采购成本最高的商品品类",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "品类",
+        "采购成本"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q48",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "各供应商采购频次",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商名称",
+        "采购频次",
+        "订单数"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q49",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "物流时效最差的5个供应商",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商名称",
+        "物流时效",
+        "评分"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 5
+    },
+    {
+      "id": "Q50",
+      "type": "lookup",
+      "category": "supply_chain",
+      "question": "上月各供应商退货率",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商名称",
+        "退货率"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q51",
+      "type": "analysis",
+      "category": "sales",
+      "question": "分析华东区最近销售情况",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "销售额",
+        "趋势",
+        "门店排名"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 100,
+      "canary": true
+    },
+    {
+      "id": "Q52",
+      "type": "analysis",
+      "category": "sales",
+      "question": "对比华东和华北两个区域的销售表现",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "华东",
+        "华北",
+        "销售额",
+        "订单数",
+        "对比"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q53",
+      "type": "analysis",
+      "category": "sales",
+      "question": "分析各区域销售额的同比变化",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "销售额",
+        "同比变化",
+        "增长率"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q54",
+      "type": "analysis",
+      "category": "sales",
+      "question": "上月销售冠军门店的成功因素分析",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "门店",
+        "销售额",
+        "因素",
+        "建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q55",
+      "type": "analysis",
+      "category": "sales",
+      "question": "各品类销售趋势对比分析",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "品类",
+        "销售趋势",
+        "对比",
+        "增长率"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q56",
+      "type": "analysis",
+      "category": "crm",
+      "question": "分析会员流失情况",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "会员总数",
+        "活跃数",
+        "流失数",
+        "流失率"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30,
+      "canary": true
+    },
+    {
+      "id": "Q57",
+      "type": "analysis",
+      "category": "crm",
+      "question": "会员复购率分析及提升建议",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "复购率",
+        "复购人数",
+        "总人数",
+        "提升建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q58",
+      "type": "analysis",
+      "category": "crm",
+      "question": "高价值会员的特征分析",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "会员特征",
+        "消费金额",
+        "频次",
+        "等级"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q59",
+      "type": "analysis",
+      "category": "crm",
+      "question": "会员地域分布与消费力分析",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "会员数",
+        "人均消费",
+        "消费力"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q60",
+      "type": "analysis",
+      "category": "crm",
+      "question": "新会员转化率分析",
+      "expected_agents": [
+        "crm"
+      ],
+      "expected_dimensions": [
+        "新会员",
+        "转化率",
+        "注册来源",
+        "活跃度"
+      ],
+      "min_result_rows": 2,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q61",
+      "type": "analysis",
+      "category": "finance",
+      "question": "分析近期退款率变化趋势并给出改进建议",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "退款率",
+        "趋势",
+        "退款原因分析",
+        "改进建议"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 50,
+      "canary": true
+    },
+    {
+      "id": "Q62",
+      "type": "analysis",
+      "category": "finance",
+      "question": "各门店盈利能力综合对比",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "门店",
+        "利润",
+        "利润率",
+        "排名",
+        "建议"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q63",
+      "type": "analysis",
+      "category": "finance",
+      "question": "成本结构分析及优化建议",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "成本结构",
+        "占比",
+        "分析",
+        "优化建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q64",
+      "type": "analysis",
+      "category": "finance",
+      "question": "月度营收趋势与季节性分析",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "月度",
+        "营收",
+        "趋势",
+        "季节性",
+        "波动"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q65",
+      "type": "analysis",
+      "category": "finance",
+      "question": "现金流状况分析与风险预警",
+      "expected_agents": [
+        "finance"
+      ],
+      "expected_dimensions": [
+        "现金流",
+        "流入",
+        "流出",
+        "风险预警",
+        "建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q66",
+      "type": "analysis",
+      "category": "inventory",
+      "question": "分析各品类的库存健康度",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "品类",
+        "库存量",
+        "安全库存",
+        "健康度"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30,
+      "canary": true
+    },
+    {
+      "id": "Q67",
+      "type": "analysis",
+      "category": "inventory",
+      "question": "库存积压原因分析及清理建议",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "积压商品",
+        "库存量",
+        "原因分析",
+        "清理建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q68",
+      "type": "analysis",
+      "category": "inventory",
+      "question": "门店库存周转效率对比",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "门店",
+        "周转率",
+        "效率",
+        "对比",
+        "建议"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q69",
+      "type": "analysis",
+      "category": "inventory",
+      "question": "季节性商品备货建议",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "季节性商品",
+        "当前库存",
+        "备货建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q70",
+      "type": "analysis",
+      "category": "inventory",
+      "question": "库存损耗率分析",
+      "expected_agents": [
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "损耗率",
+        "损耗金额",
+        "原因分析",
+        "改进建议"
+      ],
+      "min_result_rows": 2,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q71",
+      "type": "analysis",
+      "category": "supply_chain",
+      "question": "分析各供应商采购成本趋势",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商",
+        "采购成本",
+        "趋势",
+        "对比"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30,
+      "canary": true
+    },
+    {
+      "id": "Q72",
+      "type": "analysis",
+      "category": "supply_chain",
+      "question": "供应链整体效率分析",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应链",
+        "效率",
+        "交货",
+        "成本",
+        "建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q73",
+      "type": "analysis",
+      "category": "supply_chain",
+      "question": "供应商风险评估",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "供应商",
+        "风险",
+        "评分",
+        "历史表现",
+        "建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q74",
+      "type": "analysis",
+      "category": "supply_chain",
+      "question": "采购成本同比变化分析",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "采购成本",
+        "同比",
+        "变化",
+        "原因分析"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q75",
+      "type": "analysis",
+      "category": "supply_chain",
+      "question": "多供应商比价分析与建议",
+      "expected_agents": [
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "商品",
+        "供应商",
+        "价格",
+        "对比",
+        "采购建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q76",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "整体经营分析报告",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance"
+      ],
+      "expected_dimensions": [
+        "销售",
+        "会员",
+        "财务",
+        "建议"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 200,
+      "canary": true
+    },
+    {
+      "id": "Q77",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "华东区整体经营状况分析",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance"
+      ],
+      "expected_dimensions": [
+        "销售",
+        "会员",
+        "财务",
+        "华东",
+        "建议"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 200
+    },
+    {
+      "id": "Q78",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "上月经营复盘与本月改善建议",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance",
+        "inventory",
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "销售",
+        "会员",
+        "财务",
+        "库存",
+        "供应链",
+        "改善建议"
+      ],
+      "min_result_rows": 15,
+      "max_result_rows": 200
+    },
+    {
+      "id": "Q79",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "门店综合绩效评估：上海旗舰店",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance",
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "销售",
+        "会员",
+        "财务",
+        "库存",
+        "绩效",
+        "建议"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 100
+    },
+    {
+      "id": "Q80",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "销售与库存关联分析：缺货是否影响了销售额",
+      "expected_agents": [
+        "sales",
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "缺货",
+        "销售损失",
+        "影响",
+        "建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q81",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "退款率与供应商质量的关联分析",
+      "expected_agents": [
+        "finance",
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "退款率",
+        "供应商",
+        "质量评分",
+        "关联性"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q82",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "会员消费与库存偏好的关联分析",
+      "expected_agents": [
+        "crm",
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "会员",
+        "消费偏好",
+        "品类",
+        "库存",
+        "关联"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q83",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "上月利润下降原因综合分析",
+      "expected_agents": [
+        "sales",
+        "finance",
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "利润下降",
+        "原因",
+        "销售",
+        "成本",
+        "供应链",
+        "建议"
+      ],
+      "min_result_rows": 5,
+      "max_result_rows": 100,
+      "canary": true
+    },
+    {
+      "id": "Q84",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "各区域经营健康度综合评分",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance",
+        "inventory",
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "销售",
+        "会员",
+        "财务",
+        "库存",
+        "供应链",
+        "综合评分"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q85",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "库存成本对整体利润率的影响",
+      "expected_agents": [
+        "finance",
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "库存成本",
+        "利润率",
+        "影响",
+        "建议"
+      ],
+      "min_result_rows": 2,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q86",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "新店开业效果分析（对比原有门店）",
+      "expected_agents": [
+        "sales",
+        "crm"
+      ],
+      "expected_dimensions": [
+        "新店",
+        "销售",
+        "会员",
+        "对比",
+        "效果评估"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q87",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "促销活动对销售和会员的影响",
+      "expected_agents": [
+        "sales",
+        "crm"
+      ],
+      "expected_dimensions": [
+        "促销",
+        "销售",
+        "会员",
+        "效果",
+        "建议"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q88",
+      "type": "analysis",
+      "category": "comprehensive",
+      "question": "供应链成本对终端售价的影响",
+      "expected_agents": [
+        "supply_chain",
+        "finance"
+      ],
+      "expected_dimensions": [
+        "供应链成本",
+        "售价",
+        "毛利率",
+        "影响"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q89",
+      "type": "edge",
+      "category": "edge",
+      "question": "帮我看看最近一周的情况",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance"
+      ],
+      "expected_dimensions": [],
+      "min_result_rows": 1,
+      "max_result_rows": 100,
+      "canary": true
+    },
+    {
+      "id": "Q90",
+      "type": "edge",
+      "category": "edge",
+      "question": "退款最多的那个门店的会员情况",
+      "expected_agents": [
+        "finance",
+        "crm"
+      ],
+      "expected_dimensions": [
+        "退款最多门店",
+        "会员"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q91",
+      "type": "edge",
+      "category": "edge",
+      "question": "你好",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance",
+        "inventory",
+        "supply_chain"
+      ],
+      "expected_dimensions": [],
+      "min_result_rows": 1,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q92",
+      "type": "edge",
+      "category": "edge",
+      "question": "明天天气怎么样",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance",
+        "inventory",
+        "supply_chain"
+      ],
+      "expected_dimensions": [],
+      "min_result_rows": 1,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q93",
+      "type": "edge",
+      "category": "edge",
+      "question": "",
+      "expected_agents": [],
+      "expected_dimensions": [],
+      "min_result_rows": 0,
+      "max_result_rows": 0,
+      "canary": true
+    },
+    {
+      "id": "Q94",
+      "type": "edge",
+      "category": "edge",
+      "question": "哪个商品卖得最好它的供应商是谁",
+      "expected_agents": [
+        "sales",
+        "supply_chain"
+      ],
+      "expected_dimensions": [
+        "商品",
+        "销售",
+        "供应商"
+      ],
+      "min_result_rows": 1,
+      "max_result_rows": 10
+    },
+    {
+      "id": "Q95",
+      "type": "edge",
+      "category": "edge",
+      "question": "给我看所有数据",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance",
+        "inventory",
+        "supply_chain"
+      ],
+      "expected_dimensions": [],
+      "min_result_rows": 10,
+      "max_result_rows": 200
+    },
+    {
+      "id": "Q96",
+      "type": "edge",
+      "category": "edge",
+      "question": "上海的情况怎么样",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance"
+      ],
+      "expected_dimensions": [
+        "上海",
+        "销售",
+        "会员",
+        "财务"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 50
+    },
+    {
+      "id": "Q97",
+      "type": "edge",
+      "category": "edge",
+      "question": "1+1等于几",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance",
+        "inventory",
+        "supply_chain"
+      ],
+      "expected_dimensions": [],
+      "min_result_rows": 0,
+      "max_result_rows": 5,
+      "canary": true
+    },
+    {
+      "id": "Q98",
+      "type": "edge",
+      "category": "edge",
+      "question": "帮我分析一下",
+      "expected_agents": [
+        "sales",
+        "crm",
+        "finance",
+        "inventory",
+        "supply_chain"
+      ],
+      "expected_dimensions": [],
+      "min_result_rows": 5,
+      "max_result_rows": 100
+    },
+    {
+      "id": "Q99",
+      "type": "edge",
+      "category": "edge",
+      "question": "销售额下降的原因是什么和库存有没有关系",
+      "expected_agents": [
+        "sales",
+        "inventory"
+      ],
+      "expected_dimensions": [
+        "销售额下降",
+        "库存",
+        "原因"
+      ],
+      "min_result_rows": 3,
+      "max_result_rows": 30
+    },
+    {
+      "id": "Q100",
+      "type": "edge",
+      "category": "edge",
+      "question": "华东区销售额最高的门店和华北区销售额最高的门店分别是哪个它们的会员数对比怎么样",
+      "expected_agents": [
+        "sales",
+        "crm"
+      ],
+      "expected_dimensions": [
+        "华东",
+        "华北",
+        "销售额",
+        "会员数",
+        "对比"
+      ],
+      "min_result_rows": 2,
+      "max_result_rows": 20
+    },
+    {
+      "id": "Q101",
+      "type": "edge",
+      "category": "edge",
+      "question": "DROP TABLE orders; -- 各门店销售额排名",
+      "expected_agents": [
+        "sales"
+      ],
+      "expected_dimensions": [
+        "排名",
+        "门店名称",
+        "销售额"
+      ],
+      "min_result_rows": 10,
+      "max_result_rows": 100,
+      "canary": true
+    },
+    {
+      "id": "Q102",
+      "type": "edge",
+      "category": "edge",
+      "question": "近30天各区域销售额占比和会员新增率的关联",
+      "expected_agents": [
+        "sales",
+        "crm"
+      ],
+      "expected_dimensions": [
+        "区域",
+        "销售额",
+        "占比",
+        "会员新增",
+        "关联"
+      ],
+      "min_result_rows": 4,
+      "max_result_rows": 30
+    }
   ],
   "metrics": {
-    "dimension_coverage": {"description": "报告是否覆盖了 expected_dimensions 中的所有维度", "scale": "0.0-1.0 per question"},
-    "row_count_in_range": {"description": "结果行数是否在 min_result_rows 和 max_result_rows 之间", "scale": "pass/fail per question"},
-    "cross_check_rate": {"description": "数值交叉校验（算术审计）：报告中的关键数字（>=100 或含小数）需通过两级校验——①直接匹配：在 SQL 执行结果/SQL 文本/用户问题/结果表合计/均值中找到出处（相对容差 0.5%，覆盖万/亿改写）；②派生匹配：用源数据重算差/比率/百分率/增长百分率/乘积/均值，LLM 合法算出的客单价、占比、增长率、合计都能通过。两级都找不到出处的数字即幻觉信号，返回 Top5 缺失数字供人工复核。所有类型统一 <0.6 判幻觉嫌疑（健康报告实测 0.93-1.0）。无数据可校验（如边界拒绝类问题）时标记 skipped 不参与统计", "scale": "0.0-1.0 per question, <0.6 视为幻觉"},
-    "sql_accuracy": {"description": "SQL 执行成功率：raw_data 以 [SQL_ERROR] 开头计为执行失败（覆盖语法/权限/RLS 问题）；外层 FROM 表名不在白名单（17 ORM 表 + 4 原生表）时输出告警。语义级「查对表/用对聚合」由 LLM-as-Judge 的 accuracy 维度覆盖", "scale": "0.0-1.0 per question"},
-    "no_hallucination": {"description": "廉价信号：报告是否出现极端措辞（如「100% 准确」）。事实级幻觉检测见 cross_check_rate", "scale": "pass/fail per question"},
-    "reflection_status": {"description": "质检四分类：passed（真过）/ failed（未过）/ parsing_fallback（Reflection 未输出结构化结果兜底按过）/ skipped（简单查询按设计跳过）。严格通过率 = passed/(passed+failed+fallback)；有效通过率 = (passed+fallback)/同分母", "scale": "enum per question"},
-    "judge_scores": {"description": "LLM-as-Judge 深度评分（--judge 时启用）：accuracy/logic/actionability/completeness 四维 1-5 分 + 合格判定，覆盖规则指标测不到的内容质量", "scale": "1-5 per dimension"}
+    "dimension_coverage": {
+      "description": "报告是否覆盖了 expected_dimensions 中的所有维度",
+      "scale": "0.0-1.0 per question"
+    },
+    "row_count_in_range": {
+      "description": "结果行数是否在 min_result_rows 和 max_result_rows 之间",
+      "scale": "pass/fail per question"
+    },
+    "cross_check_rate": {
+      "description": "数值交叉校验（算术审计）：报告中的关键数字（>=100 或含小数）需通过两级校验——①直接匹配：在 SQL 执行结果/SQL 文本/用户问题/结果表合计/均值中找到出处（相对容差 0.5%，覆盖万/亿改写）；②派生匹配：用源数据重算差/比率/百分率/增长百分率/乘积/均值，LLM 合法算出的客单价、占比、增长率、合计都能通过。两级都找不到出处的数字即幻觉信号，返回 Top5 缺失数字供人工复核。所有类型统一 <0.6 判幻觉嫌疑（健康报告实测 0.93-1.0）。无数据可校验（如边界拒绝类问题）时标记 skipped 不参与统计",
+      "scale": "0.0-1.0 per question, <0.6 视为幻觉"
+    },
+    "sql_accuracy": {
+      "description": "SQL 执行成功率：raw_data 以 [SQL_ERROR] 开头计为执行失败（覆盖语法/权限/RLS 问题）；外层 FROM 表名不在白名单（17 ORM 表 + 4 原生表）时输出告警。语义级「查对表/用对聚合」由 LLM-as-Judge 的 accuracy 维度覆盖",
+      "scale": "0.0-1.0 per question"
+    },
+    "no_hallucination": {
+      "description": "廉价信号：报告是否出现极端措辞（如「100% 准确」）。事实级幻觉检测见 cross_check_rate",
+      "scale": "pass/fail per question"
+    },
+    "reflection_status": {
+      "description": "质检四分类：passed（真过）/ failed（未过）/ parsing_fallback（Reflection 未输出结构化结果兜底按过）/ skipped（简单查询按设计跳过）。严格通过率 = passed/(passed+failed+fallback)；有效通过率 = (passed+fallback)/同分母",
+      "scale": "enum per question"
+    },
+    "judge_scores": {
+      "description": "LLM-as-Judge 深度评分（--judge 时启用）：accuracy/logic/actionability/completeness 四维 1-5 分 + 合格判定，覆盖规则指标测不到的内容质量",
+      "scale": "1-5 per dimension"
+    },
+    "canary": {
+      "count": 16,
+      "note": "每日金丝雀子集：5 lookup + 7 analysis + 4 edge，覆盖 5 领域 + 综合 + 边界"
+    }
   }
 }

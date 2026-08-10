@@ -86,6 +86,10 @@ class AnalysisRequest(BaseModel):
         default=False,
         description="V4.6.3 实验参数：跳过 Reflection 质检与重试（对照实验用，生产勿开启；开启时绕过缓存保证每次真实执行）",
     )
+    bypass_cache: bool = Field(
+        default=False,
+        description="V4.7 评估参数：绕过 Redis 缓存读与写（评估/金丝雀每次必须真实执行——命中缓存测不出漂移，且评估结果不应污染生产缓存）",
+    )
 
 
 class AnalysisResponse(BaseModel):
@@ -135,10 +139,11 @@ async def analyze(
     # 缓存键包含 user_id + tenant_id + store_ids + session_id + question
     # 确保不同用户/门店权限/会话上下文的相同提问不会被错误命中
     store_ids = await get_user_store_ids(user["user_id"])
-    # V4.6.3: 对照实验（skip_reflection）绕过缓存 —— 保证每次真实执行且不污染生产缓存
+    # V4.6.3: 对照实验（skip_reflection）绕过缓存；V4.7: 评估请求（bypass_cache）同样绕过
+    # —— 保证每次真实执行且不污染生产缓存（redis 保持 None 时写入块也自然跳过）
     redis = None
     cache_key = None
-    if not req.skip_reflection:
+    if not req.skip_reflection and not req.bypass_cache:
         cache_key = _analysis_cache_key(user["user_id"], user.get("tenant_id", ""), store_ids, req.session_id, req.question)
         try:
             from app.database.redis import get_redis

@@ -6,6 +6,7 @@ from app.database.models import (
     AlertRule,
     AnalysisHistory,
     Base,
+    EvalRun,
     Permission,
     Role,
     RolePermission,
@@ -29,4 +30,5 @@ __all__ = [
     "AlertRule",
     "Alert",
     "WeeklyReport",
+    "EvalRun",
 ]

@@ -306,3 +306,37 @@ class UserWechatBinding(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="系统用户 ID")
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+
+# ---------------------------------------------------------------------------
+# V4.7: 离线评估运行记录（金丝雀漂移检测闭环）
+# ---------------------------------------------------------------------------
+
+class EvalRun(Base):
+    """每次 run_eval 的落库记录：带模型版本，供每日金丝雀对比基线、趋势查询与告警。
+
+    金丝雀设计：外部 LLM 模型漂移是"无通知、渐进式"的（供应商推新版本后 Prompt 输出可能
+    悄悄变差）。把每次评估结果（含 model_version）落库，每日跑固定子集与上一次同模型基线
+    对比，超阈值即 drift=True，n8n 收到后推送告警。
+    """
+
+    __tablename__ = "eval_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_at = Column(DateTime, default=_utcnow, index=True, comment="运行时间（naive UTC）")
+    model_version = Column(String(64), nullable=False, comment="settings.deepseek_model_name")
+    canary = Column(Boolean, default=True, index=True, comment="True=每日金丝雀子集；False=全量评估")
+    total = Column(Integer, nullable=False, comment="评估条数")
+    passed = Column(Integer, nullable=False, comment="成功条数（无 error）")
+    failed = Column(Integer, nullable=False, comment="失败条数")
+    pass_rate = Column(Float, nullable=False, comment="通过率 %")
+    dimension_coverage = Column(Float, nullable=True, comment="平均维度覆盖率")
+    cross_check_rate = Column(Float, nullable=True, comment="数值交叉校验通过率")
+    sql_accuracy = Column(Float, nullable=True, comment="SQL 执行成功率")
+    reflection_strict_pass_rate = Column(Float, nullable=True, comment="Reflection 严格通过率 %")
+    reflection_effective_pass_rate = Column(Float, nullable=True, comment="Reflection 含兜底通过率 %")
+    avg_latency_ms = Column(Integer, nullable=True, comment="平均延迟 ms")
+    drift = Column(Boolean, default=False, comment="对比上一次同模型运行是否显著退化")
+    drift_summary = Column(Text, nullable=True, comment="漂移明细 / 无退化说明")
+    metrics_json = Column(JSON, nullable=True, comment="compute_metrics 全量摘要")
+    results_file = Column(String(255), nullable=True, comment="明细结果 JSON 路径")

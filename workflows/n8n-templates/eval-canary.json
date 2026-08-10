@@ -1,0 +1,101 @@
+{
+  "name": "V4 每日金丝雀评估（模型漂移检测）",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 9,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "每天 09:30 跑一次（避开 10:00 Demo 数据投喂）",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8002/api/v1/eval/canary",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer your-webhook-secret-here"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "http-request",
+      "name": "跑金丝雀评估（16 条子集，约 3-8 分钟）",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.drift }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-drift",
+      "name": "有漂移？",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        750,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "每天 09:30 跑一次（避开 10:00 Demo 数据投喂）": {
+      "main": [
+        [
+          {
+            "node": "跑金丝雀评估（16 条子集，约 3-8 分钟）",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "跑金丝雀评估（16 条子集，约 3-8 分钟）": {
+      "main": [
+        [
+          {
+            "node": "有漂移？",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Shanghai"
+  },
+  "description": "每天 09:30 跑 16 条金丝雀评估子集（tests/run_eval.py --canary --save-db），结果落库 eval_runs（带 model_version），与上一次同模型基线对比。drift=true 时说明通过率/维度覆盖率/延迟/Reflection 通过率显著退化（可能模型漂移或 Prompt 退化），在 if-drift 的 true 分支挂飞书/钉钉/企微通知节点（参考 alert-check.json）。需要先在 .env 中配置 N8N_WEBHOOK_SECRET 和对应的 WEBHOOK_URL；时间避开 10:00 的 Demo 数据投喂，避免数据变化干扰漂移判定。",
+  "id": "14c5e988-c682-4276-bb41-1f04d673ca20"
+}

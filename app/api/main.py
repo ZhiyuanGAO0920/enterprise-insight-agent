@@ -27,6 +27,7 @@ from app.api.routes.alerts import router as alerts_router
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.dashboard import router as dashboard_router
+from app.api.routes.eval import router as eval_router
 from app.api.routes.monitor import router as monitor_router
 from app.api.routes.feedback import router as feedback_router
 from app.api.routes.prompts import router as prompts_router
@@ -115,6 +116,7 @@ v1_router.include_router(feedback_router)   # V3: User feedback
 v1_router.include_router(admin_router)      # V3: Admin — user management
 v1_router.include_router(monitor_router)    # V3: AI quality dashboard
 v1_router.include_router(prompts_router)    # V3: Prompt management
+v1_router.include_router(eval_router)       # V4.7: 评估闭环（金丝雀跑分）
 
 app.include_router(v1_router)
 

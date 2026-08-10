@@ -64,3 +64,6 @@ docs/*模拟对答*.md
 
 # Playwright MCP debug logs
 .playwright-mcp/
+
+# 金丝雀评估运行时产物
+results/
