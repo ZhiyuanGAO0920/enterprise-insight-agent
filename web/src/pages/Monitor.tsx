@@ -57,6 +57,18 @@ interface OverviewData {
 interface ErrorRecord { time: string; agent: string; error: string; elapsed_ms: number; session: string; }
 interface ErrorsData { errors: ErrorRecord[]; total_errors: number; }
 
+/* T-11: 金丝雀漂移 —— eval_runs（GET /eval/runs，admin 含 user:manage 权限） */
+interface CanaryRun {
+  id: number;
+  run_at: string | null;
+  model_version: string;
+  pass_rate: number;
+  dimension_coverage: number | null;
+  avg_latency_ms: number | null;
+  drift: boolean;
+  drift_summary: string | null;
+}
+
 /* 状态等级（对齐原生 good/warn/bad） */
 function rateLevel(v: number, good: number, warn: number): { label: string; color: string } {
   if (v >= good) return { label: '优秀', color: LEVEL.ok };
@@ -89,6 +101,20 @@ export default function MonitorPage() {
   const [fbData, setFbData] = useState<{ total: number; entries: { id: number; question: string; time: string }[] } | null>(null);
   /* V4.6.5: 最近错误默认截断 10 行，展开后显示全部 */
   const [errorsExpanded, setErrorsExpanded] = useState(false);
+  /* T-11: 金丝雀漂移 —— 独立加载（每日 09:30 才更新，不随主监控页 30s 缓存；失败仅降级本板块） */
+  const [canaryRuns, setCanaryRuns] = useState<CanaryRun[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await client.get('/eval/runs', { params: { limit: 10 } });
+        if (!cancelled) setCanaryRuns(res.data?.runs || []);
+      } catch {
+        if (!cancelled) setCanaryRuns([]); // 失败 → 空态引导，不影响主监控页
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const openFallback = async () => {
     try {
       const params: Record<string, unknown> = { days: Math.min(days, 90) };
@@ -197,6 +223,37 @@ export default function MonitorPage() {
     };
   })();
   const trendSum = (ov?.token_trend || []).slice(-14).reduce((acc, t) => ({ in: acc.in + (t.input_tokens || 0), out: acc.out + (t.output_tokens || 0), cost: acc.cost + (t.cost || 0) }), { in: 0, out: 0, cost: 0 });
+
+  /* T-11: 金丝雀漂移趋势图 —— 接口倒序返回 → 时间升序；pass_rate 已是 0-100，dimension_coverage 是 0-1 需 ×100 */
+  const latestRun = canaryRuns?.[0] || null;
+  const canaryOption = (canaryRuns && canaryRuns.length >= 2) ? (() => {
+    const asc = [...canaryRuns].reverse();
+    const dates = asc.map((r) => (r.run_at || '').slice(5, 10));
+    const pass = asc.map((r) => r.pass_rate);
+    const cov = asc.map((r) => (r.dimension_coverage != null ? +(r.dimension_coverage * 100).toFixed(1) : null));
+    const lat = asc.map((r) => r.avg_latency_ms);
+    const driftPts: Array<{ coord: [number, number]; itemStyle: { color: string }; symbolSize: number; symbol: string }> = [];
+    asc.forEach((r, i) => { if (r.drift) driftPts.push({ coord: [i, r.pass_rate], itemStyle: { color: '#ef4444' }, symbolSize: 9, symbol: 'pin' }); });
+    return {
+      tooltip: {
+        trigger: 'axis', backgroundColor: 'rgba(30,35,55,0.95)', borderColor: '#334155', textStyle: { color: '#e2e8f0', fontSize: 12 },
+        formatter: (p: Array<{ seriesName: string; value: number; marker: string }>) =>
+          p.map((x) => `${x.marker}${x.seriesName}: ${x.seriesName === '延迟' ? fmtSec(x.value) : x.value}`).join('<br/>'),
+      },
+      legend: { data: ['通过率', '覆盖率', '延迟'], textStyle: { color: '#94a3b8', fontSize: 11 }, top: 0, right: 0, icon: 'circle', itemWidth: 8, itemHeight: 8 },
+      grid: { left: 50, right: 44, top: 36, bottom: 26 },
+      xAxis: { type: 'category', data: dates, axisLabel: { color: '#94a3b8', fontSize: 10 }, axisLine: { lineStyle: { color: '#334155' } }, axisTick: { show: false } },
+      yAxis: [
+        { type: 'value', name: '%', nameTextStyle: { color: '#94a3b8', fontSize: 10 }, min: 0, max: 100, axisLabel: { color: '#94a3b8', fontSize: 10 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+        { type: 'value', name: 'ms', nameTextStyle: { color: '#94a3b8', fontSize: 10 }, axisLabel: { color: '#94a3b8', fontSize: 10 }, splitLine: { show: false } },
+      ],
+      series: [
+        { name: '通过率', type: 'line', data: pass, smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#22c55e' }, markPoint: { data: driftPts } },
+        { name: '覆盖率', type: 'line', data: cov, smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#6366f1' } },
+        { name: '延迟', type: 'line', yAxisIndex: 1, data: lat, smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#f59e0b' } },
+      ],
+    };
+  })() : null;
 
   /* V4.6.4: 质检未过原因分布（四维）—— 独立板块 + 横向条形图（对齐原生 _issueDistSection） */
   const issueItems: Array<[string, string]> = [['consistency', '一致性'], ['logic', '逻辑'], ['actionability', '可操作性'], ['completeness', '完整性']];
@@ -431,6 +488,34 @@ export default function MonitorPage() {
               </div>
             </div>
           )}
+
+          {/* ── 金丝雀漂移（T-11，对齐原生 mqCanary） ── */}
+          <div style={{ background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 14, padding: 18, marginTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: DARK.text, marginBottom: 4 }}>🐤 金丝雀漂移</div>
+            <div style={{ fontSize: 11, color: DARK.muted, marginBottom: 12 }}>
+              {canaryRuns && canaryRuns.length > 0 ? `近 ${canaryRuns.length} 次跑分 · 与同模型基线对比` : '每日 09:30 模型跑分 · 16 条固定子集'}
+            </div>
+            {!latestRun ? (
+              <div style={{ color: DARK.muted, fontSize: 13, padding: '8px 0' }}>暂无跑分记录（n8n 每日 09:30 自动执行后此处展示）</div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', background: DARK.bg, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: '12px 16px', marginBottom: 12 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: latestRun.drift ? LEVEL.err : LEVEL.ok }}>
+                    {latestRun.drift ? '⚠️ 漂移告警' : '✅ 稳定'}
+                  </span>
+                  <span style={{ fontSize: 12, color: DARK.muted }}>{latestRun.model_version}</span>
+                  <span style={{ fontSize: 12, color: DARK.text }}>通过率 <b>{latestRun.pass_rate}%</b></span>
+                  <span style={{ fontSize: 12, color: DARK.text }}>覆盖率 <b>{latestRun.dimension_coverage != null ? (latestRun.dimension_coverage * 100).toFixed(1) + '%' : '—'}</b></span>
+                  <span style={{ fontSize: 12, color: DARK.text }}>延迟 <b>{latestRun.avg_latency_ms != null ? fmtSec(latestRun.avg_latency_ms) : '—'}</b></span>
+                  <span style={{ fontSize: 11, color: DARK.muted }}>{(latestRun.run_at || '').slice(0, 16)}</span>
+                </div>
+                {latestRun.drift && latestRun.drift_summary && (
+                  <div style={{ fontSize: 12, color: LEVEL.warn, lineHeight: 1.6, padding: '0 2px 10px' }}>{latestRun.drift_summary}</div>
+                )}
+                {canaryOption && <ReactECharts option={canaryOption} style={{ height: 200 }} notMerge />}
+              </>
+            )}
+          </div>
         </>
       )}
 
