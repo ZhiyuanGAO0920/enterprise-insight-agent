@@ -122,8 +122,13 @@ async def run_canary(
 
 
 @router.get("/runs", summary="最近评估运行记录（趋势查看）")
-async def list_runs(limit: int = 30, _: dict = Depends(require_permission("user:manage"))):
-    """返回最近的评估运行记录，可观察通过率/Reflection 通过率随时间的趋势。"""
+async def list_runs(limit: int = 30, _: dict = Depends(require_permission("alert:view"))):
+    """返回最近的评估运行记录，可观察通过率/Reflection 通过率随时间的趋势。
+
+    权限：alert:view（与 monitor 页其他端点一致）——金丝雀趋势是监控数据，
+    不是用户管理数据；user:manage 过严会导致 React 版监控页可见角色
+    （admin + regional_director）中 director 被 401 清态登出（T-11 排查修复）。
+    """
     limit = min(max(limit, 1), 100)
     session = get_session()
     try:

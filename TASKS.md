@@ -116,14 +116,18 @@
 
 ### T-11 ✅ P1 金丝雀监控面板（2026-08-12 完成）
 
-- **方案**：前端独立板块（不动后端——`GET /eval/runs` 已存在，admin 角色含 `user:manage` 权限）。独立 `loadCanary()` 异步加载 + 序号防竞态 + 失败降级为空态引导，不影响主监控页 30s 缓存逻辑
-- **实现**：`views.js` renderMonitorView 末尾插入 `mqCanary` 板块 + loadCanary/renderCanary 两函数。最新状态行（drift 徽章/model_version/通过率/覆盖率/延迟/时间）+ drift_summary 告警文案 + ECharts 三系列趋势线（通过率/覆盖率左轴 %、延迟右轴 ms）+ drift 红 pin 标记
+- **方案**：前端独立板块（不动后端评估引擎——`GET /eval/runs` 已存在）。独立异步加载 + 序号防竞态 + 失败降级为空态引导，不影响主监控页 30s 缓存逻辑
+- **实现（双版本）**：
+  - 原生版 `views.js`：renderMonitorView 末尾插入 `mqCanary` 板块 + loadCanary/renderCanary 两函数
+  - React 版 `Monitor.tsx`：独立 useEffect 加载 + 状态行 + ReactECharts 三系列趋势线
+  - 共同内容：最新状态行（drift 徽章/model_version/通过率/覆盖率/延迟/时间）+ drift_summary 告警文案 + 三系列趋势线（通过率/覆盖率左轴 %、延迟右轴 ms）+ drift 红 pin 标记
 - **量纲处理**：pass_rate 已是 0-100；dimension_coverage 是 0-1 需 ×100；avg_latency_ms 毫秒走 fmtSec
-- **验证数据**（Playwright 浏览器实测，8002 真实服务）：
-  - 单条数据：✅ 稳定徽章（good 分支）+ 通过率 62.5% / 覆盖率 86.7% / 延迟 67.38s 全部正确
-  - 临时插入 1 条 drift=True 记录（验证后已删除）：⚠️ 漂移告警徽章（bad 分支）+ 摘要文案显示 + 趋势图三系列渲染 + markPoint [1,56.3] 红 pin 位置正确
-  - 空态引导与主监控页各板块不受影响；JS 语法 node --check 通过
-  - 全量回归 208 passed（与基线一致，2 失败为既有环境问题）
+- **验证数据**（Playwright 浏览器实测，8002 + 5173 dev server）：
+  - 两版单条数据：✅ 稳定徽章 + 通过率 62.5% / 覆盖率 86.7% / 延迟 67.38s 全部正确
+  - 两版临时插入 drift=True 记录（验证后已删除）：⚠️ 漂移告警徽章 + 摘要文案 + 趋势图三系列渲染 + markPoint 红 pin 位置正确
+  - JS 语法 node --check + tsc --noEmit 通过；全量回归 208 passed（与基线一致）
+- **⚠️ 排查修复（本任务附带发现）**：`GET /eval/runs` 原权限 `user:manage` 过严——React 版监控页对 regional_director 可见（AppLayout adminOnly 放行 admin+regional_director），而 director 无 user:manage → 打开监控页触发 401 → client interceptor 清登录态强制登出。**已改为 `alert:view`**（与 monitor 页其他端点一致），验证：admin 200 / regional_manager（zhangsan）200 / 无权限角色被拒。8002 无 --reload，重启后生效
+- **遗留问题（未修，待定夺）**：原生版监控菜单 `adminOnly`（仅 admin 可见）与 React 版（admin+regional_director）可见性不一致——既有行为，未在本次范围
 - **注意**：eval_runs 目前仅 1 条真实记录（2026-08-10），趋势图需 ≥2 条才显示——n8n 每日跑分持续积累后自然出现
 
 - **方案**：集中式 2 拦截点——`sql_runner.run_sql` 结果格式化处（写 Redis 缓存**前**，缓存命中路径同安全）+ 审计中间件 query_params。报告/表格/图表全部下游因 LLM 上下文无明文而天然安全，无需逐点处理
