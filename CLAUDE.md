@@ -142,6 +142,7 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 - Redis: `localhost:6381`（Docker）
 - n8n: `http://localhost:5680`（Docker）
 - 启动：双击 `重启服务.bat` 或 `uvicorn app.api.main:app --port 8002 --reload`
+- **改 `app/api/static/` 前端文件后必须 bump 版本号**（`index.html` 里 `views.js?v=4.56` 等 `?v=` 参数，否则浏览器命中旧缓存，改动"看起来没生效"）——T-11 排查踩坑沉淀
 - 热重载 Prompt：`POST /api/v1/prompts/reload`
 - 测试：`pytest tests/ -v`（192 条）
 - 数据库迁移：`alembic upgrade head`（当前 13 个版本）
