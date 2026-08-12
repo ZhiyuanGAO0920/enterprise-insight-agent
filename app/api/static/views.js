@@ -631,7 +631,72 @@ function renderMonitorView(ov,er){
     _issueDistSection(ov)+
     '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🤖 Agent 健康度</div><div class="mq-section-subtitle">错误率排行 · 性能指标</div></div><div class="mq-table-wrap"><table class="mq-table"><thead><tr><th>Agent</th><th>运行</th><th>错误</th><th>错误率</th><th>平均(s)</th><th>最大(s)</th></tr></thead><tbody>'+ah+'</tbody></table></div></div>'+
     '<div class="mq-section" id="mqErrorsSection"><div class="mq-section-header"><div class="mq-section-title">❌ 最近错误</div><div class="mq-section-subtitle">'+(errList.length?errSum:'按时间倒序')+'</div></div>'+ei+'</div>'+
-    (ch?'<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">📊 Token 消耗趋势</div><div class="mq-section-subtitle">近 '+show.length+' 天 · 含 Input/Output/Cost</div></div>'+ch+'</div>':'');
+    (ch?'<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">📊 Token 消耗趋势</div><div class="mq-section-subtitle">近 '+show.length+' 天 · 含 Input/Output/Cost</div></div>'+ch+'</div>':'')+
+    '<div id="mqCanary" class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">每日 09:30 模型跑分 · 16 条固定子集</div></div><div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">加载中…</div></div>';
+  loadCanary(); // T-11: 独立异步加载，失败仅降级该板块，不影响主监控页
+}
+
+/* T-11: 金丝雀漂移面板 —— 数据源 eval_runs（GET /eval/runs，admin 角色可见监控页且含 user:manage 权限）。
+   独立于主监控页加载（30s 缓存/序号竞态之外）：金丝雀每日 09:30 才更新，无需与生产指标同缓存。 */
+var _canSeq=0;
+async function loadCanary(){
+  if(!token)return;
+  var mySeq=++_canSeq;
+  var el=document.getElementById('mqCanary');
+  if(!el)return;
+  try{
+    var r=await fetch(BASE+'/eval/runs?limit=10',{headers:{'Authorization':'Bearer '+token}});
+    if(!r.ok)throw Error('status '+r.status);
+    var d=await r.json();
+    if(mySeq!==_canSeq)return; // 快速切换时丢弃过期响应
+    renderCanary(el,d.runs||[]);
+  }catch(e){
+    if(mySeq!==_canSeq)return;
+    el.innerHTML='<div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">每日 09:30 模型跑分 · 16 条固定子集</div></div><div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">暂无跑分记录（n8n 每日 09:30 自动执行后此处展示）</div>';
+  }
+}
+function renderCanary(el,runs){
+  var latest=runs[0];
+  if(!latest){
+    el.innerHTML='<div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">每日 09:30 模型跑分 · 16 条固定子集</div></div><div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">暂无跑分记录（n8n 每日 09:30 自动执行后此处展示）</div>';
+    return;
+  }
+  var st=latest.drift?'<span class="mq-hero-status bad">⚠️ 漂移告警</span>':'<span class="mq-hero-status good">✅ 稳定</span>';
+  var h='<div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">近 '+runs.length+' 次跑分 · 与同模型基线对比</div></div>'+
+    '<div style="display:flex;gap:16px;align-items:center;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;flex-wrap:wrap">'+
+      st+
+      '<span style="font-size:12px;color:var(--muted)">'+esc(latest.model_version||'')+'</span>'+
+      '<span style="font-size:12px;color:var(--text)">通过率 <b>'+esc(String(latest.pass_rate))+'%</b></span>'+
+      '<span style="font-size:12px;color:var(--text)">覆盖率 <b>'+esc(latest.dimension_coverage!=null?(latest.dimension_coverage*100).toFixed(1)+'%':'—')+'</b></span>'+
+      '<span style="font-size:12px;color:var(--text)">延迟 <b>'+fmtSec(latest.avg_latency_ms)+'</b></span>'+
+      '<span style="font-size:11px;color:var(--muted)">'+esc((latest.run_at||'').slice(0,16)||'')+'</span>'+
+    '</div>';
+  if(latest.drift&&latest.drift_summary)h+='<div style="font-size:12px;color:var(--semantic-warning);padding:0 2px 10px;line-height:1.6">'+esc(latest.drift_summary)+'</div>';
+  if(runs.length>=2)h+='<div class="mq-chart-box"><div class="mq-chart" id="mCanaryChart" style="height:200px"></div></div>';
+  el.innerHTML=h;
+  if(runs.length>=2)setTimeout(function(){
+    var cEl=document.getElementById('mCanaryChart');if(!cEl)return;
+    if(window._canaryChart)window._canaryChart.dispose();window._canaryChart=echarts.init(cEl);
+    var asc=runs.slice().reverse(); // 接口倒序返回 → 时间升序
+    var dates=asc.map(function(r){return (r.run_at||'').slice(5,10);});
+    var pass=asc.map(function(r){return r.pass_rate;});
+    var cov=asc.map(function(r){return r.dimension_coverage!=null?+(r.dimension_coverage*100).toFixed(1):null;});
+    var lat=asc.map(function(r){return r.avg_latency_ms;});
+    var driftPts=[];
+    asc.forEach(function(r,i){if(r.drift)driftPts.push({coord:[i,r.pass_rate],itemStyle:{color:'#ef4444'},symbolSize:9,symbol:'pin'});});
+    window._canaryChart.setOption({
+      tooltip:{trigger:'axis',formatter:safeTooltipFormatter,backgroundColor:'rgba(30,35,55,0.95)',borderColor:'#334155',textStyle:{color:'#e2e8f0',fontSize:12}},
+      legend:{data:['通过率','覆盖率','延迟'],textStyle:{color:'#94a3b8',fontSize:11},top:0,right:0,icon:'circle',itemWidth:8,itemHeight:8},
+      grid:{left:50,right:44,top:36,bottom:26},
+      xAxis:{type:'category',data:dates,axisLabel:{color:'#94a3b8',fontSize:10},axisLine:{lineStyle:{color:'#334155'}},axisTick:{show:false}},
+      yAxis:[{type:'value',name:'%',nameTextStyle:{color:'#94a3b8',fontSize:10},min:0,max:100,axisLabel:{color:'#94a3b8',fontSize:10},splitLine:{lineStyle:{color:'#1e293b'}}},{type:'value',name:'ms',nameTextStyle:{color:'#94a3b8',fontSize:10},axisLabel:{color:'#94a3b8',fontSize:10},splitLine:{show:false}}],
+      series:[
+        {name:'通过率',type:'line',data:pass,smooth:true,symbol:'circle',symbolSize:6,lineStyle:{width:2,color:'#22c55e'},markPoint:{data:driftPts}},
+        {name:'覆盖率',type:'line',data:cov,smooth:true,symbol:'circle',symbolSize:6,lineStyle:{width:2,color:'#6366f1'}},
+        {name:'延迟',type:'line',yAxisIndex:1,data:lat,smooth:true,symbol:'circle',symbolSize:6,lineStyle:{width:2,color:'#f59e0b'}}
+      ]
+    });
+  },100);
 }
 
 /* 质检未过原因分布（四维）—— 独立 section + ECharts 横向条形图。
