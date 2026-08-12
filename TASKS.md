@@ -127,7 +127,7 @@
   - 两版临时插入 drift=True 记录（验证后已删除）：⚠️ 漂移告警徽章 + 摘要文案 + 趋势图三系列渲染 + markPoint 红 pin 位置正确
   - JS 语法 node --check + tsc --noEmit 通过；全量回归 208 passed（与基线一致）
 - **⚠️ 排查修复（本任务附带发现）**：`GET /eval/runs` 原权限 `user:manage` 过严——React 版监控页对 regional_director 可见（AppLayout adminOnly 放行 admin+regional_director），而 director 无 user:manage → 打开监控页触发 401 → client interceptor 清登录态强制登出。**已改为 `alert:view`**（与 monitor 页其他端点一致），验证：admin 200 / regional_manager（zhangsan）200 / 无权限角色被拒。8002 无 --reload，重启后生效
-- **遗留问题（未修，待定夺）**：原生版监控菜单 `adminOnly`（仅 admin 可见）与 React 版（admin+regional_director）可见性不一致——既有行为，未在本次范围
+- **⚠️ 原生版可见性对齐（同日完成）**：原生版监控菜单原 `adminOnly`，已对齐 React 版（admin + regional_director）。过程中发现并修复更深的问题——原生版角色信息依赖 `/admin/users`（需 user:manage），director 访问 401 导致菜单永不显示：改为登录响应 `role` 驱动（localStorage `eia_role`），`/admin/users` 仅作 scope 补充。另补 regional_director 角色中文名（下拉/用户管理 badge 均显示"区域总监"）。**bump views.js v4.55→v4.56**（static 改版必须 bump，浏览器缓存坑）。验证：director_huadong 登录 → 监控菜单可见 → 监控页 + 金丝雀面板正常，不再被 401 踢出
 - **注意**：eval_runs 目前仅 1 条真实记录（2026-08-10），趋势图需 ≥2 条才显示——n8n 每日跑分持续积累后自然出现
 
 - **方案**：集中式 2 拦截点——`sql_runner.run_sql` 结果格式化处（写 Redis 缓存**前**，缓存命中路径同安全）+ 审计中间件 query_params。报告/表格/图表全部下游因 LLM 上下文无明文而天然安全，无需逐点处理

@@ -96,6 +96,7 @@ async function doLogin(e){
     var d=await r.json();
     if(d.access_token){
       token=d.access_token;localStorage.setItem('eia_token',token);localStorage.setItem('eia_user',u);
+      localStorage.setItem('eia_role',d.role||''); /* T-11: 角色来自登录响应，菜单显示不再依赖 /admin/users */
       document.getElementById('loginOverlay').style.display='none';await restoreSession(u);
     }else{
       var errEl=document.getElementById('loginError');
@@ -121,18 +122,29 @@ async function restoreSession(username){
   document.getElementById('userMenuName').textContent=u;
   document.getElementById('userAvatar').textContent=u.charAt(0).toLowerCase();
   document.getElementById('dashUser').textContent=u;_lastUser=u;
-  // 异步加载角色信息（复用此 API 结果，替代 checkAdmin 的重复请求）
+  // T-11 修复: 菜单显示由登录响应 role 驱动（localStorage），不等 /admin/users 异步结果——
+  // director 无 user:manage 权限，该端点 401 会导致监控菜单永不显示
+  var _role0=localStorage.getItem('eia_role')||'';
+  if(_role0){
+    document.getElementById('dropdownRole').textContent=_role0==='admin'?'管理员':_role0==='regional_director'?'区域总监':_role0==='regional_manager'?'区域经理':'店长';
+    var _mn0=document.getElementById('monitorNavBtn');
+    if(_mn0)_mn0.style.display=(_role0==='admin'||_role0==='regional_director')?'':'none';
+    document.getElementById('adminNavBtn').style.display=_role0==='admin'?'':'none';
+    _currentRole=_role0;
+  }
+  // 异步加载角色信息（复用此 API 结果，替代 checkAdmin 的重复请求；admin 可补充 scope 显示）
   fetch(BASE+'/admin/users',{headers:{'Authorization':'Bearer '+token}}).then(function(_r){
     if(_r.status===401){localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');token='';showLogin();return;}
     if(!_r.ok)return;_r.json().then(function(_d){
       var _me=_d.users&&_d.users.find(function(x){return x.username===u;});
       if(!_me)return;
-      document.getElementById('dropdownRole').textContent=_me.role==='admin'?'管理员':_me.role==='regional_manager'?'区域经理':'店长';
+      document.getElementById('dropdownRole').textContent=_me.role==='admin'?'管理员':_me.role==='regional_director'?'区域总监':_me.role==='regional_manager'?'区域经理':'店长';
       document.getElementById('dropdownScope').textContent=_me.scope_type==='all'?'全部门店':_me.region||_me.store_ids?(_me.store_ids||[]).length+'家门店':'—';
       _currentRole=_me.role||'default';
       renderQuickGrid(); // 角色信息异步就绪后按角色重渲染快捷提问（店长/区域经理看到自己的按钮）
       var mn=document.getElementById('monitorNavBtn');
-      if(mn)mn.style.display=_me.role==='admin'?'':'none';
+      /* 监控菜单可见性对齐 React 版（admin + regional_director）——director 有 alert:view 权限，监控页为其开放 */
+      if(mn)mn.style.display=(_me.role==='admin'||_me.role==='regional_director')?'':'none';
       var an=document.getElementById('adminNavBtn');
       if(an)an.style.display=_me.role==='admin'?'':'none';
     });
@@ -149,7 +161,7 @@ async function restoreSession(username){
 
 async function logout(){
   if(token)try{await fetch(BASE+'/auth/logout',{method:'POST',headers:{'Authorization':'Bearer '+token}});}catch(e){}
-  token='';localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');
+  token='';localStorage.removeItem('eia_token');localStorage.removeItem('eia_user');localStorage.removeItem('eia_role');
   // 清空全部前端缓存（含 sessionStorage 看板缓存），避免切换账号读到上一账号数据
   _cache={};
   try{Object.keys(sessionStorage).forEach(function(k){if(k.indexOf('eia_dash')===0)sessionStorage.removeItem(k);});}catch(e){}
@@ -333,7 +345,7 @@ function renderUserList(){
   function sn(ids){if(!ids||!ids.length)return '';return ids.map(function(id){return sm[String(id)]||'#'+id;}).filter(Boolean).join('、');}
   var html=f.map(function(u){
     var sids=u.store_ids||u.stores||[],st=u.scope_type==='all'?'全部门店':u.scope_type==='region'?u.region||'区域':sids.length>3?sids.length+'家门店':(sn(sids)||'—');
-    return '<tr data-uid="'+u.id+'"><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+(u.role==='admin'?'<span class="badge admin-badge">管理员</span>':u.role==='regional_manager'?'<span class="badge region-badge">区域经理</span>':'<span class="badge store-badge">店长</span>')+'</td><td>'+esc(st)+'</td><td>'+(u.is_active===false?'<span class="badge inactive">禁用</span>':'<span class="badge admin-badge">启用</span>')+'</td><td><a class="action-link" data-action="edit">编辑</a><a class="action-link" data-action="impersonate" data-uname="'+jsEscape(u.username)+'">模拟</a><a class="action-link danger" data-action="delete" data-uname="'+jsEscape(u.username)+'">删除</a><a class="action-link" data-action="reset-pw">重置密码</a></td></tr>';
+    return '<tr data-uid="'+u.id+'"><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+(u.role==='admin'?'<span class="badge admin-badge">管理员</span>':u.role==='regional_director'?'<span class="badge region-badge">区域总监</span>':u.role==='regional_manager'?'<span class="badge region-badge">区域经理</span>':'<span class="badge store-badge">店长</span>')+'</td><td>'+esc(st)+'</td><td>'+(u.is_active===false?'<span class="badge inactive">禁用</span>':'<span class="badge admin-badge">启用</span>')+'</td><td><a class="action-link" data-action="edit">编辑</a><a class="action-link" data-action="impersonate" data-uname="'+jsEscape(u.username)+'">模拟</a><a class="action-link danger" data-action="delete" data-uname="'+jsEscape(u.username)+'">删除</a><a class="action-link" data-action="reset-pw">重置密码</a></td></tr>';
   }).join('');
   document.getElementById('apUserList').innerHTML=html;
 }
