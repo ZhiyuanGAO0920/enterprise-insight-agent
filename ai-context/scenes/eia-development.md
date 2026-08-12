@@ -15,7 +15,7 @@ metadata:
 面向连锁零售的 Multi-Agent AI 经营分析平台。用户用自然语言提问，系统 60 秒内输出含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
-**状态**：V4.6.0，192 条测试（190 通过 / 2 失败——LLM API 连接环境问题），GitHub 开源
+**状态**：V4.7，192 条测试（190 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复），GitHub 开源。V4.7 新增**金丝雀闭环**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集每日 09:30 n8n 定时跑分，与同模型基线对比超阈值自动告警（模型漂移检测）
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商
 
 ---
@@ -69,9 +69,9 @@ Save Memory（pgvector 1024 维，BGE-M3 本地 Embedding）
 ```
 app/
 ├── agents/          # 11 个 Agent 节点
-├── api/routes/      # 11 个路由组，36 个端点
+├── api/routes/      # 10 个路由组，50 个端点
 ├── auth/            # JWT + RBAC + RLS
-├── database/        # 17 ORM 模型，8 版 Alembic 迁移
+├── database/        # 17 ORM 模型，13 版 Alembic 迁移
 ├── middleware/       # 审计日志 + 多租户
 ├── services/        # 通知 + PDF 导出
 ├── tools/           # SQL 运行器 + Prompt 加载器
@@ -115,14 +115,16 @@ workflows/n8n-templates/
 - **RLS 行级安全**：`inject_store_filter` 在 SQL 层注入 WHERE store_id IN (...)，根据用户角色自动过滤
 - 审计日志：`@app.middleware("http")` 记录所有请求的 user_id、path、method、status_code
 - 多租户：`tenant_id` 列 + `build_store_filter_sql` 白名单校验
+- **对抗式安全审查（V4.7）**：21 项发现 / 16 项修复——RLS 注入器重写 / UNION 越权 / 多租户中间件 / 微信后门 / ECharts tooltip XSS
 
 ---
 
-## 评估体系（AI 质量三层）
+## 评估体系（AI 质量三层 + 金丝雀闭环）
 
 1. **离线评估集**：102 条标准问题（50 查询 + 38 分析 + 14 边界，覆盖 5 领域 + 综合 + 边界），每次 Prompt 修改后自动运行
 2. **Reflection 在线质检**：4 维度，每次分析后自动执行
 3. **用户反馈闭环**：👍👎 按钮，写入 `user_feedback` 表驱动 Prompt 迭代
+4. **金丝雀闭环（V4.7）**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集每日 09:30 n8n 定时跑分，与同模型基线对比超阈值自动告警——检测模型漂移/API 变更导致的隐性质量退化
 
 ---
 
@@ -162,3 +164,4 @@ workflows/n8n-templates/
 ---
 
 > 完整项目决策记录在 `docs/关键产品决策记录.md`，完整 PRD 在 `docs/AI-PRD-V4.md`，如需深入细节可引用。
+> 版本：V4.7 | 2026-08-12 | 同步金丝雀闭环 / 对抗式安全审查 / 50 端点 / 13 迁移

@@ -27,6 +27,16 @@
 - `docs/AI-PRD-V4.md`：4.3 安全与合规新增「⭐ 接大客户前必修项」（PII 脱敏 / 成本硬限额 / 模型版本锁定 + 金丝雀 / Reflection 维度重构）；5.3 成本监控补硬限额行；第 9 章风险表更新漂移/成本/安全行
 - 金丝雀闭环即本轮 V4.7 落地项，与文档声明对应
 
+### 🔧 修复：审计日志从未真正写入（AUDIT_SKIP_PATHS 裸 "/"）+ 前端时间显示时区错位
+
+| # | 文件 | 改动 |
+|---|------|------|
+| 1 | `app/middleware/audit.py` | **P0 级潜伏 bug**：`AUDIT_SKIP_PATHS` 集合含裸 `"/"` 元素，`path.startswith("/")` 对一切路径恒为 True → 所有请求命中"跳过"分支 → 审计日志自 V4 发布起从未写入（排查确证：全表仅 2 条 2026-06-11 验证记录）。修复：`"/"` 移出集合，首页改 `path == "/"` 精确匹配，集合注释写明警告防回归 |
+| 2 | `web/src/lib/format.ts` + 5 页面 | 后端统一存 naive UTC（isoformat 无时区标记），JS `new Date()` 将其当本地时间解析 → 反馈统计/审计日志等时间显示差 8 小时。修复：`parseBackendTs` 检测无时区标记补 `'Z'` 再转本地时区；Admin/FeedbackHistory/Monitor 共 5 处改为统一格式化（`2026-08-07T01:55` → `08-07 09:55`） |
+| 3 | `app/api/static/views.js` + index.html | 原生前端同款 3 处时间显示（监控错误/历史记录/我的反馈）加 `fmtTs` 统一修复，版本号 bump v4.55 |
+
+**排查方法（可复述）**：中间件注册正常、`_write_audit` 直接调用正常、ASGI 直连响应头正常——最后 monkeypatch `asyncio.create_task` 发现写入 task 从未被创建，逐行打点定位到跳过分支误命中。另记录：`uvicorn --reload` 主进程可能变僵尸句柄占住端口，需杀 `spawn_main(parent_pid=...)` 的 worker 子进程。
+
 ## V4.6.7 (2026-08-06)
 
 ### ✨ 新增：管理端反馈明细视图 —— 反馈内容从「黑盒数字」变「可下钻清单」
