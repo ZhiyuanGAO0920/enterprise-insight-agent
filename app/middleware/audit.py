@@ -18,6 +18,7 @@ from fastapi import Request
 
 from app.database.connection import get_session
 from app.logging_config import get_logger
+from app.services.masker import mask_pii
 
 logger = get_logger("eia.audit")
 
@@ -49,7 +50,8 @@ async def audit_middleware(request: Request, call_next):
     client_host = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent", "")[:500]
     detail = json.dumps(
-        {"query_params": str(request.query_params) if request.query_params else None, "client_host": client_host},
+        # T-03 PII 脱敏：URL 参数可能携带手机号（如按手机号查询），入库前掩码
+        {"query_params": mask_pii(str(request.query_params)) if request.query_params else None, "client_host": client_host},
         ensure_ascii=False,
     )
 

@@ -24,6 +24,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.database.connection import get_session
 from app.database.redis import get_redis
+from app.services.masker import mask_pii
 from app.tools.sql_checker import check_sql_safety
 
 settings = get_settings()
@@ -330,7 +331,9 @@ async def run_sql(
                 cells = [str(cell) if cell is not None else "NULL" for cell in row]
                 lines.append(" | ".join(cells))
 
-            result_text = "\n".join(lines)
+            # T-03 PII 脱敏：写缓存前统一掩码，缓存中也是脱敏文本
+            # （缓存命中路径直接 return cached，若此处不脱敏则明文残留 5 分钟）
+            result_text = mask_pii("\n".join(lines))
 
             # 写入缓存（5 分钟 TTL）
             try:
