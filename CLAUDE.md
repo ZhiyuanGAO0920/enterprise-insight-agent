@@ -121,7 +121,9 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 ## 面试资料速查
 
 所有面试文档在 `docs/` 下：
-- `AI产品经理面试作战包.md` — 15 章完整作战包（自我介绍/决策案例/BadCase/Q&A/讲稿/追问FAQ）
+- `AI产品经理面试作战包.md` — 16 章完整作战包（自我介绍/决策案例/BadCase/Q&A/讲稿/追问FAQ/能力自评与卖点话术）
+
+> ⚠️ **同步规则**：更新 docs/ 下面试文档后，必须同步镜像到 Obsidian `3-职业发展/面试准备/`（docs 为源，Obsidian 为镜像；覆盖前先备份）。详见记忆 `docs-obsidian-sync-habit`。
 - `AI产品经理核心知识手册_v1.1.md` — AI PM 理论参考书（LLM/RAG/Agent/Prompt/运维/面试）
 - `AI功能交互流程.md` — 全链路交互（正常/异常/边界）
 - `监控页指标设计原则.md` — 决策台 vs 数据仓库：13 项指标裁决表 + 四象限（V4.6.6 落地）
