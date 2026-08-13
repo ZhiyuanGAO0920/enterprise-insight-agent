@@ -122,6 +122,16 @@
 
 ## 历史归档
 
+### D-01 ✅ 文档：V1/V1.5 版本资料整理（2026-08-13 完成）
+
+- **背景**：用户需确认最初 V1 版本所在目录与资料位置。实勘定位：V1 = `D:\GaoZhiyuan\企业经营分析 Agent`（README 标注 v1.0，2026-05-29，Dify+n8n 低代码方案）；V1.5 = `D:\GaoZhiyuan\enterprise-agent`（首个代码化 Multi-Agent 流水线，LangGraph 雏形）
+- **改动**：`docs/作品集-EIA-V4.md` 第 7 章演进表扩为 5 行（加"实现载体"列，新增 V1.5 行）+ 演进要点 3 条；`docs/AI产品经理面试作战包.md` 讲稿段（711 行）V1 描述校准为"Dify+n8n 低代码验证 → 代码化 → Multi-Agent"
+- **验证数据**：
+  - 作品集第 7 章：表格 5 列对齐渲染正常，md060 lint 已修
+  - 作战包：仅改讲稿 V1 段一处，其余版本叙事（70/158/220/959 行）无需联动
+  - Obsidian 镜像：备份至 `D:\Obsidian备份\2026-08-13-GZY备份\`，覆盖后 diff 与 docs 一致（0 差异）
+- **遗留**：Obsidian 侧作品集为 PDF（`高志远-AI产品作品集.pdf`），需手工重新导出。~~V2 README "7 个 Agent" vs 作品集 "3 Agent"~~（已解决 2026-08-13：两口径并存——"3 Agent"= Send 并行扇出的领域 Agent 数，"7 Agent"= 全量 LLM Agent 节点含 supervisor/report/reflection/memory；作品集演进要点已补口径说明）
+
 ### T-12 ✅ P1 应用内金丝雀定时兜底（2026-08-13 完成）
 
 - **背景**：n8n 2.23 对 CLI 导入工作流的 cron 注册异常（Deregistered 无 Registered，6 次定时触发验证失败）；UI 创建的异常检测工作流 4 次定时成功证明机制正常、问题特定于 CLI 导入工作流

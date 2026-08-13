@@ -155,12 +155,21 @@ Reflection 的 4 个维度中 2 个来自 BadCase 复盘——"逻辑严谨性"�
 
 ## 7. 版本演进
 
-| 版本 | Agent | 关键能力 | 状态 |
-|------|:-----:|---------|:----:|
-| V1 | 线性流水线 | Planner → SQL Generator → Analyzer → Reflection | 概念验证 |
-| V2 | 3 Agent | Multi-Agent 并行（LangGraph Send） | 架构验证 |
-| V3 | 8 Agent | 多轮对话 + 图表 + 库存/供应链 | 体验闭环 |
-| V4 | 11 节点 | 看板 + 流式 + 安全 + 多租户 + 通知 + 金丝雀漂移检测 | 企业就绪 |
+四版迭代 + 一次架构转型：**低代码原型验证 → 代码化 → Multi-Agent 并行 → 企业级**。
+
+| 版本 | Agent | 实现载体 | 关键能力 | 状态 |
+| ------ | :-----: | --------- | --------- | :----: |
+| V1 | 线性流水线 | **Dify + n8n 低代码** | 自然语言转 SQL、SQL Router、错误重试（8 核心场景全过） | 概念验证 |
+| V1.5 | 线性流水线（代码化） | **LangGraph 代码** | Planner → SQL Generator → SQL Checker → Executor → Analyzer → Reflection → Memory | 转型验证 |
+| V2 | 3 Agent | LangGraph Send | Multi-Agent 并行（销售/会员/财务） | 架构验证 |
+| V3 | 8 Agent | LangGraph | 多轮对话 + 图表 + 库存/供应链 | 体验闭环 |
+| V4 | 11 节点 | LangGraph + FastAPI | 看板 + 流式 + 安全 + 多租户 + 通知 + 金丝雀漂移检测 | 企业就绪 |
+
+**演进要点**：
+
+- **V1（2026-05，`企业经营分析 Agent`）**：先用 **Dify Chatflow + n8n SQL Router 低代码方案**搭建原型，验证"自然语言→SQL→报告"链路跑得通——产品可行性先行，不写代码验证 8 个核心场景（销售/会员/门店分析、SQL 路由、错误重试）。
+- **V1.5（`enterprise-agent`）**：低代码验证通过后**整体代码化**——Planner 任务拆解 → SQL Generator → SQL Checker 安全检查 → SQL Executor 并行查询 → Analyzer 综合分析 → Reflection 自我校验 → Memory 历史记忆，为 Multi-Agent 化铺路。
+- **V2 → V4**：V2 引入 LangGraph Send 并行扇出 3 个领域 Agent（sales/crm/finance 同查；全量 7 个 Agent——含 supervisor、报告、质检、记忆，聚合为纯 Python 不耗 Token），V3 扩到 8 Agent 补库存/供应链闭环，V4 升级 11 节点企业级（安全/多租户/流式/通知/金丝雀漂移检测）。
 
 ![V2](../demo_output/v2_chat.png)
 *V2：直接进聊天页，无看板，无流式*
