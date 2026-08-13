@@ -26,8 +26,6 @@
       "parameters": {
         "method": "POST",
         "url": "http://host.docker.internal:8002/api/v1/eval/canary",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

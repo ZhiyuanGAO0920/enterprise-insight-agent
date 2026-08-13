@@ -205,6 +205,10 @@ services:
       - NODE_ENV=production
       - WEBHOOK_URL=http://localhost:${N8N_PORT:-5680}/
       - GENERIC_TIMEZONE=Asia/Shanghai
+      # TZ 必须显式设置：scheduleTrigger 按 TZ（非 GENERIC_TIMEZONE）计算 cron，缺省会按 UTC 跑——所有定时工作流偏 8 小时
+      - TZ=Asia/Shanghai
+      # 金丝雀/告警工作流经 httpRequest 调用应用端点时用 $env.N8N_WEBHOOK_SECRET 引用（值来自宿主机 .env，不入库）
+      - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:-whsec-default}
     volumes:
       - n8n_data_v4_prod:/home/node/.n8n                     # workflow configs, recommend backup
     networks:
