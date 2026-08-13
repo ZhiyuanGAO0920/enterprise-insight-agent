@@ -1,5 +1,51 @@
 # CHANGELOG — V4 修复与优化记录
 
+## V4.8 (2026-08-13)
+
+### 🆕 新增：PII 脱敏（T-03）—— 输出层统一掩码，数据库原样存储
+
+个保法合规项。手机号输出脱敏（`138****XXXX`），集中式 2 拦截点：`sql_runner` 结果出口（写 Redis 缓存**前**，缓存命中路径同安全）+ 审计中间件 query_params。报告/表格/图表全部下游因 LLM 上下文无明文而天然安全。**关键设计**：缓存直返路径若不脱敏会残留明文 5 分钟——拦截点必须在写缓存前。
+
+| # | 文件 | 改动 |
+|---|------|------|
+| 1 | `app/services/masker.py` | 🆕 手机号正则（前 3 后 4 保留，数字边界防误伤，带分隔符变体），预留邮箱/身份证扩展 |
+| 2 | `app/tools/sql_runner.py` | `run_sql` 结果格式化段调 `mask_pii`（仅输出侧，未动注入器/数据层/SQL 生成） |
+| 3 | `app/middleware/audit.py` | query_params 入库前掩码（URL 可能携带手机号） |
+| 4 | `tests/test_masker.py` | 🆕 18 条（标准/变体/边界不误伤/管道表格/query_params） |
+
+**实测验证**：单测 18/18；真实 PG 执行 `SELECT phone FROM supplier` 全列 `138****XXXX`；缓存命中路径返回脱敏文本；全量回归 208 passed。
+
+### 🆕 新增：金丝雀漂移监控面板（T-11）—— eval_runs 前端可见
+
+金丝雀数据此前仅 API/文件可看，前端零展示。监控页新增"🐤 金丝雀漂移"板块：drift 状态徽章 + 模型版本/通过率/覆盖率/延迟 + drift_summary 告警文案 + 三系列趋势线（通过率/覆盖率 % + 延迟 ms）+ 漂移点红 pin 标记。**原生版 + React 版双实现**（独立异步加载 + 失败降级空态，不影响主监控页 30s 缓存）。
+
+排查中连带修复 3 个问题：
+- `GET /eval/runs` 权限 `user:manage` → `alert:view`：React 版监控页对 regional_director 可见而 director 无 user:manage，会 401 被前端强制登出（金丝雀趋势是监控数据非用户管理数据）
+- 原生版角色信息依赖 `/admin/users`（需 user:manage），director 登录后监控菜单永不显示 → 改登录响应 role 驱动（localStorage `eia_role`）
+- 原生版监控可见性对齐 React 版（admin + regional_director），补 regional_director 角色中文名
+
+**实测验证**：Playwright 双版（8002 + 5173）单条/漂移两分支 + 趋势图渲染；`node --check` + `tsc --noEmit` 通过。
+
+### 🆕 新增：应用内金丝雀定时兜底（T-12）—— 每日 09:30 幂等触发，不依赖 n8n
+
+排查发现 n8n 2.23 对 CLI 导入工作流的 cron 注册异常（每次操作只打 `Deregistered all crons for workflow`、从不打印注册成功；6 次定时触发验证全部无执行记录；而 UI 创建的异常检测工作流 4 次定时成功，证明问题特定于 CLI 导入工作流）。金丝雀每日跑分改为**应用内 asyncio 定时**：
+
+| # | 文件 | 改动 |
+|---|------|------|
+| 1 | `app/scheduler.py` | 🆕 `canary_scheduler_loop`（每日 09:30，幂等）+ `today_canary_ran`（当天 UTC 是否有 canary 记录）+ `run_canary_now`（子进程 run_eval --canary --save-db，30min 超时 kill，失败只记日志不重试） |
+| 2 | `app/api/main.py` | startup 注册 + shutdown 取消 |
+| 3 | `app/config.py` | `canary_hour` / `canary_minute`（默认 09:30） |
+| 4 | `tests/test_canary_scheduler.py` | 🆕 mock 幂等单测 3 条（真库测试会被真实评估污染，改 mock 为主） |
+
+**幂等设计**：与 n8n 触发天然互斥——任一路径先跑完，另一条因"当天已有记录"跳过（双保险）。**实测验证**：手动 `run_canary_now()` 完整闭环（False → 评估落库 → True）；启动日志确认注册；全量回归 211 passed。
+
+### 🔧 修复：n8n 金丝雀工作流配置（排查配套）
+
+- `docker-compose.prod.yml`：n8n 加 `TZ=Asia/Shanghai`（scheduleTrigger 按 TZ 计算 cron，缺省按 UTC 跑——**所有定时工作流偏 8 小时**）+ `N8N_WEBHOOK_SECRET` 环境变量注入（值来自 .env 不入库）
+- `workflows/n8n-templates/eval-canary.json`：移除 httpHeaderAuth 凭据实体引用（导入环境无该凭据报 Credentials not found），header 直传 + 占位符（部署时替换）
+
+---
+
 ## V4.7 (2026-08-10)
 
 ### ✨ 新增：金丝雀闭环 —— 每日固定子集跑分落库（带 model_version），漂移自动告警

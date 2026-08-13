@@ -9,7 +9,7 @@
 面向连锁零售的 Multi-Agent AI 经营分析平台。11 个 Agent 协作，用户用自然语言提问，60 秒内获得含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
-**状态**：V4.7，192 条测试（190 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复），GitHub 开源。V4.7 新增**金丝雀闭环**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集每日 09:30 n8n 定时跑分，与同模型基线对比超阈值自动告警（模型漂移检测）
+**状态**：V4.8，213 条测试（211 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复），GitHub 开源。**金丝雀闭环**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集每日 09:30 **应用内 asyncio 定时**跑分（T-12，幂等判据：当天已有记录则跳过；n8n 侧同工作流保留双保险），与同模型基线对比超阈值自动告警（模型漂移检测）。V4.8 另含：PII 脱敏（T-03，sql_runner 结果出口 + 审计 query_params 集中掩码）、金丝雀漂移监控面板（T-11，原生 + React 双版）
 **任务清单**：[TASKS.md](TASKS.md) — 项目唯一任务清单（当前 10 项，每项含目标/状态/修改范围/停止条件/验证数据）。开工前必读；任务完成必须归档并附验证数据与 commit
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商
 
@@ -46,7 +46,7 @@ Save Memory（pgvector 1024 维，BGE-M3 本地 Embedding）
 | Embedding | BGE-M3 本地 Ollama，1024 维 |
 | 后端 | FastAPI + SSE 流式 + PostgreSQL 16 + pgvector + Redis 7 |
 | 前端 | 原生 HTML/CSS/JS + ECharts 5 |
-| 部署 | Docker Compose 5 容器 + n8n 定时调度 |
+| 部署 | Docker Compose 5 容器 + 应用内 asyncio 定时（金丝雀）+ n8n（周报/告警调度） |
 | 日志 | **structlog** + trace_id 全链路追踪 |
 | 安全 | JWT + bcrypt + RBAC + **审计日志 + 多租户** |
 
@@ -65,7 +65,8 @@ app/
 ├── auth/            # JWT + RBAC + RLS（行级安全）
 ├── database/        # 17 ORM 模型，13 版 Alembic 迁移
 ├── middleware/       # 🆕 audit.py（审计日志） + tenant.py（多租户）
-├── services/        # notification.py + pdf_exporter.py
+├── services/        # notification.py + pdf_exporter.py + masker.py（PII 脱敏）
+├── scheduler.py     # 🆕 金丝雀定时兜底（每日 09:30 幂等触发，不依赖 n8n）
 ├── tools/           # sql_runner.py（RLS 注入），prompt_loader.py（3 级 fallback）
 └── workflow/        # graph.py（StateGraph 编排），state.py（AnalysisState TypedDict）
 prompts/
@@ -144,5 +145,5 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 - 启动：双击 `重启服务.bat` 或 `uvicorn app.api.main:app --port 8002 --reload`
 - **改 `app/api/static/` 前端文件后必须 bump 版本号**（`index.html` 里 `views.js?v=4.56` 等 `?v=` 参数，否则浏览器命中旧缓存，改动"看起来没生效"）——T-11 排查踩坑沉淀
 - 热重载 Prompt：`POST /api/v1/prompts/reload`
-- 测试：`pytest tests/ -v`（192 条）
+- 测试：`pytest tests/ -v`（213 条）
 - 数据库迁移：`alembic upgrade head`（当前 13 个版本）
