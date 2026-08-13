@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # --- n8n ---
     n8n_webhook_secret: str = "whsec-default"
 
+    # --- 应用内金丝雀定时（T-12）—— n8n 2.23 cron 注册异常，每日跑分由应用自调度兜底 ---
+    canary_hour: int = 9
+    canary_minute: int = 30
+
     # --- pgvector ---
     embedding_dimension: int = 1024  # BGE-M3 维度
 

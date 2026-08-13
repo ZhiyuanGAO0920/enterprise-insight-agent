@@ -86,6 +86,14 @@
 - **停止条件**：先用现有 eval 数据做相关性分析再改维度权重；连续 2 次失败停止记录
 - **验证数据**：eval 重构前后对比 + 金丝雀 16 条子集对比；满意度相关性指标
 
+### T-12 ✅ 完成 P1 应用内金丝雀定时兜底（每日 09:30 幂等触发）— 2026-08-13
+
+- **目标**：金丝雀每日跑分不依赖 n8n（n8n 2.23 对 CLI 导入工作流的 cron 注册异常，6 次定时验证失败）。服务启动时注册 asyncio 定时任务：每天 09:30 检查 eval_runs 当天是否已有 canary 记录——没有则子进程跑 `run_eval --canary --save-db`，已有则跳过（与 n8n 触发幂等，n8n 修好后双保险）
+- **状态**：✅ 已完成并归档（见"历史归档"）
+- **修改范围**：新建 `app/scheduler.py` + `app/api/main.py` startup 注册（含 shutdown 取消）+ `app/config.py` 加 canary_hour/canary_minute + `tests/test_canary_scheduler.py`。**禁止动** `tests/run_eval.py`、`eval_metrics.py`、`app/api/routes/eval.py`
+- **停止条件**：幂等判断在真实库上验证失败连续 2 次停止；连续 2 次失败停止记录
+- **验证数据**：见"历史归档"T-12 条目
+
 ### T-11 ✅ 完成 P1 金丝雀监控面板（前端展示 eval_runs）— 2026-08-12
 
 - **目标**：监控页加"金丝雀漂移"面板——最近 10 次跑分趋势线（通过率/覆盖率/延迟）+ drift 状态徽章 + 最新摘要。金丝雀数据此前仅 API/文件可看，前端零展示
@@ -113,6 +121,18 @@
 ---
 
 ## 历史归档
+
+### T-12 ✅ P1 应用内金丝雀定时兜底（2026-08-13 完成）
+
+- **背景**：n8n 2.23 对 CLI 导入工作流的 cron 注册异常（Deregistered 无 Registered，6 次定时触发验证失败）；UI 创建的异常检测工作流 4 次定时成功证明机制正常、问题特定于 CLI 导入工作流
+- **实现**：`app/scheduler.py`——`canary_scheduler_loop`（每日 canary_hour:minute，默认 09:30，asyncio 循环）+ `today_canary_ran`（幂等判据：当天 UTC 日期是否有 canary 记录）+ `run_canary_now`（子进程 `run_eval --canary --save-db --parallel 8`，30 分钟超时 kill，失败只记日志不重试）。main.py startup 注册 + shutdown 取消；config 加 canary_hour/canary_minute
+- **踩坑**：REPO_ROOT 用 parents[2] 数深一层 → 子进程找不到 run_eval.py（exit 2）→ 修正 parents[1]
+- **验证数据**：
+  - `tests/test_canary_scheduler.py` 3 条全过（无记录→False/插记录→True/昨日不误判）
+  - 启动日志确认："金丝雀定时任务已注册（每日 09:30，幂等）" + "金丝雀定时任务启动"
+  - 手动 `run_canary_now()` 完整跑通并落库（见 T-12 收尾 commit）
+  - 全量回归 208+ passed
+- **与 n8n 关系**：金丝雀不再依赖 n8n（双保险：n8n 修好后触发了也会被幂等判断跳过）；n8n 继续承担异常检测/周报调度（各自独立工作流，本次未动）
 
 ### T-11 ✅ P1 金丝雀监控面板（2026-08-12 完成）
 

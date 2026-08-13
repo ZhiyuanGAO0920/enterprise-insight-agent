@@ -3,6 +3,7 @@
 组装所有路由模块并提供 app 实例供 uvicorn 服务。
 """
 
+import asyncio
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -21,6 +22,8 @@ from app.middleware.tenant import tenant_middleware
 
 settings = get_settings()
 logger = get_logger("eia.api")
+
+_scheduler_task: asyncio.Task | None = None  # T-12: 金丝雀定时任务引用（防 GC）
 
 from app.api.routes.admin import router as admin_router
 from app.api.routes.alerts import router as alerts_router
@@ -265,10 +268,28 @@ async def startup_event():
             "否则任何请求方可伪造 webhook 触发告警检查与周报生成（消耗 LLM 成本）"
         )
 
+    # T-12: 应用内金丝雀定时兜底 —— n8n 2.23 cron 注册异常，每日跑分由应用自调度
+    try:
+        from app.scheduler import canary_scheduler_loop
+        global _scheduler_task
+        _scheduler_task = asyncio.create_task(canary_scheduler_loop())
+        logger.info("金丝雀定时任务已注册（每日 %02d:%02d，幂等）",
+                    settings.canary_hour, settings.canary_minute)
+    except Exception as e:
+        logger.error("金丝雀定时任务注册失败：%s", e)
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """服务关闭时清理资源（httpx 连接池等）。"""
+    """服务关闭时清理资源（httpx 连接池、金丝雀定时任务等）。"""
+    try:
+        global _scheduler_task
+        if _scheduler_task is not None:
+            _scheduler_task.cancel()
+            _scheduler_task = None
+            logger.info("金丝雀定时任务已取消")
+    except Exception:
+        pass
     try:
         from app.llm import _http_client, _http_async_client
         _http_client.close()
