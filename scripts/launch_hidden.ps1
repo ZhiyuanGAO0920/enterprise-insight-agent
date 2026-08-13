@@ -1,4 +1,4 @@
-# EIA V4 — 无窗口启动器
+﻿# EIA V4 — 无窗口启动器
 # 被桌面快捷方式调用，自身不弹出任何窗口
 
 $batPath = "D:\GaoZhiyuan\Enterprise Insight Agent V4\重启服务.bat"
