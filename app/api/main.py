@@ -268,7 +268,7 @@ async def startup_event():
             "否则任何请求方可伪造 webhook 触发告警检查与周报生成（消耗 LLM 成本）"
         )
 
-    # T-12: 应用内金丝雀定时兜底 —— n8n 2.23 cron 注册异常，每日跑分由应用自调度
+    # T-12: 应用内金丝雀定时兜底 —— n8n 2.23 cron 注册异常，每日检查（7 天幂等窗口）由应用自调度
     try:
         from app.scheduler import canary_scheduler_loop
         global _scheduler_task

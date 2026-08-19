@@ -101,7 +101,7 @@ export default function MonitorPage() {
   const [fbData, setFbData] = useState<{ total: number; entries: { id: number; question: string; time: string }[] } | null>(null);
   /* V4.6.5: 最近错误默认截断 10 行，展开后显示全部 */
   const [errorsExpanded, setErrorsExpanded] = useState(false);
-  /* T-11: 金丝雀漂移 —— 独立加载（每日 09:30 才更新，不随主监控页 30s 缓存；失败仅降级本板块） */
+  /* T-11: 金丝雀漂移 —— 独立加载（每周自动跑分才更新，不随主监控页 30s 缓存；失败仅降级本板块） */
   const [canaryRuns, setCanaryRuns] = useState<CanaryRun[] | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -493,10 +493,10 @@ export default function MonitorPage() {
           <div style={{ background: DARK.cardBg, border: `1px solid ${DARK.border}`, borderRadius: 14, padding: 18, marginTop: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: DARK.text, marginBottom: 4 }}>🐤 金丝雀漂移</div>
             <div style={{ fontSize: 11, color: DARK.muted, marginBottom: 12 }}>
-              {canaryRuns && canaryRuns.length > 0 ? `近 ${canaryRuns.length} 次跑分 · 与同模型基线对比` : '每日 09:30 模型跑分 · 16 条固定子集'}
+              {canaryRuns && canaryRuns.length > 0 ? `近 ${canaryRuns.length} 次跑分 · 与同模型基线对比` : '每周自动跑分 · 16 条固定子集'}
             </div>
             {!latestRun ? (
-              <div style={{ color: DARK.muted, fontSize: 13, padding: '8px 0' }}>暂无跑分记录（n8n 每日 09:30 自动执行后此处展示）</div>
+              <div style={{ color: DARK.muted, fontSize: 13, padding: '8px 0' }}>暂无跑分记录（每周 09:30 自动跑分后此处展示）</div>
             ) : (
               <>
                 <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', background: DARK.bg, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: '12px 16px', marginBottom: 12 }}>

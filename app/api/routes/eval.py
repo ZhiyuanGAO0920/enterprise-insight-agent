@@ -1,9 +1,10 @@
-"""评估闭环路由 —— 每日金丝雀跑分（n8n 定时触发）+ 运行历史查询。
+"""评估闭环路由 —— 金丝雀每周跑分（应用内定时兜底 + n8n 双保险）+ 运行历史查询。
 
 金丝雀设计（V4.7）：
   外部 LLM 模型漂移是"无通知、渐进式"的 —— 供应商推新版本后，Prompt 输出风格可能悄悄变差。
-  eval_runs 表把每次评估结果（含 model_version）落库；每日跑固定子集（eval_set.json 中
-  canary=true 的 16 条）与上一次同模型基线对比，超阈值即 drift=true，n8n 收到后推送告警。
+  eval_runs 表把每次评估结果（含 model_version）落库；每周跑固定子集（eval_set.json 中
+  canary=true 的 16 条，每日 09:30 兜底检查、7 天幂等窗口）与上一次同模型基线对比，
+  超阈值即 drift=true，推送告警。
   本端点通过子进程调用 tests/run_eval.py --canary --save-db（复用同一套评估引擎与指标口径），
   请求为阻塞式：耗时约 3-8 分钟，n8n 模板中 httpRequest 超时需放宽到 10 分钟。
 """
@@ -21,6 +22,7 @@ from app.api.dependencies import require_permission
 from app.config import get_settings
 from app.database.connection import get_session
 from app.database.models import EvalRun
+from app.scheduler import canary_ran_since
 
 router = APIRouter(prefix="/eval", tags=["评估闭环"])
 
@@ -59,7 +61,7 @@ def _row_to_dict(r: EvalRun) -> dict:
     }
 
 
-@router.post("/canary", response_model=CanaryResponse, summary="运行每日金丝雀评估（阻塞至完成，n8n 定时触发）")
+@router.post("/canary", response_model=CanaryResponse, summary="运行金丝雀评估（阻塞至完成；应用内定时/ n8n 触发，7 天幂等窗口）")
 async def run_canary(
     request: Request,
     authorization: str | None = Header(None, description="Bearer <n8n_webhook_secret>"),
@@ -78,6 +80,26 @@ async def run_canary(
         authorization, f"Bearer {settings.n8n_webhook_secret}"
     ):
         raise HTTPException(status_code=401, detail="无效的 webhook secret")
+    # 幂等：最近 canary_interval_days 天（默认 7=每周一次）已有金丝雀记录则跳过，
+    # 直接返回最近一次的信号——与 app/scheduler.py 同判据，n8n 每日触发不再重复烧配额
+    if await canary_ran_since(settings.canary_interval_days):
+        session = get_session()
+        try:
+            res = await session.execute(
+                select(EvalRun).where(EvalRun.canary.is_(True)).order_by(EvalRun.run_at.desc()).limit(1)
+            )
+            latest = res.scalar_one_or_none()
+        finally:
+            await session.close()
+        if latest is not None:
+            return CanaryResponse(
+                run_id=latest.id,
+                drift=bool(latest.drift),
+                summary=latest.drift_summary or "",
+                model_version=latest.model_version,
+                metrics=latest.metrics_json,
+            )
+        # 理论不可达：无记录但幂等判 True（判据本身查 eval_runs）
     if _run_lock.locked():
         raise HTTPException(status_code=409, detail="上一次金丝雀评估仍在运行，请稍后再试")
     async with _run_lock:

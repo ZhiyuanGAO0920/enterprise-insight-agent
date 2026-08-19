@@ -313,11 +313,11 @@ class UserWechatBinding(Base):
 # ---------------------------------------------------------------------------
 
 class EvalRun(Base):
-    """每次 run_eval 的落库记录：带模型版本，供每日金丝雀对比基线、趋势查询与告警。
+    """每次 run_eval 的落库记录：带模型版本，供每周金丝雀对比基线、趋势查询与告警。
 
     金丝雀设计：外部 LLM 模型漂移是"无通知、渐进式"的（供应商推新版本后 Prompt 输出可能
-    悄悄变差）。把每次评估结果（含 model_version）落库，每日跑固定子集与上一次同模型基线
-    对比，超阈值即 drift=True，n8n 收到后推送告警。
+    悄悄变差）。把每次评估结果（含 model_version）落库，每周跑固定子集（每日 09:30 兜底检查，
+    7 天幂等窗口）与上一次同模型基线对比，超阈值即 drift=True，推送告警。
     """
 
     __tablename__ = "eval_runs"
@@ -325,7 +325,7 @@ class EvalRun(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     run_at = Column(DateTime, default=_utcnow, index=True, comment="运行时间（naive UTC）")
     model_version = Column(String(64), nullable=False, comment="settings.deepseek_model_name")
-    canary = Column(Boolean, default=True, index=True, comment="True=每日金丝雀子集；False=全量评估")
+    canary = Column(Boolean, default=True, index=True, comment="True=金丝雀子集（每周跑分）；False=全量评估")
     total = Column(Integer, nullable=False, comment="评估条数")
     passed = Column(Integer, nullable=False, comment="成功条数（无 error）")
     failed = Column(Integer, nullable=False, comment="失败条数")

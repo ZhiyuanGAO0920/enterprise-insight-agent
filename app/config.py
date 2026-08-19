@@ -5,13 +5,18 @@
 """
 
 from functools import lru_cache
+from pathlib import Path
 
+from dotenv import dotenv_values
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 仓库根 .env（与 uvicorn 启动目录一致）
+ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -54,9 +59,10 @@ class Settings(BaseSettings):
     # --- n8n ---
     n8n_webhook_secret: str = "whsec-default"
 
-    # --- 应用内金丝雀定时（T-12）—— n8n 2.23 cron 注册异常，每日跑分由应用自调度兜底 ---
+    # --- 应用内金丝雀定时（T-12）—— n8n 2.23 cron 注册异常，每日检查（7 天幂等窗口）由应用自调度兜底 ---
     canary_hour: int = 9
     canary_minute: int = 30
+    canary_interval_days: int = 7  # 幂等窗口：最近 N 天已有金丝雀记录则跳过（默认 7 = 每周一次，省 DeepSeek 配额）
 
     # --- pgvector ---
     embedding_dimension: int = 1024  # BGE-M3 维度
@@ -112,5 +118,12 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """返回缓存的 Settings 单例。"""
-    return Settings()
+    """返回缓存的 Settings 单例。
+
+    .env 值显式作为 init 参数传入（init > 环境变量 > dotenv），确保项目 .env
+    覆盖全局环境变量——否则系统级 DEEPSEEK_API_KEY 会压过 .env 导致拆 key 失效
+    （2026-08-18 拆 key 修复）。
+    """
+    # pydantic init 参数大小写敏感：DEEPSEEK_API_KEY 须转小写匹配 deepseek_api_key
+    env_values = {k.lower(): v for k, v in dotenv_values(ENV_FILE).items() if v}
+    return Settings(**env_values)

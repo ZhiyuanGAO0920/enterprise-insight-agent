@@ -1745,7 +1745,7 @@
     },
     "canary": {
       "count": 16,
-      "note": "每日金丝雀子集：5 lookup + 7 analysis + 4 edge，覆盖 5 领域 + 综合 + 边界"
+      "note": "金丝雀子集（每周跑分）：5 lookup + 7 analysis + 4 edge，覆盖 5 领域 + 综合 + 边界"
     }
   }
 }

@@ -644,12 +644,12 @@ function renderMonitorView(ov,er){
     '<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🤖 Agent 健康度</div><div class="mq-section-subtitle">错误率排行 · 性能指标</div></div><div class="mq-table-wrap"><table class="mq-table"><thead><tr><th>Agent</th><th>运行</th><th>错误</th><th>错误率</th><th>平均(s)</th><th>最大(s)</th></tr></thead><tbody>'+ah+'</tbody></table></div></div>'+
     '<div class="mq-section" id="mqErrorsSection"><div class="mq-section-header"><div class="mq-section-title">❌ 最近错误</div><div class="mq-section-subtitle">'+(errList.length?errSum:'按时间倒序')+'</div></div>'+ei+'</div>'+
     (ch?'<div class="mq-section"><div class="mq-section-header"><div class="mq-section-title">📊 Token 消耗趋势</div><div class="mq-section-subtitle">近 '+show.length+' 天 · 含 Input/Output/Cost</div></div>'+ch+'</div>':'')+
-    '<div id="mqCanary" class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">每日 09:30 模型跑分 · 16 条固定子集</div></div><div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">加载中…</div></div>';
+    '<div id="mqCanary" class="mq-section"><div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">每周自动跑分 · 16 条固定子集</div></div><div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">加载中…</div></div>';
   loadCanary(); // T-11: 独立异步加载，失败仅降级该板块，不影响主监控页
 }
 
 /* T-11: 金丝雀漂移面板 —— 数据源 eval_runs（GET /eval/runs，admin 角色可见监控页且含 user:manage 权限）。
-   独立于主监控页加载（30s 缓存/序号竞态之外）：金丝雀每日 09:30 才更新，无需与生产指标同缓存。 */
+   独立于主监控页加载（30s 缓存/序号竞态之外）：金丝雀每周自动跑分才更新，无需与生产指标同缓存。 */
 var _canSeq=0;
 async function loadCanary(){
   if(!token)return;
@@ -664,13 +664,13 @@ async function loadCanary(){
     renderCanary(el,d.runs||[]);
   }catch(e){
     if(mySeq!==_canSeq)return;
-    el.innerHTML='<div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">每日 09:30 模型跑分 · 16 条固定子集</div></div><div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">暂无跑分记录（n8n 每日 09:30 自动执行后此处展示）</div>';
+    el.innerHTML='<div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">每周自动跑分 · 16 条固定子集</div></div><div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">暂无跑分记录（每周 09:30 自动跑分后此处展示）</div>';
   }
 }
 function renderCanary(el,runs){
   var latest=runs[0];
   if(!latest){
-    el.innerHTML='<div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">每日 09:30 模型跑分 · 16 条固定子集</div></div><div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">暂无跑分记录（n8n 每日 09:30 自动执行后此处展示）</div>';
+    el.innerHTML='<div class="mq-section-header"><div class="mq-section-title">🐤 金丝雀漂移</div><div class="mq-section-subtitle">每周自动跑分 · 16 条固定子集</div></div><div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">暂无跑分记录（每周 09:30 自动跑分后此处展示）</div>';
     return;
   }
   var st=latest.drift?'<span class="mq-hero-status bad">⚠️ 漂移告警</span>':'<span class="mq-hero-status good">✅ 稳定</span>';

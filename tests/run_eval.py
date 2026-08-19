@@ -478,7 +478,7 @@ def main():
                         help="并发数（默认 0=串行; 建议 3-5 加速大规模评估）")
     parser.add_argument("--compare", help="与基线 JSON 文件对比（先前 --output 的结果）")
     parser.add_argument("--canary", action="store_true",
-                        help="只跑金丝雀子集（eval_set.json 中 canary=true 的固定抽样，每日漂移检测用）")
+                        help="只跑金丝雀子集（eval_set.json 中 canary=true 的固定抽样，每周漂移检测用）")
     parser.add_argument("--save-db", action="store_true",
                         help="结果落库 eval_runs（带 model_version），自动对比上一次同模型运行计算漂移信号")
     parser.add_argument("--judge", action="store_true",
@@ -501,7 +501,7 @@ def main():
         questions = [q for q in questions if q["id"] == args.id]
     if args.canary:
         canary_questions = [q for q in questions if q.get("canary")]
-        print(f"  [金丝雀模式] 全量 {len(questions)} 条 -> 子集 {len(canary_questions)} 条（每日漂移检测）")
+        print(f"  [金丝雀模式] 全量 {len(questions)} 条 -> 子集 {len(canary_questions)} 条（每周漂移检测）")
         questions = canary_questions
 
     print(f"\n  加载 {len(questions)} 条评估问题（来自 {eval_path}）")

@@ -9,7 +9,7 @@
 面向连锁零售的 Multi-Agent AI 经营分析平台。11 个 Agent 协作，用户用自然语言提问，60 秒内获得含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
-**状态**：V4.8，213 条测试（211 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复），GitHub 开源。**金丝雀闭环**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集每日 09:30 **应用内 asyncio 定时**跑分（T-12，幂等判据：当天已有记录则跳过；n8n 侧同工作流保留双保险），与同模型基线对比超阈值自动告警（模型漂移检测）。V4.8 另含：PII 脱敏（T-03，sql_runner 结果出口 + 审计 query_params 集中掩码）、金丝雀漂移监控面板（T-11，原生 + React 双版）
+**状态**：V4.8，213 条测试（211 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复），GitHub 开源。**金丝雀闭环**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集**每周一次** **应用内 asyncio 定时**跑分（T-12，每日 09:30 检查，幂等判据：最近 7 天已有 canary 记录则跳过，省 DeepSeek 配额；n8n 侧同工作流保留双保险），与同模型基线对比超阈值自动告警（模型漂移检测）。V4.8 另含：PII 脱敏（T-03，sql_runner 结果出口 + 审计 query_params 集中掩码）、金丝雀漂移监控面板（T-11，原生 + React 双版）
 **任务清单**：[TASKS.md](TASKS.md) — 项目唯一任务清单（当前 10 项，每项含目标/状态/修改范围/停止条件/验证数据）。开工前必读；任务完成必须归档并附验证数据与 commit
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商
 
@@ -66,7 +66,7 @@ app/
 ├── database/        # 17 ORM 模型，13 版 Alembic 迁移
 ├── middleware/       # 🆕 audit.py（审计日志） + tenant.py（多租户）
 ├── services/        # notification.py + pdf_exporter.py + masker.py（PII 脱敏）
-├── scheduler.py     # 🆕 金丝雀定时兜底（每日 09:30 幂等触发，不依赖 n8n）
+├── scheduler.py     # 🆕 金丝雀定时兜底（每日 09:30 检查，7 天幂等窗口 = 每周一次，不依赖 n8n）
 ├── tools/           # sql_runner.py（RLS 注入），prompt_loader.py（3 级 fallback）
 └── workflow/        # graph.py（StateGraph 编排），state.py（AnalysisState TypedDict）
 prompts/

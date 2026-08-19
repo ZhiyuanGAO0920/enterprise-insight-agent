@@ -1,5 +1,5 @@
 {
-  "name": "V4 每日金丝雀评估（模型漂移检测）",
+  "name": "V4 金丝雀评估（模型漂移检测）",
   "nodes": [
     {
       "parameters": {
@@ -15,7 +15,7 @@
         }
       },
       "id": "schedule-trigger",
-      "name": "每天 09:30 跑一次（避开 10:00 Demo 数据投喂）",
+      "name": "每天 09:30 检查一次（7 天幂等窗口，实际每周执行；避开 10:00 Demo 数据投喂）",
       "type": "n8n-nodes-base.scheduleTrigger",
       "position": [
         250,
