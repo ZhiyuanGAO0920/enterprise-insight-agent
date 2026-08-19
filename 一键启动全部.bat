@@ -41,7 +41,7 @@ REM ========== [2/5] 容器 ==========
 echo [2/5] 启动容器（PostgreSQL / Redis / n8n）...
 docker start eia-postgres >nul 2>&1
 if errorlevel 1 echo       [警告] eia-postgres 启动失败（容器可能不存在）
-docker start 87d6472d9a83_eia-redis-v4-prod >/dev/null 2>&1
+docker start eia-redis-v4-prod >/dev/null 2>&1
 if errorlevel 1 echo       [警告] redis-v4 启动失败
 docker start eia-n8n-v4-prod >nul 2>&1
 if errorlevel 1 echo       [警告] eia-n8n-v4-prod 启动失败（不影响主功能）
