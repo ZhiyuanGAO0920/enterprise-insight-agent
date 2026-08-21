@@ -124,8 +124,9 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 所有面试文档在 `docs/` 下：
 - `AI产品经理面试作战包.md` — 16 章完整作战包（自我介绍/决策案例/BadCase/Q&A/讲稿/追问FAQ/能力自评与卖点话术）
 
-> ⚠️ **同步规则**：更新 docs/ 下面试文档后，必须同步镜像到 Obsidian `3-职业发展/面试准备/`（docs 为源，Obsidian 为镜像；覆盖前先备份）。详见记忆 `docs-obsidian-sync-habit`。
-- `AI产品经理核心知识手册_v1.1.md` — AI PM 理论参考书（LLM/RAG/Agent/Prompt/运维/面试）
+> ⚠️ **同步规则**：更新 docs/ 下面试文档后，必须同步镜像到 Obsidian（docs 为源，Obsidian 为镜像；覆盖前先备份到 `D:\Obsidian备份\YYYY-MM-DD-GZY备份\`，覆盖后 diff 校验 0 差异）：面试准备类 → `3-职业发展/面试准备/`；核心知识手册 → `2-AI产品经理/核心知识/`；作品集 Obsidian 侧为 PDF，需手工重新导出。详见记忆 `docs-obsidian-sync-habit`。
+
+- `AI产品经理核心知识手册_v1.1.md` — AI PM 理论参考书（LLM/RAG/Agent/Prompt/运维/面试；文档内版本 v1.2，2026-08 新增 2.8 节 2026 RAG 前沿；镜像 `2-AI产品经理/核心知识/`）
 - `AI功能交互流程.md` — 全链路交互（正常/异常/边界）
 - `监控页指标设计原则.md` — 决策台 vs 数据仓库：13 项指标裁决表 + 四象限（V4.6.6 落地）
 - `Demo视频脚本-V4.md` — 9 段视频脚本

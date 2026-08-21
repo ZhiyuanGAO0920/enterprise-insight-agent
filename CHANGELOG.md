@@ -1,5 +1,18 @@
 # CHANGELOG — V4 修复与优化记录
 
+## V4.9 (2026-08-21)
+
+### 📝 文档同步：2026 RAG 知识库文档升级（手册入库 + 三件套 RAG 2026 化）
+
+2026-08-21 第三方评估指出"EIA 还在 2024 基础 RAG"。已决策只改文档不动代码：
+
+- `docs/AI产品经理核心知识手册_v1.1.md`：🆕 新源入库（以 Obsidian 侧 2026-08 版为基底，避免内容回退）；第二章新增 2.8「2026 RAG 前沿」（Agentic RAG / GraphRAG 真实指标 72%/94% 甄别 / Context Engineering / Prompt Caching），目录与术语表同步扩充，文档版本 v1.1 → v1.2
+- `docs/AI产品经理面试作战包.md`：「什么是 RAG」「如何设计 RAG 和知识库」两题话术从 2024 承诺升级为 2026 框架——EIA = 结构化数据的 Agentic 检索（run_sql 工具调用即"LLM 自主决定检索"）+ GraphRAG 主动甄别 + Reranker 选型落地路径
+- `docs/作品集-EIA-V4.md`：第 4 章新增「为什么不用 GraphRAG」决策（Schema=图 / JOIN=多跳 / 成本负收益 / 反营销话术）+ 第 10 章补 2026 RAG 甄别框架条目
+- 同步：Obsidian 备份 `D:\Obsidian备份\2026-08-21-GZY备份\` → 覆盖手册 + 作战包 → diff 0 差异；作品集 Obsidian 侧为 PDF、仓库侧有 HTML 渲染版，需手工重新导出（遗留）
+
+---
+
 ## V4.8 (2026-08-13)
 
 ### 🆕 新增：PII 脱敏（T-03）—— 输出层统一掩码，数据库原样存储
