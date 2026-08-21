@@ -284,7 +284,7 @@ Supervisor Agent（规划）
 | 情况 | 行为 |
 |------|------|
 | Supervisor 仅激活 1 个 Agent | 该 Agent 独占运行，Aggregator 直接透传 |
-| 问题为纯查询（如"Top 3 门店"） | Report Agent 按查询模式只输出表格 + 简短总结（约 400 token） |
+| 问题为纯查询（如"Top 3 门店"） | Report Agent 按查询模式输出表格 + 关键洞察（约 400 token） |
 | 问题为综合分析 | Report Agent 按报告模式输出完整 4 段结构（约 2000-4000 token） |
 | 反思反馈包含中文字符 | 正常注入 Prompt |
 | FOLLOWUP 问题含 `]` 字符 | 括号计数法（字符串感知）正确处理 |
