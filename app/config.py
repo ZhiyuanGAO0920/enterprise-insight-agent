@@ -60,8 +60,9 @@ class Settings(BaseSettings):
     n8n_webhook_secret: str = "whsec-default"
 
     # --- 应用内金丝雀定时（T-12）—— n8n 2.23 cron 注册异常，每日检查（7 天幂等窗口）由应用自调度兜底 ---
-    canary_hour: int = 9
-    canary_minute: int = 30
+    # 13:05 = DeepSeek 空闲时段（12:00-14:00 半价）；避开 10:00 投喂；午休后必开机，保证每周至少跑一次
+    canary_hour: int = 13
+    canary_minute: int = 5
     canary_interval_days: int = 7  # 幂等窗口：最近 N 天已有金丝雀记录则跳过（默认 7 = 每周一次，省 DeepSeek 配额）
 
     # --- pgvector ---

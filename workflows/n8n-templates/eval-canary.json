@@ -8,14 +8,14 @@
             {
               "field": "days",
               "daysInterval": 1,
-              "triggerAtHour": 9,
-              "triggerAtMinute": 30
+              "triggerAtHour": 13,
+              "triggerAtMinute": 5
             }
           ]
         }
       },
       "id": "schedule-trigger",
-      "name": "每天 09:30 检查一次（7 天幂等窗口，实际每周执行；避开 10:00 Demo 数据投喂）",
+      "name": "每天 13:05 跑一次（空闲时段半价）",
       "type": "n8n-nodes-base.scheduleTrigger",
       "position": [
         250,
@@ -68,7 +68,7 @@
     }
   ],
   "connections": {
-    "每天 09:30 跑一次（避开 10:00 Demo 数据投喂）": {
+    "每天 13:05 跑一次（空闲时段半价）": {
       "main": [
         [
           {
@@ -94,6 +94,6 @@
   "settings": {
     "timezone": "Asia/Shanghai"
   },
-  "description": "每天 09:30 跑 16 条金丝雀评估子集（tests/run_eval.py --canary --save-db），结果落库 eval_runs（带 model_version），与上一次同模型基线对比。drift=true 时说明通过率/维度覆盖率/延迟/Reflection 通过率显著退化（可能模型漂移或 Prompt 退化），在 if-drift 的 true 分支挂飞书/钉钉/企微通知节点（参考 alert-check.json）。需要先在 .env 中配置 N8N_WEBHOOK_SECRET 和对应的 WEBHOOK_URL；时间避开 10:00 的 Demo 数据投喂，避免数据变化干扰漂移判定。",
+  "description": "每天 13:05 跑 16 条金丝雀评估子集（tests/run_eval.py --canary --save-db），结果落库 eval_runs（带 model_version），与上一次同模型基线对比。drift=true 时说明通过率/维度覆盖率/延迟/Reflection 通过率显著退化（可能模型漂移或 Prompt 退化），在 if-drift 的 true 分支挂飞书/钉钉/企微通知节点（参考 alert-check.json）。需要先在 .env 中配置 N8N_WEBHOOK_SECRET 和对应的 WEBHOOK_URL；13:05 为 DeepSeek 空闲时段（12:00-14:00 半价）且避开 10:00 的 Demo 数据投喂，避免数据变化干扰漂移判定。",
   "id": "14c5e988-c682-4276-bb41-1f04d673ca20"
 }
