@@ -9,7 +9,7 @@ from typing import Optional
 
 from sqlalchemy import desc, select, text as sql_text
 
-from app.database.connection import get_session
+from app.database.connection import get_session, get_tenant_id
 from app.database.models import AnalysisHistory
 from app.tools.embedding import get_embedding
 
@@ -49,6 +49,7 @@ async def save_analysis_history(
     llm_cost: float = 0.0,
     reflection_issues: list | None = None,
     followup_questions: list[str] | None = None,
+    data_sources: list | None = None,
     _force_fq: bool = False,
 ) -> int:
     """将分析结果保存到历史记录表，同时保存向量嵌入。
@@ -64,6 +65,8 @@ async def save_analysis_history(
         finance_result: 财务 Agent 的原始输出。
         reflection_passed: 反思检查是否通过。
         user_id: 发起分析的用户 ID。
+        data_sources: V5 T-10a：证据链 [{id,agent,sql,row_count,raw_data,...}]，
+            持久化后历史详情可回查，Grounding 校验器消费。
 
     Returns:
         新创建的历史记录 ID。
@@ -96,6 +99,7 @@ async def save_analysis_history(
 
         # 强制转 JSON 存库（None/空列表→"[]"，非空→JSON）
         _fq_val = json.dumps(followup_questions, ensure_ascii=False) if followup_questions else "[]"
+        _ds_val = json.dumps(data_sources, ensure_ascii=False) if isinstance(data_sources, list) and data_sources else "[]"
         result = await session.execute(
             sql_text(
                 """
@@ -103,10 +107,11 @@ async def save_analysis_history(
                     (question, report, sales_result, crm_result,
                      finance_result, inventory_result, supply_chain_result,
                      reflection_passed, reflection_issues, user_id, tenant_id, embedding,
-                     input_tokens, output_tokens, llm_cost, followup_questions)
+                     input_tokens, output_tokens, llm_cost, followup_questions,
+                     data_sources)
                 VALUES
                     (:q, :r, :s, :c, :f, :inv, :sc, :rp, :ri, :uid, :tid, CAST(:e AS vector),
-                     :it, :ot, :cost, :fq)
+                     :it, :ot, :cost, :fq, CAST(:ds AS JSON))
                 RETURNING id
                 """
             ),
@@ -127,6 +132,7 @@ async def save_analysis_history(
                 "ot": output_tokens,
                 "cost": llm_cost,
                 "fq": _fq_val,
+                "ds": _ds_val,
             },
         )
         record_id = result.scalar_one()
@@ -165,7 +171,12 @@ async def find_similar_analyses(
             row = r.fetchone()
             if row and row[0] is not None:
                 tid = row[0]
-        tid_filter = " AND tenant_id = :tid" if tid is not None else ""
+        # V5 T-02：无 user_id 或查不到 → contextvar 兜底；仍无 → 拒绝（不跨租户命中）
+        if tid is None:
+            tid = get_tenant_id()
+        if tid is None:
+            return []
+        tid_filter = " AND tenant_id = :tid"
         result = await session.execute(
             sql_text(
                 f"""
@@ -180,7 +191,7 @@ async def find_similar_analyses(
                 LIMIT :l
                 """
             ),
-            {"e": vec_str, "t": threshold, "l": limit, "tid": tid} if tid else {"e": vec_str, "t": threshold, "l": limit},
+            {"e": vec_str, "t": threshold, "l": limit, "tid": tid},
         )
         rows = result.fetchall()
         # 防御：过滤 NaN 相似度（全 0 向量余弦距离为 NaN）
@@ -276,7 +287,12 @@ async def search_similar_sql(
             row = r.fetchone()
             if row and row[0] is not None:
                 tid = row[0]
-        tid_filter = " AND tenant_id = :tid" if tid is not None else ""
+        # V5 T-02：无 user_id 或查不到 → contextvar 兜底；仍无 → 拒绝（不跨租户命中）
+        if tid is None:
+            tid = get_tenant_id()
+        if tid is None:
+            return []
+        tid_filter = " AND tenant_id = :tid"
         result = await session.execute(
             sql_text(
                 f"""
@@ -292,7 +308,7 @@ async def search_similar_sql(
                 LIMIT :l
                 """
             ),
-            {"e": vec_str, "t": threshold, "l": top_k, "tid": tid} if tid else {"e": vec_str, "t": threshold, "l": top_k},
+            {"e": vec_str, "t": threshold, "l": top_k, "tid": tid},
         )
         rows = result.fetchall()
 
@@ -351,4 +367,5 @@ async def get_history_detail(record_id: int, user_id: int | None = None) -> dict
             "reflection_passed": r.reflection_passed,
             "create_time": r.create_time.isoformat() if r.create_time else None,
             "user_id": r.user_id,
+            "data_sources": r.data_sources if isinstance(r.data_sources, list) else [],
         }

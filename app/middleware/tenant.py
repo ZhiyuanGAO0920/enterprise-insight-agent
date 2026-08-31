@@ -10,6 +10,7 @@ V4.1 修复：改用 FastAPI 原生 @app.middleware("http") 而非 BaseHTTPMiddl
 from fastapi import Request
 from starlette.responses import Response
 
+from app.database.connection import set_tenant_id
 from app.logging_config import bind_context, get_logger
 
 logger = get_logger("eia.tenant")
@@ -50,6 +51,10 @@ async def tenant_middleware(request: Request, call_next):
 
     # 注入请求 state
     request.state.tenant_id = tenant_id
+
+    # V5 T-01 路径 B：写 contextvar，供 connection.py after_begin 事件读 + 注入 SET LOCAL
+    # asyncio task 隔离保证 per-request 作用域，request 结束 task 结束 contextvar 自动失效
+    set_tenant_id(tenant_id)
 
     # 绑定到结构化日志上下文
     if tenant_id is not None:

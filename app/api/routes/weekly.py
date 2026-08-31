@@ -83,6 +83,7 @@ async def generate_weekly_report(
             crm_result=state.get("crm_result"),
             finance_result=state.get("finance_result"),
             reflection_passed=state.get("reflection_passed", False),
+            data_sources=state.get("data_sources", []),
         )
 
     now = datetime.now(timezone.utc)  # 保留 tzinfo，确保跨时区兼容

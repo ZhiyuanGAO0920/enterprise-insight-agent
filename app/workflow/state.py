@@ -42,6 +42,10 @@ class AnalysisState(TypedDict):
     reflection_feedback: Optional[str]
     reflection_retries: int  # 硬上限以防止无限循环
     skip_reflection: Optional[bool]  # V4.6.3: 对照实验用——跳过质检与重试（生产勿开启）
+    # V5 Phase 3: Reflection 契约化 4 维度分（Numerical/Grounding/Reasoning/Alignment）
+    #   scores: 每项 0~100；weighted: 加权综合；contract: 每项 issues + severity 明细
+    reflection_scores: Optional[dict]     # {"numerical","grounding","reasoning","alignment","weighted"}
+    reflection_contract: Optional[dict]   # {"version":"v5","weights":{},"scores":{..},"threshold":{},"dimensions":{"numerical":{"score","issues","high_sev_breach"},...}}
 
     # ==== Supervisor 路由 ====
     supervisor_plan: Optional[str]

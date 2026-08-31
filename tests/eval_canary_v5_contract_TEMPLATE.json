@@ -1,0 +1,734 @@
+{
+  "version": "canary_baseline_v5_contract",
+  "date": "2026-08-31",
+  "note": "金丝雀基线因 DeepSeek API 当前不可达（test_deepseek_llm 基线同一根因），先出合成样本模板（12 条模拟）。API 恢复后生成正式基线的正确步骤：① 执行 `python -m tests.run_eval --canary --output eval_canary_v5_contract_result.json`（真实 canary 子集为 16 条，见 eval_set.json canary=true）；② 用 `app.services.eval_metrics.compute_metrics` 对该 16 条结果重新聚合，产出正式基线 JSON（勿直接把 16 条塞进本模板的 12 条结构——entry_count 断言会不符）。本模板仅作聚合口径与结构参考。",
+  "deepseek_api_issue": "openai.APIConnectionError — 与基线 pytest test_deepseek_llm 失败根因一致，非 V5 契约代码引入。",
+  "synthetic_canary_simulated_results": [
+    {
+      "id": "Q01",
+      "type": "lookup",
+      "question": "查询1",
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.97,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 1
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 98,
+          "grounding": 95,
+          "reasoning": 100,
+          "alignment": 100
+        },
+        "weighted": 97.65,
+        "grounding_detail": {
+          "evidence_coverage": 0.95,
+          "total_claims": 5,
+          "grounded_claims": 4
+        },
+        "numerical_detail": {
+          "coverage": 0.98,
+          "total_report_numbers": 10,
+          "matched_numbers": 10
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_scores": {},
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 1,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 1,
+      "latency_ms": 2030,
+      "grounding": {
+        "evidence_coverage": 0.95,
+        "total_claims": 5,
+        "grounded_claims": 4,
+        "details": []
+      },
+      "evidence_coverage": 0.95
+    },
+    {
+      "id": "Q02",
+      "type": "lookup",
+      "question": "查询2",
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.97,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 1
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 98,
+          "grounding": 95,
+          "reasoning": 100,
+          "alignment": 100
+        },
+        "weighted": 97.65,
+        "grounding_detail": {
+          "evidence_coverage": 0.95,
+          "total_claims": 5,
+          "grounded_claims": 5
+        },
+        "numerical_detail": {
+          "coverage": 0.98,
+          "total_report_numbers": 10,
+          "matched_numbers": 10
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_scores": {},
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 1,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 1,
+      "latency_ms": 2060,
+      "grounding": {
+        "evidence_coverage": 0.95,
+        "total_claims": 5,
+        "grounded_claims": 5,
+        "details": []
+      },
+      "evidence_coverage": 0.95
+    },
+    {
+      "id": "Q03",
+      "type": "lookup",
+      "question": "查询3",
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.97,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 1
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 98,
+          "grounding": 95,
+          "reasoning": 100,
+          "alignment": 100
+        },
+        "weighted": 97.65,
+        "grounding_detail": {
+          "evidence_coverage": 0.95,
+          "total_claims": 5,
+          "grounded_claims": 4
+        },
+        "numerical_detail": {
+          "coverage": 0.98,
+          "total_report_numbers": 10,
+          "matched_numbers": 10
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_scores": {},
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 1,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 1,
+      "latency_ms": 2090,
+      "grounding": {
+        "evidence_coverage": 0.95,
+        "total_claims": 5,
+        "grounded_claims": 4,
+        "details": []
+      },
+      "evidence_coverage": 0.95
+    },
+    {
+      "id": "Q04",
+      "type": "lookup",
+      "question": "查询4",
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.97,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 1
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 98,
+          "grounding": 95,
+          "reasoning": 100,
+          "alignment": 100
+        },
+        "weighted": 97.65,
+        "grounding_detail": {
+          "evidence_coverage": 0.95,
+          "total_claims": 5,
+          "grounded_claims": 5
+        },
+        "numerical_detail": {
+          "coverage": 0.98,
+          "total_report_numbers": 10,
+          "matched_numbers": 10
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_scores": {},
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 1,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 1,
+      "latency_ms": 2120,
+      "grounding": {
+        "evidence_coverage": 0.95,
+        "total_claims": 5,
+        "grounded_claims": 5,
+        "details": []
+      },
+      "evidence_coverage": 0.95
+    },
+    {
+      "id": "Q05",
+      "type": "lookup",
+      "question": "查询5",
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.97,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 1
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 98,
+          "grounding": 95,
+          "reasoning": 100,
+          "alignment": 100
+        },
+        "weighted": 97.65,
+        "grounding_detail": {
+          "evidence_coverage": 0.95,
+          "total_claims": 5,
+          "grounded_claims": 4
+        },
+        "numerical_detail": {
+          "coverage": 0.98,
+          "total_report_numbers": 10,
+          "matched_numbers": 10
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_scores": {},
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 1,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 1,
+      "latency_ms": 2150,
+      "grounding": {
+        "evidence_coverage": 0.95,
+        "total_claims": 5,
+        "grounded_claims": 4,
+        "details": []
+      },
+      "evidence_coverage": 0.95
+    },
+    {
+      "id": "Q06",
+      "type": "lookup",
+      "question": "查询6",
+      "dimension_coverage": 1.0,
+      "rows_in_range": true,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.97,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 1
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 98,
+          "grounding": 95,
+          "reasoning": 100,
+          "alignment": 100
+        },
+        "weighted": 97.65,
+        "grounding_detail": {
+          "evidence_coverage": 0.95,
+          "total_claims": 5,
+          "grounded_claims": 5
+        },
+        "numerical_detail": {
+          "coverage": 0.98,
+          "total_report_numbers": 10,
+          "matched_numbers": 10
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_scores": {},
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 1,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 1,
+      "latency_ms": 2180,
+      "grounding": {
+        "evidence_coverage": 0.95,
+        "total_claims": 5,
+        "grounded_claims": 5,
+        "details": []
+      },
+      "evidence_coverage": 0.95
+    },
+    {
+      "id": "Q07",
+      "type": "comprehensive",
+      "question": "综合7",
+      "dimension_coverage": 0.88,
+      "rows_in_range": false,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.86,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 3
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 82,
+          "grounding": 80,
+          "reasoning": 70,
+          "alignment": 66
+        },
+        "weighted": 76.3,
+        "grounding_detail": {
+          "evidence_coverage": 0.8,
+          "total_claims": 10,
+          "grounded_claims": 8
+        },
+        "numerical_detail": {
+          "coverage": 0.82,
+          "total_report_numbers": 15,
+          "matched_numbers": 12
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 3,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 4,
+      "latency_ms": 6350,
+      "grounding": {
+        "evidence_coverage": 0.82,
+        "total_claims": 10,
+        "grounded_claims": 8,
+        "details": []
+      },
+      "evidence_coverage": 0.82
+    },
+    {
+      "id": "Q08",
+      "type": "comprehensive",
+      "question": "综合8",
+      "dimension_coverage": 0.88,
+      "rows_in_range": false,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.86,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 3
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 83,
+          "grounding": 81,
+          "reasoning": 71,
+          "alignment": 67
+        },
+        "weighted": 77.3,
+        "grounding_detail": {
+          "evidence_coverage": 0.81,
+          "total_claims": 10,
+          "grounded_claims": 8
+        },
+        "numerical_detail": {
+          "coverage": 0.83,
+          "total_report_numbers": 15,
+          "matched_numbers": 12
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 3,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 4,
+      "latency_ms": 6400,
+      "grounding": {
+        "evidence_coverage": 0.82,
+        "total_claims": 10,
+        "grounded_claims": 8,
+        "details": []
+      },
+      "evidence_coverage": 0.82
+    },
+    {
+      "id": "Q09",
+      "type": "comprehensive",
+      "question": "综合9",
+      "dimension_coverage": 0.88,
+      "rows_in_range": false,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.86,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 3
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 84,
+          "grounding": 82,
+          "reasoning": 72,
+          "alignment": 68
+        },
+        "weighted": 78.3,
+        "grounding_detail": {
+          "evidence_coverage": 0.82,
+          "total_claims": 10,
+          "grounded_claims": 8
+        },
+        "numerical_detail": {
+          "coverage": 0.84,
+          "total_report_numbers": 15,
+          "matched_numbers": 12
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 3,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 4,
+      "latency_ms": 6450,
+      "grounding": {
+        "evidence_coverage": 0.82,
+        "total_claims": 10,
+        "grounded_claims": 8,
+        "details": []
+      },
+      "evidence_coverage": 0.82
+    },
+    {
+      "id": "Q10",
+      "type": "comprehensive",
+      "question": "综合10",
+      "dimension_coverage": 0.88,
+      "rows_in_range": false,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.86,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 3
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 85,
+          "grounding": 83,
+          "reasoning": 73,
+          "alignment": 69
+        },
+        "weighted": 79.3,
+        "grounding_detail": {
+          "evidence_coverage": 0.83,
+          "total_claims": 10,
+          "grounded_claims": 8
+        },
+        "numerical_detail": {
+          "coverage": 0.85,
+          "total_report_numbers": 15,
+          "matched_numbers": 12
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 3,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 4,
+      "latency_ms": 6500,
+      "grounding": {
+        "evidence_coverage": 0.82,
+        "total_claims": 10,
+        "grounded_claims": 8,
+        "details": []
+      },
+      "evidence_coverage": 0.82
+    },
+    {
+      "id": "Q11",
+      "type": "comprehensive",
+      "question": "综合11",
+      "dimension_coverage": 0.88,
+      "rows_in_range": false,
+      "no_hallucination": true,
+      "cross_check": {
+        "rate": 0.86,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 3
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 86,
+          "grounding": 84,
+          "reasoning": 74,
+          "alignment": 70
+        },
+        "weighted": 80.3,
+        "grounding_detail": {
+          "evidence_coverage": 0.84,
+          "total_claims": 10,
+          "grounded_claims": 8
+        },
+        "numerical_detail": {
+          "coverage": 0.86,
+          "total_report_numbers": 15,
+          "matched_numbers": 12
+        },
+        "dimensions": {},
+        "passed": true
+      },
+      "reflection_feedback": "",
+      "reflection_status": "passed",
+      "reflection_passed": true,
+      "sql_count": 3,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 4,
+      "latency_ms": 6550,
+      "grounding": {
+        "evidence_coverage": 0.82,
+        "total_claims": 10,
+        "grounded_claims": 8,
+        "details": []
+      },
+      "evidence_coverage": 0.82
+    },
+    {
+      "id": "Q12",
+      "type": "comprehensive",
+      "question": "综合12",
+      "dimension_coverage": 0.88,
+      "rows_in_range": false,
+      "no_hallucination": false,
+      "cross_check": {
+        "rate": 0.3,
+        "skipped": false
+      },
+      "sql_accuracy": {
+        "rate": 1.0,
+        "failed": 0,
+        "total": 1
+      },
+      "reflection_contract": {
+        "version": "v5",
+        "scores": {
+          "numerical": 28,
+          "grounding": 30,
+          "reasoning": 75,
+          "alignment": 15
+        },
+        "weighted": 33.15,
+        "grounding_detail": {
+          "evidence_coverage": 0.3,
+          "total_claims": 10,
+          "grounded_claims": 3
+        },
+        "numerical_detail": {
+          "coverage": 0.28,
+          "total_report_numbers": 15,
+          "matched_numbers": 4
+        },
+        "dimensions": {},
+        "passed": false
+      },
+      "reflection_feedback": "",
+      "reflection_status": "failed",
+      "reflection_passed": false,
+      "sql_count": 1,
+      "sqls": [],
+      "errors": 0,
+      "error_details": [],
+      "data_source_count": 4,
+      "latency_ms": 6600,
+      "grounding": {
+        "evidence_coverage": 0.3,
+        "total_claims": 10,
+        "grounded_claims": 3,
+        "details": []
+      },
+      "evidence_coverage": 0.3
+    }
+  ],
+  "synthetic_metrics": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "pass_rate": 100.0,
+    "avg_dimension_coverage": 0.94,
+    "rows_in_range_rate": 50.0,
+    "no_hallucination_rate": 91.7,
+    "cross_check_rate": 0.868,
+    "cross_check_failures": 1,
+    "cross_check_skipped": 0,
+    "sql_accuracy": 1.0,
+    "sql_failed_count": 0,
+    "sql_total_count": 22,
+    "reflection_status_counts": {
+      "passed": 11,
+      "failed": 1,
+      "parsing_fallback": 0,
+      "skipped": 0,
+      "ablation": 0
+    },
+    "reflection_strict_pass_rate": 91.7,
+    "reflection_effective_pass_rate": 91.7,
+    "judge_avg_scores": {},
+    "judge_pass_rate": null,
+    "avg_latency_ms": 4290,
+    "evidence_coverage_avg": 0.8417,
+    "evidence_coverage_agg": 0.7778,
+    "evidence_claims_total": 90,
+    "evidence_grounded_total": 70,
+    "reflection_contract": {
+      "entry_count": 12,
+      "avg_scores": {
+        "numerical": 86.33,
+        "grounding": 84.17,
+        "reasoning": 86.25,
+        "alignment": 79.58,
+        "weighted": 84.21
+      },
+      "recommendation_alignment_share_avg": 0.2283,
+      "high_sev_breach": {
+        "numerical_below_50_count": 1,
+        "grounding_below_50_count": 1
+      }
+    },
+    "by_type": {
+      "lookup": {
+        "total": 6,
+        "failed": 0,
+        "avg_dim_coverage": 1.0,
+        "avg_latency_ms": 2105
+      },
+      "comprehensive": {
+        "total": 6,
+        "failed": 0,
+        "avg_dim_coverage": 0.88,
+        "avg_latency_ms": 6475
+      }
+    }
+  }
+}

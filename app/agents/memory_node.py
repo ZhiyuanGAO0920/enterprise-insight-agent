@@ -103,6 +103,7 @@ async def save_memory_node(state: AnalysisState) -> dict:
             llm_cost=llm_cost,
             reflection_issues=reflection_issues,
             followup_questions=fq,
+            data_sources=state.get("data_sources", []),
         )
         elapsed = time.monotonic() - t_start
         logger.info("执行完成 (%.1fs) - record_id: %s, fq_count: %d", elapsed, record_id, len(fq))

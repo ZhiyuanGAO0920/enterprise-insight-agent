@@ -8,6 +8,8 @@ V4.7 抽取：指标逻辑原在 tests/run_eval.py，金丝雀端点需要同一
 import json
 import re
 
+from app.tools.grounding import check_report_grounding  # V5 T-10a: Claim-level grounding
+
 # ---------------------------------------------------------------------------
 # 基础规则检查
 # ---------------------------------------------------------------------------
@@ -234,6 +236,25 @@ def classify_reflection(feedback_json: str | None, passed: bool) -> str:
 
 
 # ---------------------------------------------------------------------------
+# V5 T-10a / Phase 2：Evidence Coverage（Claim-level Grounding）
+# ---------------------------------------------------------------------------
+
+
+def compute_evidence_coverage(report: str, sources: list[dict]) -> dict:
+    """对单条报告做 claim-level grounding，返回指标 + 明细。
+
+    零 LLM、纯确定性；口径：报告中「含数字的陈述句」为关键结论，
+    每条结论任一数字在 sources.raw_data 命中即为 grounded。
+
+    Returns:
+        {total_claims, grounded_claims, evidence_coverage, details}
+        无 report / 无 claims 时 total=0 coverage=0.0。
+    """
+    gr = check_report_grounding(report, sources)
+    return gr.as_dict()
+
+
+# ---------------------------------------------------------------------------
 # 指标汇总（compute_metrics 与 run_eval.print_report 共用口径）
 # ---------------------------------------------------------------------------
 
@@ -267,6 +288,24 @@ def compute_metrics(results: list[dict]) -> dict:
     sql_failed = sum(r["sql_accuracy"]["failed"] for r in results if r.get("sql_accuracy"))
     sql_total = sum(r["sql_accuracy"]["total"] for r in results if r.get("sql_accuracy"))
 
+    # ---- V5 Evidence Coverage（claim-level grounding；total=0 条目不参与） ----
+    ec_entries = [
+        r["evidence_coverage"] for r in results
+        if isinstance(r.get("grounding"), dict) and r["grounding"].get("total_claims", 0) > 0
+    ]
+    ec_grounded = sum(
+        r["grounding"]["grounded_claims"] for r in results
+        if isinstance(r.get("grounding"), dict)
+    )
+    ec_claims_total = sum(
+        r["grounding"]["total_claims"] for r in results
+        if isinstance(r.get("grounding"), dict)
+    )
+    evidence_coverage_avg = round(sum(ec_entries) / max(len(ec_entries), 1), 4) if ec_entries else None
+    evidence_coverage_agg = (
+        round(ec_grounded / ec_claims_total, 4) if ec_claims_total > 0 else None
+    )
+
     # ---- Reflection 四分类（修复监控指标失真的核心） ----
     rstatus = [r.get("reflection_status") for r in results]
     r_counts = {s: rstatus.count(s) for s in ("passed", "failed", "parsing_fallback", "skipped", "ablation")}
@@ -275,6 +314,60 @@ def compute_metrics(results: list[dict]) -> dict:
     reflect_effective_pass = (
         (r_counts["passed"] + r_counts["parsing_fallback"]) / r_counted if r_counted else None
     )
+
+    # ---- V5 Phase 3：契约 4 维度分汇总（Numerical/Grounding/Reasoning/Alignment） ----
+    #     来源优先级：(1) reflection_contract (2) reflection_scores (3) feedback JSON -> scores
+    def _get_per_result_scores(r: dict) -> dict | None:
+        contract = r.get("reflection_contract")
+        if isinstance(contract, dict) and isinstance(contract.get("scores"), dict):
+            return dict(contract["scores"]) | {
+                "weighted": contract.get("weighted"),
+            }
+        scores = r.get("reflection_scores")
+        if isinstance(scores, dict) and "numerical" in scores:
+            return dict(scores)
+        fb = r.get("reflection_feedback")
+        if isinstance(fb, str) and fb.strip().startswith("{"):
+            try:
+                parsed = json.loads(fb)
+                inner = parsed.get("scores")
+                if isinstance(inner, dict) and "numerical" in inner:
+                    return dict(inner)
+            except Exception:
+                pass
+        return None
+
+    FOUR = ("numerical", "grounding", "reasoning", "alignment")
+    contract_entries: list[dict] = [s for r in results if (s := _get_per_result_scores(r)) is not None]
+    contract_avg = {}
+    for d in FOUR:
+        vals = [e[d] for e in contract_entries if isinstance(e.get(d), (int, float))]
+        contract_avg[d] = round(sum(vals) / max(len(vals), 1), 2) if vals else None
+    weighted_vals = [e["weighted"] for e in contract_entries if isinstance(e.get("weighted"), (int, float))]
+    contract_avg["weighted"] = round(sum(weighted_vals) / max(len(weighted_vals), 1), 2) if weighted_vals else None
+
+    # 计算 recommendation_alignment 占比（方案要求：显著高于原可操作性 4% 的占比）
+    # 用 "alignment score 占四项之和" 的样本算术平均作为近似占比指标
+    align_share_entries = []
+    for e in contract_entries:
+        vals = [e.get(d) for d in FOUR if isinstance(e.get(d), (int, float))]
+        if len(vals) == 4 and sum(vals) > 0:
+            align_share_entries.append(e["alignment"] / sum(vals))
+    align_share_avg = round(sum(align_share_entries) / max(len(align_share_entries), 1), 4) if align_share_entries else None
+
+    # High-sev 违约计数（Numerical / Grounding < 50）
+    high_sev_numerical = sum(1 for e in contract_entries if isinstance(e.get("numerical"), (int, float)) and e["numerical"] < 50)
+    high_sev_grounding = sum(1 for e in contract_entries if isinstance(e.get("grounding"), (int, float)) and e["grounding"] < 50)
+
+    contract_summary = {
+        "entry_count": len(contract_entries),
+        "avg_scores": contract_avg,
+        "recommendation_alignment_share_avg": align_share_avg,  # 核心观察：对齐度在 4 项中占比（目标 > 4%）
+        "high_sev_breach": {
+            "numerical_below_50_count": high_sev_numerical,
+            "grounding_below_50_count": high_sev_grounding,
+        },
+    }
 
     # ---- LLM-as-Judge ----
     judge_dims = ("accuracy", "logic", "actionability", "completeness")
@@ -329,5 +422,12 @@ def compute_metrics(results: list[dict]) -> dict:
         "judge_avg_scores": judge_avg,
         "judge_pass_rate": judge_pass_rate,
         "avg_latency_ms": int(avg_latency),
+        # V5 T-10a / Phase 2: Claim-level Grounding 核心质量指标
+        "evidence_coverage_avg": evidence_coverage_avg,   # 每条报告 coverage 的算术平均
+        "evidence_coverage_agg": evidence_coverage_agg,   # 跨报告合并口径：grounded_claims / total_claims
+        "evidence_claims_total": ec_claims_total,         # 样本中关键结论总条数
+        "evidence_grounded_total": ec_grounded,           # 样本中被证据支撑的结论条数
+        # V5 Phase 3: Reflection 契约化 4 维度汇总
+        "reflection_contract": contract_summary,
         "by_type": type_summary,
     }

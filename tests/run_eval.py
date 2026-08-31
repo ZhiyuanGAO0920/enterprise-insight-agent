@@ -55,6 +55,7 @@ from app.services.eval_metrics import (  # noqa: E402
     check_no_hallucination,
     check_result_rows,
     classify_reflection,
+    compute_evidence_coverage,   # V5 T-10a: Claim-level grounding
     compute_metrics,
     compute_sql_accuracy,
     cross_check_report,
@@ -199,11 +200,17 @@ async def run_single_eval(
             "no_hallucination": check_no_hallucination(report),
             "cross_check": cross_check_report(report, sources, question.get("question", "")),
             "sql_accuracy": compute_sql_accuracy(sources),
+            # V5 T-10a: Claim-level Grounding（零 LLM，纯确定性）
+            "grounding": (gr := compute_evidence_coverage(report, sources)),
+            "evidence_coverage": gr["evidence_coverage"],
             "reflection_status": (
                 "ablation" if skip_reflection else classify_reflection(
                     data.get("reflection_feedback"), data.get("reflection_passed", False)
                 )
             ),
+            # V5 Phase 3：Reflection 契约 4 维度分 & contract 明细（随 eval 结果持久化，下次 eval 自动有 4 维分做相关性分析）
+            "reflection_scores": data.get("reflection_scores"),
+            "reflection_contract": data.get("reflection_contract"),
             "sql_count": len(sqls),
             "sqls": sqls[:3],
             "errors": len(errors),

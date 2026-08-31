@@ -58,6 +58,7 @@ class AnalysisHistory(Base):
     embedding = Column(Vector(1024), nullable=True)  # BGE-M3 嵌入
     share_token = Column(String(64), nullable=True)  # V4.6: 报告分享 token，未分享为 NULL
     share_expires_at = Column(DateTime, nullable=True)  # V4.6: 分享链接过期时间
+    data_sources = Column(JSON, nullable=True)  # V5 T-10a: 证据链持久化（SQL/raw_data/行数），历史分析可回查"结论当时依据什么数据"
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +245,8 @@ class Member(Base):
     register_date = Column(DateTime, nullable=False, default=_utcnow)
     last_consume_date = Column(DateTime, nullable=True)
     total_amount = Column(Float, nullable=False, default=0)
+    # V5 T-01 路径 B：租户隔离列（PG RLS 策略 current_setting('app.tenant_id') 据此过滤）
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, comment="租户 ID（V5 RLS 隔离）")
 
 
 class EmployeePerformance(Base):
