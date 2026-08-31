@@ -1,0 +1,151 @@
+{
+  "meta": {
+    "n_queries": 100,
+    "top_k": 5,
+    "threshold": 0.65,
+    "evidence_A_sql_hit_rate": "4/100",
+    "note": "A 层已证明 SQL 提取源为空；B 层供人工判定：Top-1 相似问题对生成新查询是否有复用价值"
+  },
+  "samples": [
+    {
+      "query_id": 483,
+      "query": "华东区销售额最高的门店是哪家",
+      "top1_id": 847,
+      "top1_question": "华东区近30天销售额最高的门店是哪个",
+      "top1_similarity": 0.9118
+    },
+    {
+      "query_id": 1021,
+      "query": "分析华东区最近销售情况",
+      "top1_id": 851,
+      "top1_question": "分析华东区最近销售情况",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 1074,
+      "query": "How many orders are there in the database? Answer in one sentence.",
+      "top1_id": 432,
+      "top1_question": "How many orders are there in the database? Answer in one sentence.",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 361,
+      "query": "销售额TOP5门店",
+      "top1_id": 340,
+      "top1_question": "销售额TOP5门店",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 766,
+      "query": "销售额排名前20的门店分布在哪些区域？各区域门店的平均销售额与订单量是否有显著差异？",
+      "top1_id": 809,
+      "top1_question": "各区域销售额对比",
+      "top1_similarity": 0.7931
+    },
+    {
+      "query_id": 847,
+      "query": "华东区近30天销售额最高的门店是哪个",
+      "top1_id": 27,
+      "top1_question": "华东区近30天销售额最高的门店是哪个",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 850,
+      "query": "各区域订单数对比",
+      "top1_id": 317,
+      "top1_question": "各区域订单数对比",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 1018,
+      "query": "近30天退款金额超过1000元的门店有哪些",
+      "top1_id": 7,
+      "top1_question": "近30天退款金额超过1000元的门店有哪些",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 1022,
+      "query": "分析会员流失情况",
+      "top1_id": 871,
+      "top1_question": "分析会员流失情况",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 467,
+      "query": "消费金额最高的三个会员是哪三个",
+      "top1_id": 17,
+      "top1_question": "各门店会员数量排名",
+      "top1_similarity": 0.7421
+    },
+    {
+      "query_id": 582,
+      "query": "周二高额订单具体是哪些",
+      "top1_id": 475,
+      "top1_question": "当前总订单数",
+      "top1_similarity": 0.6825
+    },
+    {
+      "query_id": 1024,
+      "query": "分析近期退款率变化趋势并给出改进建议",
+      "top1_id": 872,
+      "top1_question": "分析近期退款率变化趋势并给出改进建议",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 518,
+      "query": "test stores",
+      "top1_id": 1031,
+      "top1_question": "test",
+      "top1_similarity": 0.7323
+    },
+    {
+      "query_id": 738,
+      "query": "上个月销售额最高的五家门店",
+      "top1_id": 594,
+      "top1_question": "上个月销售额最高的三家门店",
+      "top1_similarity": 0.9446
+    },
+    {
+      "query_id": 1063,
+      "query": "test",
+      "top1_id": 1031,
+      "top1_question": "test",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 852,
+      "query": "对比华东和华北两个区域的销售表现",
+      "top1_id": 792,
+      "top1_question": "对比华东和华北两个区域的销售表现",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 849,
+      "query": "各区域销售额占比",
+      "top1_id": 300,
+      "top1_question": "各区域销售额占比",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 701,
+      "query": "分析无锡大悦城店（a店）退款率过高的原因",
+      "top1_id": 699,
+      "top1_question": "分析厦门旗舰店（a店）退款率过高的原因",
+      "top1_similarity": 0.8181
+    },
+    {
+      "query_id": 505,
+      "query": "当前总订单数",
+      "top1_id": 475,
+      "top1_question": "当前总订单数",
+      "top1_similarity": 1.0
+    },
+    {
+      "query_id": 579,
+      "query": "各区域经营对比",
+      "top1_id": 373,
+      "top1_question": "各区域经营对比",
+      "top1_similarity": 1.0
+    }
+  ]
+}

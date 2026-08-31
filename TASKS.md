@@ -259,17 +259,32 @@
 
 * **验证数据**：见"历史归档"T-11 条目
 
-### T-10 🟡 P1 RAG SQL 存储修复
+### T-10 ✅ 完成并决策：拆分为 T-10a（落库，Phase 2）+ T-10b（止损实验，Phase 4）— 2026-08-31
 
-* **目标**：`analysis_history` 落 `data_sources` 字段，`search_similar_sql` 恢复可用（当前命中率 0%）
+* **T-10a 落库（Phase 2，随 b372aee0 提交）**：
+  * `analysis_history.data_sources` 列 + 迁移 016 + `save_analysis_history` 写入（`memory_node.py`）+ 周报传递（`weekly.py`）
+  * 验证：`tests/test_t10a_data_sources_persistence.py` 通过；执行分析后 history 有 data\_sources
 
-* **状态**：待办
+* **T-10b 止损实验（Phase 4，2026-08-31）：决策 = DELETE（砍掉 `search_similar_sql`）**
 
-* **修改范围**：`app/database/models` + `save_analysis_history` + `app/tools/memory.py` 检索。**禁止动** SQL 生成链路
+  * **决策**：删除 `search_similar_sql` + base.py RAG SQL 注入块 + eval_retrieval.py SQL 命中部分（语义召回保留）
 
-* **停止条件**：连续 2 次失败停止记录
+  * **一句话理由**：SQL 复用链路在真实数据上有效复用率 ≈ 0%（远低于 20% 决策线），修复后价值池仅 0.8%，不值得 2-3 天修复
 
-* **验证数据**：执行一次分析后查 history 有 data\_sources；相似 SQL 检索命中 > 0
+  * **数据支撑**（`scripts/phase4_probe_history.py` + `scripts/phase4_search_reuse_experiment.py` 实测）：
+    * 1022 条历史：有 embedding 980 条（95.9%），data\_sources 落库仅 8 条（0.8%）
+    * 子结果 SQL 提取率 0.0%（520 条有子结果文本，正则一条都提取不到——子结果是 LLM Markdown 回答，非 SQL）
+    * 端到端 100 query × Top-5：仅 4% 有 SQL 返回，其中 3/4 是 sim=1.0 同题自命中，且"SQL"是从回答文本抠出的垃圾片段
+    * 对照：语义检索层本身质量好（排除自身后 Top-1 中位相似度 1.0，97% ≥0.65；判定样本 8/8 语义相关）——但高相似度来自历史问题高度重复（同题多次分析），同题再问由 Redis 缓存 + 历史详情兜底，不需要 SQL Few-shot
+    * V4.6.3 eval_retrieval.py 已有同结论记录（"存储设计缺口，非检索失败"），挂到 T-10 一直未决
+
+  * **放弃的替代方案**：
+    * 改提取源为 data\_sources 字段（修复 2-3 天）：价值池仅 8 条（0.8%）新记录，且相似问题的 SQL 需 LLM 改写 WHERE 才能复用——收益与成本不成比例
+    * KEEP 死代码静默降级：每次分析 5 个 Agent 白付 embedding + DB 查询（成本浪费），违背"不留僵尸"
+
+  * **结果**：`app/tools/memory.py` 删函数（保留 find\_similar\_analyses / get\_history_detail）、`app/agents/base.py` 删注入块、`scripts/eval_retrieval.py` 去 SQL 部分；同题复用由缓存+历史兜底不变；**语义检索能力保留**
+
+  * **验证数据**：全量回归（见下方基线区 Phase 3 后实测）；grep 无 search\_similar\_sql 残留引用（仅注释）；py_compile 通过
 
 ***
 

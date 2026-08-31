@@ -94,22 +94,9 @@ def create_agent_node(
         if context and state.get("is_followup", False):
             system = context + "\n\n---\n\n" + system
 
-        # RAG：检索历史上相似问题的已验证 SQL
-        try:
-            from app.tools.memory import search_similar_sql
-
-            similar_sqls = await search_similar_sql(
-                state["question"], agent=agent_name,
-                top_k=3, user_id=state.get("user_id"),
-            )
-            if similar_sqls:
-                rag = "\n\n## 参考：历史上类似问题的 SQL（已验证准确，可直接复用或参考）\n"
-                for i, item in enumerate(similar_sqls, 1):
-                    rag += f"\n示例 {i}：\n  - 历史问题：{item['question'][:120]}\n  - 参考SQL：{item['sql']}\n"
-                system = rag + system
-        except Exception:
-            node_logger.warning("RAG SQL 检索失败（不影响主流程）", exc_info=True)
-
+        # Phase 4 止损（T-10b, 2026-08-31）：search_similar_sql 已砍——提取源（子结果文本）无 SQL，
+        # 100 query 实测有效复用率 4%（含同题自命中与垃圾片段），修复后价值池仅 0.8%（data_sources 落库 8/1022）。
+        # 同题重复查询由 Redis 缓存 + 历史详情兜底，语义检索保留 find_similar_analyses。
         settings = get_settings()
         data_sources: list[dict] = []
         sql_row_count = 0

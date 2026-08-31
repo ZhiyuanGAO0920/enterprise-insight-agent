@@ -71,9 +71,10 @@ async def save_analysis_history(
     Returns:
         新创建的历史记录 ID。
     """
-    # V4.6.3: 嵌入「问题」而非「报告」——检索侧（find_similar_analyses / search_similar_sql）
-    # 都用问题文本做向量，存储侧必须同构；此前嵌入报告（长文+数字表格），
+    # V4.6.3: 嵌入「问题」而非「报告」——检索侧（find_similar_analyses）
+    # 用问题文本做向量，存储侧必须同构；此前嵌入报告（长文+数字表格），
     # 与短查询语义错位，改写句召回率实测仅 25%。
+    # Phase 4 止损（T-10b）：search_similar_sql 已删除，详见 TASKS.md T-10b。
     embedding = await get_embedding(question)
     # 格式化为 PG vector 字面量：[0.1,0.2,0.3,...]
     vec_str = _vec_to_str(embedding)
@@ -247,95 +248,6 @@ async def get_history_by_user(
             }
             for r in records
         ]
-
-
-async def search_similar_sql(
-    query_text: str,
-    agent: str = "",
-    top_k: int = 3,
-    threshold: float = 0.65,
-    user_id: int | None = None,
-) -> list[dict]:
-    """RAG 增强：检索历史上相似问题的已验证 SQL，供 Agent 作 Few-shot 参考。
-
-    从 analysis_history 表中搜索与 query_text 语义相似的记录，
-    并提取对应的 data_sources 中的 SQL 作为参考示例。
-
-    Args:
-        query_text: 当前用户问题文本。
-        agent: 如果指定，只返回来自该 Agent 的 SQL（如 "sales"/"crm"/"finance"）。
-        top_k: 返回的最大结果数。
-        threshold: 最小余弦相似度。
-        user_id: 用户 ID（用于租户隔离，为 None 时不限制租户）。
-
-    Returns:
-        包含 question/sql/similarity 的字典列表。
-    """
-    from app.tools.embedding import get_embedding
-
-    embedding = await get_embedding(query_text)
-    vec_str = _vec_to_str(embedding)
-
-    async with get_session() as session:
-        # 查询用户的 tenant_id 用于隔离
-        tid = None
-        if user_id is not None:
-            r = await session.execute(
-                sql_text("SELECT tenant_id FROM users WHERE id = :uid"),
-                {"uid": user_id},
-            )
-            row = r.fetchone()
-            if row and row[0] is not None:
-                tid = row[0]
-        # V5 T-02：无 user_id 或查不到 → contextvar 兜底；仍无 → 拒绝（不跨租户命中）
-        if tid is None:
-            tid = get_tenant_id()
-        if tid is None:
-            return []
-        tid_filter = " AND tenant_id = :tid"
-        result = await session.execute(
-            sql_text(
-                f"""
-                SELECT id, question, report, create_time,
-                       sales_result, crm_result, finance_result,
-                       inventory_result, supply_chain_result,
-                       1 - (embedding <=> CAST(:e AS vector)) AS similarity
-                FROM analysis_history
-                WHERE embedding IS NOT NULL
-                  AND 1 - (embedding <=> CAST(:e AS vector)) > :t
-                  {tid_filter}
-                ORDER BY similarity DESC
-                LIMIT :l
-                """
-            ),
-            {"e": vec_str, "t": threshold, "l": top_k, "tid": tid},
-        )
-        rows = result.fetchall()
-
-        sql_results = []
-        for row in rows:
-            # 从主查询已经获取的子 Agent 结果中提取 SQL
-            sales_text = row.sales_result or ""
-            crm_text = row.crm_result or ""
-            finance_text = row.finance_result or ""
-            inventory_text = row.inventory_result or ""
-            supply_chain_text = row.supply_chain_result or ""
-
-            # 从子结果中简单提取 SQL（SQL 通常以 SELECT 开头）
-            import re
-            combined = f"{sales_text}\n{crm_text}\n{finance_text}\n{inventory_text}\n{supply_chain_text}"
-            sql_matches = re.findall(r'(SELECT\s+.*?(?:;|$))', combined, re.IGNORECASE | re.DOTALL)
-
-            for sql in sql_matches[:2]:  # 每条记录最多取 2 条 SQL
-                sql_clean = sql.strip().replace("\n", " ")[:500]
-                if sql_clean and len(sql_clean) > 20:
-                    sql_results.append({
-                        "question": row.question,
-                        "sql": sql_clean,
-                        "similarity": round(row.similarity, 4),
-                    })
-
-        return sql_results[:top_k]
 
 
 async def get_history_detail(record_id: int, user_id: int | None = None) -> dict | None:
