@@ -1,4 +1,4 @@
-/* Enterprise Insight Agent V4 — 入口
+/* Enterprise Insight Agent V5 — 入口
  * 初始化 + 会话恢复
  * token 有效性验证已在 index.html 内联脚本中优先执行
  */

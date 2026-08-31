@@ -1,4 +1,4 @@
-# Enterprise Insight Agent V4 — 项目全貌
+# Enterprise Insight Agent V5 — 项目全貌
 
 > Claude 新窗口自动加载此文件即可了解项目。
 
@@ -9,8 +9,8 @@
 面向连锁零售的 Multi-Agent AI 经营分析平台。11 个 Agent 协作，用户用自然语言提问，60 秒内获得含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
-**状态**：V4.8，213 条测试（211 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复），GitHub 开源。**金丝雀闭环**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集**每周一次** **应用内 asyncio 定时**跑分（T-12，每日 09:30 检查，幂等判据：最近 7 天已有 canary 记录则跳过，省 DeepSeek 配额；n8n 侧同工作流保留双保险），与同模型基线对比超阈值自动告警（模型漂移检测）。V4.8 另含：PII 脱敏（T-03，sql_runner 结果出口 + 审计 query_params 集中掩码）、金丝雀漂移监控面板（T-11，原生 + React 双版）
-**任务清单**：[TASKS.md](TASKS.md) — 项目唯一任务清单（当前 10 项，每项含目标/状态/修改范围/停止条件/验证数据）。开工前必读；任务完成必须归档并附验证数据与 commit
+**状态**：V5.0.0（收官版），242 条测试（238 通过 / 4 失败——均为本地环境问题：LLM API 连接 ×2 + 配置测试 .env 污染 ×2，重跑可恢复），GitHub 开源。**金丝雀闭环**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集**每周一次** **应用内 asyncio 定时**跑分（T-12，每日 09:30 检查，幂等判据：最近 7 天已有 canary 记录则跳过，省 DeepSeek 配额；n8n 侧同工作流保留双保险），与同模型基线对比超阈值自动告警（模型漂移检测）。V5.0 另含：PII 脱敏（T-03，sql_runner 结果出口 + 审计 query_params 集中掩码）、金丝雀漂移监控面板（T-11，原生 + React 双版）、**Reflection 契约化**（T-09：4 项契约加权质检 + 证据链 data_sources 落库）、**RAG 止损**（T-10b：search_similar_sql 端到端复用率 4% 实测 → 删除）
+**任务清单**：[TASKS.md](TASKS.md) — 项目唯一任务清单（当前待办 5 项 + 历史归档，每项含目标/状态/修改范围/停止条件/验证数据）。开工前必读；任务完成必须归档并附验证数据与 commit
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商
 
 ---
@@ -146,5 +146,5 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 - 启动：双击 `重启服务.bat` 或 `uvicorn app.api.main:app --port 8002 --reload`
 - **改 `app/api/static/` 前端文件后必须 bump 版本号**（`index.html` 里 `views.js?v=4.56` 等 `?v=` 参数，否则浏览器命中旧缓存，改动"看起来没生效"）——T-11 排查踩坑沉淀
 - 热重载 Prompt：`POST /api/v1/prompts/reload`
-- 测试：`pytest tests/ -v`（213 条）
+- 测试：`pytest tests/ -v`（242 条）
 - 数据库迁移：`alembic upgrade head`（当前 13 个版本）

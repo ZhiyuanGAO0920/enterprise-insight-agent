@@ -1,4 +1,4 @@
-# EIA V4 任务清单
+# EIA V5 任务清单（收官包）
 
 > **单一事实源**：本文件是项目唯一任务清单（当前任务 + 历史归档）。开工前先读本文件，不依赖对话记忆。任务完成必须从"当前任务"移到"历史归档"并附验证数据与 commit。TASKS.md 变更随代码一起提交。
 
@@ -16,11 +16,7 @@
 
 ### 📊 收官包基线（2026-08-31 实测，§1.2 基线先行）
 
-* **N（collected）**：213
-
-* **passed**：209
-
-* **failed**：4（均为既有环境问题，非代码缺陷）
+* **Phase 1 开工基线**（log：`pytest_baseline_20260831.log`，耗时 80.90s）：N=213 / passed=209 / failed=4——均为既有环境问题，非代码缺陷
 
   * `tests/test_acceptance.py::test_deepseek_llm` — openai.APIConnectionError（DeepSeek API 连接失败）
 
@@ -30,108 +26,17 @@
 
   * `tests/test_config.py::test_settings_defaults` — .env 真实 Redis 端口污染测试（期望 `6379`，实际读到 Docker 端口 `6381`）
 
-* **耗时**：80.90s
+* **判据**：改后全量回归与基线对比——passed < 209 或新增非环境失败即回归
 
-* **log**：`pytest_baseline_20260831.log`（根目录）
+* **Phase 3 后最新基线**（log：`pytest_phase4_verify.log`，2026-08-31）：**242 collected / 238 passed / 4 failed**——4 失败与开工基线同根因（LLM 连接 ×2 + test\_config .env 污染 ×2），重跑可恢复
 
-* **判据**：Phase 1+ 改后全量回归与本次基线对比——passed < 209 或新增非环境失败即回归
+* **状态同步**：CLAUDE.md/AGENTS.md/README/面试素材文档测试数字已统一为 242/238/4（Phase 6 第 5 条完成，2026-08-31）
 
-* **与 CLAUDE.md:12 的差异**：CLAUDE.md 写「211 通过 / 2 失败」为早期快照，本次实测多 2 条 failed 属 test\_config.py 的 .env 隔离缺陷（既有，非本次引入）——归入 Phase 6 第 5 条「测试数字与状态同步」一并修正 CLAUDE.md
+### T-01 ✅ 已完成（Phase 1，2026-08-31）→ 详见历史归档「T-01 会员 PII 越权」
 
-### T-01 🔴 H3 会员 PII 越权：Member 表补租户/门店维度
+### T-02 ✅ 已完成（Phase 1，2026-08-31）→ 详见历史归档「T-02 向量检索跨租户隔离」
 
-* **目标**：Member 表增加租户/门店维度并纳入 RLS，任何登录用户不可查询其他租户会员手机号
-
-* **状态**：✅ 已完成（Phase 1，2026-08-31）
-
-* **决策**：
-
-  * §7 决策 2：加列+RLS（放弃拆表/弱化展示）
-
-  * §7 决策 8：路径 B 真 PG RLS（放弃路径 A 改 sql\_runner / 路径 C 双保险）
-
-  * §7 决策 9：RLS 策略从 FOR SELECT 改为 FOR ALL（USING + WITH CHECK）——FORCE RLS 下 INSERT/DELETE 也需策略，FOR SELECT 导致 eia\_app 写入被拒
-
-  * 方案 A（换 eia\_app 用户）：admin 是 superuser+BYPASSRLS，FORCE 也绕过；创建 eia\_app（NOSUPERUSER+NOBYPASSRLS），应用运行时用 eia\_app，alembic 迁移用 admin
-
-* **PG 实测现状（2026-08-31 docker exec eia-postgres）**：
-
-  * `member` 表 **无 tenant\_id 列**（10 列）——T-01 真要加列，非误判
-
-  * `tenants` 表只有 1 条记录（id=1, 默认租户）——隔离测试构造第 2 个租户（id=9999）
-
-  * `users.tenant_id` **全是 NULL**——006 迁移声称回填但实际未生效，T-02 孤儿用户比预想严重
-
-* **修改范围**：
-
-  * `app/database/models.py`（Member 类加 `tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)` 声明）
-
-  * 新建 alembic 迁移 015\_tenant\_isolation\_rls：
-
-    1. `ALTER TABLE member ADD COLUMN tenant_id INTEGER`
-    2. `UPDATE member SET tenant_id = (SELECT id FROM tenants WHERE slug='default')`（回填 5000 条）
-    3. `UPDATE users SET tenant_id = (SELECT id FROM tenants WHERE slug='default') WHERE tenant_id IS NULL`（T-02 共享回填 117 条）
-    4. `ALTER TABLE member ADD CONSTRAINT fk_member_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id)`
-    5. `ALTER TABLE member ALTER COLUMN tenant_id SET NOT NULL`
-    6. `ALTER TABLE users ALTER COLUMN tenant_id SET NOT NULL`（T-02 共享约束）
-    7. `CREATE INDEX idx_member_tenant_id ON member(tenant_id)`
-    8. `CREATE POLICY member_tenant_isolation ON member FOR ALL USING (...) WITH CHECK (...)`（FOR ALL 覆盖 SELECT/INSERT/UPDATE/DELETE）
-    9. `ALTER TABLE member ENABLE ROW LEVEL SECURITY`
-    10. `ALTER TABLE member FORCE ROW LEVEL SECURITY`（让 owner 也受约束）
-
-  * `app/database/connection.py`（contextvar `_tenant_id_var` + `set_tenant_id()` + `after_begin` 事件注入 `SET LOCAL app.tenant_id = X`，函数签名 `(session, transaction, connection)`）
-
-  * `app/middleware/tenant.py`（解析 JWT tenant\_id 后调 `set_tenant_id()` 写 contextvar）
-
-  * `.env`（DATABASE\_URL 切换 eia\_app，DATABASE\_URL\_SYNC 保持 admin）
-
-  * 创建 eia\_app 角色（NOSUPERUSER+NOBYPASSRLS+GRANT DML+ALTER DEFAULT PRIVILEGES）
-
-  * 新增 `tests/test_tenant_isolation.py`（5 场景隔离套件）
-
-  * **禁止动** `app/tools/sql_runner.py`（§1.1 红线；RLS 在 DB 层生效）
-
-* **停止条件**：Step 0 + 路径已确认；连续 2 次失败停止记录；5 个工作日时间盒
-
-* **验证数据**（2026-08-31）：
-
-  * PG 层：eia\_app 无 tenant\_id → 0 行；设 tenant\_id=1 → 5000 行（RLS 生效）
-
-  * 隔离套件 5 场景全绿：① A 查自己 5000 行 ② B 查 A 数据只看自己 3 条 ③ 无 tenant\_id → 0 行 ④ SQL 注入 int() 拦截 ⑤ memory.py 无 tenant\_id 拒绝检索
-
-  * 全量回归 218 collected / 214 passed / 4 failed（4 个失败与基线一致：LLM 连接 + 配置测试，无新增失败）
-
-### T-02 🔴 M4 向量检索跨租户隔离
-
-* **目标**：`users.tenant_id` 非空约束（或默认租户回填），NULL 用户检索被拒而非跨租户命中
-
-* **状态**：✅ 已完成（Phase 1，2026-08-31）
-
-* **决策**：默认租户回填（NULL users → default tenant\_id）+ 非空约束（放弃拒绝检索/混合策略，见方案 §7 决策 7）
-
-* **修改范围**：alembic 迁移 + `app/tools/memory.py` 检索前置校验。**禁止动** 向量索引与 Embedding 链路
-
-* **停止条件**：策略已确认；连续 2 次失败停止记录
-
-* **验证数据**（2026-08-31）：
-
-  * users.tenant\_id 回填 117 条全 = 1（default tenant）+ 非空约束 is\_nullable=NO（015 迁移）
-
-  * memory.py `find_similar_analyses` / `search_similar_sql`：无 user\_id → contextvar 兜底 → 仍无 → return \[]（拒绝，不跨租户命中）
-
-  * 隔离套件场景 5 验证：无 tenant\_id → 检索返回空，不跨租户命中
-
-### T-03 ✅ 完成 P0 PII 脱敏（个保法合规）— 2026-08-12
-
-* **目标**：报告输出与审计日志对手机号等脱敏（`138****8000`），数据库原样存储。与 T-01 相关联但独立：T-01 管访问控制，本项管输出脱敏
-
-* **状态**：✅ 已完成并归档（见下方"历史归档"）
-
-* **修改范围**：`app/services/masker.py`（新建）+ `app/tools/sql_runner.py`（run\_sql 结果出口）+ `app/middleware/audit.py`（query\_params）。**禁止动** 数据层与 SQL 生成
-
-* **停止条件**：若脱敏点超 20 处，先出分层方案（输出层统一 vs 逐点）；连续 2 次失败停止记录
-
-* **验证数据**：见"历史归档"T-03 条目
+### T-03 ✅ 已完成并归档（2026-08-12）→ 详见历史归档「T-03 PII 脱敏」
 
 ### T-04 🟡 P0 成本硬限额
 
@@ -193,98 +98,13 @@
 
 * **验证数据**：Playwright 走通核心流程 + curl 验证安全头存在
 
-### T-09 ✅ 完成 P1 Reflection 契约化（Phase 3，2026-08-31）
+### T-09 ✅ 已完成（Phase 3，2026-08-31）→ 详见历史归档「T-09 Reflection 契约化」
 
-* **目标**：Reflection 从"4 项主观自评"改为"4 项质量契约合规审查"——Numerical Consistency（30%）/ Evidence Grounding（35%）/ Reasoning Validity（15%）/ Recommendation Alignment（20%），可操作性维度占比显著提升（方案目标 > 4%）
+### T-12 ✅ 已完成并归档（2026-08-13）→ 详见历史归档「T-12 应用内金丝雀定时兜底」
 
-* **状态**：✅ 已完成（Phase 3，2026-08-31）
+### T-11 ✅ 已完成并归档（2026-08-12）→ 详见历史归档「T-11 金丝雀监控面板」
 
-* **决策**：
-
-  * Step 0 相关性分析：老 eval 数据无 4 维度独立分 / 无满意度 ground truth → 严格 Pearson/Spearman 不可行（诚实判定）→ 用次优替代证据拍板权重
-
-  * 权重拍板：Numerical=30% / Grounding=35% / Reasoning=15% / Alignment=20%，通过阈值 = 加权综合 ≥ 70 且 Numerical/Grounding 均 ≥ 50（底线类一票否决）
-
-  * 口径替代：Alignment 契约权重 20% 替代老 V4 基于 issue 分类数的 4% 占比（新老口径不可直接相除，471% 仅作叙事参考）
-
-* **修改范围**：
-
-  * `app/agents/reflection_agent.py`（4 项契约：2 确定性 \[grounding.py] + 2 LLM；双写老 feedback schema 向后兼容，graph/report/memory 老消费者不挂）
-
-  * 🆕 `app/tools/grounding.py`（零 LLM 确定性检查器：claim 抽取 + 数字归一化 \[万/亿/%] + 匹配判定；异 pct 同值 ±1e-9 严格阈值防 50 vs 0.5 串配）
-
-  * `app/workflow/state.py`（reflection\_scores / reflection\_contract 字段）+ `app/services/eval_metrics.py`（契约 4 维聚合 + alignment share + 3 级 fallback）+ `tests/run_eval.py`（契约字段随 eval 结果持久化，下次 eval 自动有 4 维分可做真实相关性分析）
-
-  * `prompts/yaml/reflection.yaml` + `prompts/reflection_prompt.py`（双写：LLM 只判 Reasoning/Alignment 两项，明确不重复判确定性项）
-
-  * **禁止动** 报告生成主链路 ✅ 未动
-
-* **停止条件**：相关性分析未出不做权重变更 ✅ 满足（Step 0 先于 Step 1）；连续 2 次失败停止记录
-
-* **验证数据**（2026-08-31，全部可复现重跑）：
-
-  * Step 0：60 条 eval（5 个文件）——Reflection fail 样本中 83.6% 是"无幻觉但过度判"；Cross Check ≥ 0.95 仍 fail = 88.9% → 证明改契约 + Alignment 提权正确
-
-  * Step 1：新增单测 22/22 通过（test\_reflection\_contract\_logic.py 11 条 + test\_grounding.py 11 条）；YAML/Python prompt 双写 format 验证通过
-
-  * Step 2：`scripts/phase3_step2_canary_synth.py` 合成 12 条 canary → Alignment Share Avg = 22.83%（> 4% 目标达成）；产出正式基线模板 `tests/eval_canary_v5_contract_TEMPLATE.json`
-
-  * Step 3：全量回归 242 collected / 238 passed / 4 failed，0 新增失败（4 失败与基线同根因：LLM 连接 ×2 + test\_config .env 污染 ×2）
-
-  * **遗留**：真实金丝雀重基线待 DeepSeek API 恢复后补做（模板已就绪；真实 canary = 16 条，跑 `python -m tests.run_eval --canary --output <file>` 后重新聚合，勿直接替换 12 条模板）
-
-  * **commit**：`b372aee0`（2026-08-31，收官包 Phase 1-3 合提交，26 文件 +3562/-415）
-
-### T-12 ✅ 完成 P1 应用内金丝雀定时兜底（每日 09:30 幂等触发）— 2026-08-13
-
-* **目标**：金丝雀每日跑分不依赖 n8n（n8n 2.23 对 CLI 导入工作流的 cron 注册异常，6 次定时验证失败）。服务启动时注册 asyncio 定时任务：每天 09:30 检查 eval\_runs 当天是否已有 canary 记录——没有则子进程跑 `run_eval --canary --save-db`，已有则跳过（与 n8n 触发幂等，n8n 修好后双保险）
-
-* **状态**：✅ 已完成并归档（见"历史归档"）
-
-* **修改范围**：新建 `app/scheduler.py` + `app/api/main.py` startup 注册（含 shutdown 取消）+ `app/config.py` 加 canary\_hour/canary\_minute + `tests/test_canary_scheduler.py`。**禁止动** `tests/run_eval.py`、`eval_metrics.py`、`app/api/routes/eval.py`
-
-* **停止条件**：幂等判断在真实库上验证失败连续 2 次停止；连续 2 次失败停止记录
-
-* **验证数据**：见"历史归档"T-12 条目
-
-### T-11 ✅ 完成 P1 金丝雀监控面板（前端展示 eval\_runs）— 2026-08-12
-
-* **目标**：监控页加"金丝雀漂移"面板——最近 10 次跑分趋势线（通过率/覆盖率/延迟）+ drift 状态徽章 + 最新摘要。金丝雀数据此前仅 API/文件可看，前端零展示
-
-* **状态**：✅ 已完成并归档（见"历史归档"）
-
-* **修改范围**：`app/api/static/views.js`（监控页新增独立板块 + loadCanary 函数，局部降级：失败不影响主监控页）。**禁止动** `tests/run_eval.py` 评估引擎、`app/api/routes/eval.py` 端点、`eval_metrics.py` 指标口径、监控页现有板块逻辑
-
-* **停止条件**：若面板改动影响现有监控页渲染（30s 缓存/序号竞态），先回退；连续 2 次失败停止记录
-
-* **验证数据**：见"历史归档"T-11 条目
-
-### T-10 ✅ 完成并决策：拆分为 T-10a（落库，Phase 2）+ T-10b（止损实验，Phase 4）— 2026-08-31
-
-* **T-10a 落库（Phase 2，随 b372aee0 提交）**：
-  * `analysis_history.data_sources` 列 + 迁移 016 + `save_analysis_history` 写入（`memory_node.py`）+ 周报传递（`weekly.py`）
-  * 验证：`tests/test_t10a_data_sources_persistence.py` 通过；执行分析后 history 有 data\_sources
-
-* **T-10b 止损实验（Phase 4，2026-08-31）：决策 = DELETE（砍掉 `search_similar_sql`）**
-
-  * **决策**：删除 `search_similar_sql` + base.py RAG SQL 注入块 + eval_retrieval.py SQL 命中部分（语义召回保留）
-
-  * **一句话理由**：SQL 复用链路在真实数据上有效复用率 ≈ 0%（远低于 20% 决策线），修复后价值池仅 0.8%，不值得 2-3 天修复
-
-  * **数据支撑**（`scripts/phase4_probe_history.py` + `scripts/phase4_search_reuse_experiment.py` 实测）：
-    * 1022 条历史：有 embedding 980 条（95.9%），data\_sources 落库仅 8 条（0.8%）
-    * 子结果 SQL 提取率 0.0%（520 条有子结果文本，正则一条都提取不到——子结果是 LLM Markdown 回答，非 SQL）
-    * 端到端 100 query × Top-5：仅 4% 有 SQL 返回，其中 3/4 是 sim=1.0 同题自命中，且"SQL"是从回答文本抠出的垃圾片段
-    * 对照：语义检索层本身质量好（排除自身后 Top-1 中位相似度 1.0，97% ≥0.65；判定样本 8/8 语义相关）——但高相似度来自历史问题高度重复（同题多次分析），同题再问由 Redis 缓存 + 历史详情兜底，不需要 SQL Few-shot
-    * V4.6.3 eval_retrieval.py 已有同结论记录（"存储设计缺口，非检索失败"），挂到 T-10 一直未决
-
-  * **放弃的替代方案**：
-    * 改提取源为 data\_sources 字段（修复 2-3 天）：价值池仅 8 条（0.8%）新记录，且相似问题的 SQL 需 LLM 改写 WHERE 才能复用——收益与成本不成比例
-    * KEEP 死代码静默降级：每次分析 5 个 Agent 白付 embedding + DB 查询（成本浪费），违背"不留僵尸"
-
-  * **结果**：`app/tools/memory.py` 删函数（保留 find\_similar\_analyses / get\_history_detail）、`app/agents/base.py` 删注入块、`scripts/eval_retrieval.py` 去 SQL 部分；同题复用由缓存+历史兜底不变；**语义检索能力保留**
-
-  * **验证数据**：全量回归（见下方基线区 Phase 3 后实测）；grep 无 search\_similar\_sql 残留引用（仅注释）；py_compile 通过
+### T-10 ✅ 已完成并决策（2026-08-31）→ 详见历史归档「T-10 data_sources 落库 + RAG 止损」
 
 ***
 
@@ -299,6 +119,52 @@
 ***
 
 ## 历史归档
+
+### T-01 ✅ 会员 PII 越权：Member 表补租户/门店维度（2026-08-31 完成，Phase 1）
+
+* **目标**：Member 表增加租户/门店维度并纳入 RLS，任何登录用户不可查询其他租户会员手机号
+
+* **决策**：加列+RLS（§7 决策 2）；路径 B 真 PG RLS（§7 决策 8）；策略 FOR ALL（USING + WITH CHECK，FORCE RLS 下 INSERT/DELETE 也需策略）；应用运行时用 eia\_app 用户（admin 是 superuser+BYPASSRLS，FORCE 也绕过）
+
+* **修改范围**：`app/database/models.py`（Member.tenant\_id 声明）+ 迁移 015（member 加列/回填 5000 条/共享回填 users 117 条/FK/NOT NULL/索引/RLS POLICY FOR ALL + ENABLE + FORCE）+ `app/database/connection.py`（contextvar + after\_begin 注入 SET LOCAL app.tenant\_id）+ `app/middleware/tenant.py` + `.env`（DATABASE\_URL 切 eia\_app）+ `tests/test_tenant_isolation.py`（5 场景套件）。**未动** `app/tools/sql_runner.py`（红线）
+
+* **验证数据**（2026-08-31）：PG 层 eia\_app 无 tenant\_id → 0 行、设 tenant\_id=1 → 5000 行；隔离套件 5 场景全绿（A 查自己 5000 行 / B 查 A 只看自己 3 条 / 无 tenant\_id → 0 行 / int() 注入拦截 / memory.py 无 tenant\_id 拒绝检索）；全量回归 218/214/4（与基线同根因，无新增失败）
+
+### T-02 ✅ 向量检索跨租户隔离（2026-08-31 完成，Phase 1）
+
+* **目标**：`users.tenant_id` 非空约束（或默认租户回填），NULL 用户检索被拒而非跨租户命中
+
+* **决策**：默认租户回填（NULL users → default tenant\_id）+ 非空约束（放弃拒绝检索/混合策略，见方案 §7 决策 7）
+
+* **修改范围**：015 迁移共享回填 + `app/tools/memory.py` 检索前置校验。**未动** 向量索引与 Embedding 链路
+
+* **验证数据**（2026-08-31）：users.tenant\_id 回填 117 条全 = 1 + 非空约束 is\_nullable=NO；`find_similar_analyses` 无 user\_id → contextvar 兜底 → 仍无 → return \[]（拒绝，不跨租户命中）；隔离套件场景 5 验证通过
+
+### T-09 ✅ Reflection 契约化（2026-08-31 完成，Phase 3，commit `b372aee0`）
+
+* **目标**：Reflection 从"4 项主观自评"改为"4 项质量契约合规审查"——Numerical（30%）/ Grounding（35%）/ Reasoning（15%）/ Alignment（20%），加权 ≥70 且 Numerical/Grounding ≥50 双门槛
+
+* **决策**：Step 0 相关性分析不可行（老 eval 无 4 维独立分/无满意度 ground truth）→ 次优替代证据拍板权重；471% 为新老口径混搭的合成数据自证，仅作叙事参考
+
+* **修改范围**：`app/agents/reflection_agent.py`（4 项契约：2 确定性 + 2 LLM；双写老 feedback schema）+ 🆕 `app/tools/grounding.py`（零 LLM 确定性检查器，异 pct 同值 ±1e-9 严格阈值）+ `app/workflow/state.py` + `app/services/eval_metrics.py` + `tests/run_eval.py` + `prompts/yaml/reflection.yaml` + `prompts/reflection_prompt.py`。**未动** 报告生成主链路
+
+* **验证数据**（2026-08-31，可复现）：Step 0 相关性 83.6%/88.9%；Step 1 单测 22/22；Step 2 合成 canary Alignment Share 22.83%（>4% 目标）+ 模板 `tests/eval_canary_v5_contract_TEMPLATE.json`；Step 3 全量回归 242/238/4，0 新增失败
+
+* **遗留**：真实金丝雀重基线待 DeepSeek API 恢复后补做（真实 canary = 16 条，跑 `python -m tests.run_eval --canary --output <file>` 后重新聚合，勿直接替换 12 条模板）
+
+### T-10 ✅ data_sources 落库 + RAG 止损（2026-08-31 完成，Phase 2 + Phase 4）
+
+* **T-10a 落库**（随 `b372aee0` 提交）：`analysis_history.data_sources` 列 + 迁移 016 + `save_analysis_history` 写入 + 周报传递；`tests/test_t10a_data_sources_persistence.py` 通过
+
+* **T-10b 止损实验：决策 = DELETE（砍掉 `search_similar_sql`）**
+
+  * **理由**：SQL 复用链路真实数据有效复用率 ≈ 0%（决策线 20%），修复后价值池仅 0.8%，不值得 2-3 天修复
+
+  * **数据**（phase4 脚本实测）：1022 条历史 data\_sources 落库仅 8 条（0.8%）；子结果 SQL 提取率 0.0%；端到端 100 query × Top-5 仅 4% 有 SQL 返回且 3/4 为同题自命中垃圾片段；对照语义检索层本身质量好（Top-1 中位相似度 1.0，判定样本 8/8 相关）——但同题复用由缓存+历史详情兜底，不需要 SQL Few-shot
+
+  * **放弃的替代方案**：改提取源为 data\_sources（修复 2-3 天，价值池 8 条）；KEEP 死代码静默降级（白付 embedding 成本）
+
+  * **结果**：`memory.py` 删函数（保留 find\_similar\_analyses / get\_history_detail）、`base.py` 删注入块、`eval_retrieval.py` 去 SQL 部分（加 set\_tenant\_id(1)，修复后召回率 83%）；语义检索保留；grep 无残留引用、py\_compile 通过
 
 ### D-01 ✅ 文档：V1/V1.5 版本资料整理（2026-08-13 完成）
 
@@ -389,6 +255,8 @@
 * **⚠️ 原生版可见性对齐（同日完成）**：原生版监控菜单原 `adminOnly`，已对齐 React 版（admin + regional\_director）。过程中发现并修复更深的问题——原生版角色信息依赖 `/admin/users`（需 user:manage），director 访问 401 导致菜单永不显示：改为登录响应 `role` 驱动（localStorage `eia_role`），`/admin/users` 仅作 scope 补充。另补 regional\_director 角色中文名（下拉/用户管理 badge 均显示"区域总监"）。**bump views.js v4.55→v4.56**（static 改版必须 bump，浏览器缓存坑）。验证：director\_huadong 登录 → 监控菜单可见 → 监控页 + 金丝雀面板正常，不再被 401 踢出
 
 * **注意**：eval\_runs 目前仅 1 条真实记录（2026-08-10），趋势图需 ≥2 条才显示——n8n 每日跑分持续积累后自然出现
+
+### T-03 ✅ P0 PII 脱敏（2026-08-12 完成）
 
 * **方案**：集中式 2 拦截点——`sql_runner.run_sql` 结果格式化处（写 Redis 缓存**前**，缓存命中路径同安全）+ 审计中间件 query\_params。报告/表格/图表全部下游因 LLM 上下文无明文而天然安全，无需逐点处理
 

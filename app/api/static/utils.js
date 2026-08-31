@@ -1,4 +1,4 @@
-/* Enterprise Insight Agent V4 — 工具函数 */
+/* Enterprise Insight Agent V5 — 工具函数 */
 var BASE = '/api/v1';
 var _reportCharts = [];
 

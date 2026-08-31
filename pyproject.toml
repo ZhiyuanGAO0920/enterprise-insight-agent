@@ -1,7 +1,7 @@
 [project]
-name = "enterprise-agent-v4"
-version = "4.0.0"
-description = "Enterprise Multi-Agent Decision Intelligence Platform V4 — 10 agents, 5 business domains, multi-tenant, audit logging, PDF export, structured logging, React frontend"
+name = "enterprise-agent-v5"
+version = "5.0.0"
+description = "Enterprise Multi-Agent Decision Intelligence Platform V5 — 11 agents, 5 business domains, multi-tenant, audit logging, PDF export, structured logging, React frontend"
 requires-python = ">=3.11"
 dependencies = [
     "langgraph>=0.2.0,<0.3.0",

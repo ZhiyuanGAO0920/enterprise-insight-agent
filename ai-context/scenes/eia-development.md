@@ -15,7 +15,7 @@ metadata:
 面向连锁零售的 Multi-Agent AI 经营分析平台。用户用自然语言提问，系统 60 秒内输出含数据概览、根因诊断、可执行建议的诊断报告。
 
 **作者**：高志远（独立产品负责人，产品设计/架构决策/评估体系）
-**状态**：V4.8，213 条测试（211 通过 / 2 失败——LLM API 连接环境问题，重跑可恢复），GitHub 开源。V4.8 含**金丝雀闭环**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集每周自动跑分（每日 09:30 兜底检查，7 天幂等窗口），与同模型基线对比超阈值自动告警（模型漂移检测）
+**状态**：V5.0.0（收官版），242 条测试（238 通过 / 4 失败——均为本地环境问题：LLM API 连接 ×2 + 配置测试 .env 污染 ×2，重跑可恢复），GitHub 开源。V5.0 含**金丝雀闭环**：eval 结果落库 `eval_runs`（带 model_version），16 条固定子集每周自动跑分（每日 09:30 兜底检查，7 天幂等窗口），与同模型基线对比超阈值自动告警（模型漂移检测）；另含 Reflection 契约化（4 项加权质检）、RAG 止损（search_similar_sql 删除）、PII 脱敏
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商
 
 ---
@@ -135,8 +135,8 @@ workflows/n8n-templates/
 - Redis: `localhost:6381`
 - n8n: `http://localhost:5678`
 - 启动：`uvicorn app.api.main:app --port 8002 --reload`
-- 测试：`pytest tests/ -v`（192 条）
-- 迁移：`alembic upgrade head`（当前 13 版）
+- 测试：`pytest tests/ -v`（242 条）
+- 迁移：`alembic upgrade head`（当前 16 版）
 
 ---
 

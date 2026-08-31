@@ -60,7 +60,7 @@ Save Memory（pgvector 1024 维，BGE-M3 本地 Embedding）
 | 日志 | structlog + trace_id 全链路追踪 |
 | 安全 | JWT + bcrypt + RBAC + RLS（行级安全）+ 审计日志 + 多租户 |
 | 合规 | PII 脱敏（手机号 `138****8000`，个保法合规） |
-| 测试 | pytest，213 条（211 通过 / 2 失败为 LLM API 环境问题，重跑可恢复） |
+| 测试 | pytest，242 条（238 通过 / 4 失败——均为本地环境问题：LLM API 连接 ×2 + 配置测试 .env 污染 ×2，重跑可恢复） |
 
 **Demo 数据**：100 门店 / 50,925 订单 / 5,000 会员 / 30 供应商（真实 PostgreSQL 数据，非 mock）。
 
