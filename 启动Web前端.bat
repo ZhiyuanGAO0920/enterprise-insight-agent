@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0web"
 
-echo EIA V4 Web (React) 快速启动
+echo EIA V5 Web (React) 快速启动
 echo.
 echo 启动 Vite dev server: http://localhost:5173
 

@@ -45,9 +45,9 @@
 
 ---
 
-## 为什么选 V4？
+## 为什么选 V5？
 
-| 对比维度 | 传统 BI 工具（帆软/Tableau） | 通用 AI（ChatGPT + 数据） | **V4** |
+| 对比维度 | 传统 BI 工具（帆软/Tableau） | 通用 AI（ChatGPT + 数据） | **V5** |
 |---------|--------------------------|------------------------|------|
 | **使用方式** | 拖拽配置，需要培训 | 需要描述数据结构、写 Prompt | **直接问中文，零门槛** |
 | **输出内容** | 可视化图表看板 | 通用对话答复 | **结构化经营报告 + 图表 + 诊断 + 行动建议** |
@@ -65,7 +65,7 @@
 
 ```bash
 # 1. 获取项目
-git clone <repo-url> && cd enterprise-insight-agent-v4
+git clone <repo-url> && cd enterprise-insight-agent
 
 # 2. 下载预打包的 BGE-M3 嵌入模型（可选，跳过则首次启动自动下载）
 #    从 Release 页面下载 bge-m3.tar.gz，放入 ollama-models/ 目录
@@ -211,7 +211,7 @@ uvicorn app.api.main:app --host 0.0.0.0 --port 8002
 ## 项目结构
 
 ```
-enterprise-insight-agent-v4/
+enterprise-insight-agent/
 ├── app/
 │   ├── agents/            # 11 个 Agent 节点
 │   │   ├── supervisor_agent.py

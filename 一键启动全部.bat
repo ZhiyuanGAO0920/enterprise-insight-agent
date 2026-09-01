@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 echo ============================================================
 echo   Enterprise Insight Agent 一键启动
-echo   顺序：V3(8001) -^> V2(8000) -^> V4(8002) -^> React Web(5173)
+echo   顺序：V3(8001) -^> V2(8000) -^> V5(8002) -^> React Web(5173)
 echo   自动处理：Docker 容器、Ollama、清理旧进程、逐个启动
 echo ============================================================
 echo.
@@ -72,7 +72,7 @@ powershell -NoProfile -Command "Start-Sleep -Seconds 2"
 echo       清理完成
 
 REM ========== [5/5] 依次启动 ==========
-echo [5/5] 依次启动四个服务（V3 -^> V2 -^> V4 -^> React Web）...
+echo [5/5] 依次启动四个服务（V3 -^> V2 -^> V5 -^> React Web）...
 call :start_server "%V3_DIR%" "python" 8001 V3 90
 call :start_server "%V2_DIR%" "%V2_DIR%\venv312\Scripts\python.exe" 8000 V2 90
 call :start_server "%V4_DIR%" "python" 8002 V4 120
