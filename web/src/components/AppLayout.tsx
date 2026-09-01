@@ -170,7 +170,7 @@ export default function AppLayout() {
             <Button type="text" style={{ color: DARK.text, marginRight: 8, fontSize: 18 }} onClick={() => setNavOpen(true)}>☰</Button>
           )}
           <h2 style={{ margin: 0, fontSize: 15, color: DARK.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>企业智能经营分析平台</h2>
-          <Tag style={{ marginLeft: 8 }} color="purple">v4.6</Tag>
+          <Tag style={{ marginLeft: 8 }} color="purple">v5.0</Tag>
 
           {/* 用户菜单（对齐原生 user-menu） */}
           <div style={{ marginLeft: 'auto' }}>

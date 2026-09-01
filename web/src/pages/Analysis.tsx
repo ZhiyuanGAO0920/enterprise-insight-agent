@@ -389,7 +389,7 @@ export default function AnalysisPage() {
   }, [streamError, message]);
 
   /* 离开分析页恢复默认标题 */
-  useEffect(() => () => { document.title = '企业智能经营分析平台 V4'; }, []);
+  useEffect(() => () => { document.title = '企业智能经营分析平台 V5'; }, []);
 
   const [shareModal, setShareModal] = useState<{ open: boolean; url: string; recordId: number | null }>({ open: false, url: '', recordId: null });
   const [exporting, setExporting] = useState<'image' | 'pdf' | null>(null);
@@ -479,7 +479,7 @@ export default function AnalysisPage() {
     setMessages((prev) => [...prev, msg]);
     setFbState((prev) => ({ ...prev, [msg.uid!]: null }));
     /* 动态标题（对齐原生） */
-    if (report) document.title = `报告 · ${lastQuestionRef.current.slice(0, 20)} - EIA V4`;
+    if (report) document.title = `报告 · ${lastQuestionRef.current.slice(0, 20)} - EIA V5`;
   }, [finalData]);
 
   const handleSend = useCallback(async (q?: string) => {

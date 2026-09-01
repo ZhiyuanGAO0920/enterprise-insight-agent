@@ -100,7 +100,7 @@ export default function Intro({ onEnter }: { onEnter: () => void }) {
           Enterprise Insight Agent
         </div>
         <div className="intro-subtitle" style={{ fontSize: 28, color: '#94a3b8', fontWeight: 300, letterSpacing: 8, marginTop: 18 }}>
-          V4.6 正式发布
+          V5.0 收官版正式发布
         </div>
 
         {/* 4 个统计（对齐原生 intro-stats） */}

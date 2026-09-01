@@ -34,7 +34,7 @@ export default function LoginPage() {
       <Card style={{ width: 400, borderRadius: 12 }} bordered={false}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <ThunderboltOutlined style={{ fontSize: 48, color: '#6366f1' }} />
-          <Title level={3} style={{ marginTop: 12, color: '#e0e0e0' }}>企业智能分析平台 V4</Title>
+          <Title level={3} style={{ marginTop: 12, color: '#e0e0e0' }}>企业智能分析平台 V5</Title>
           <Text type="secondary">自然语言驱动的经营决策助手</Text>
         </div>
         <Form onFinish={onFinish} size="large">
