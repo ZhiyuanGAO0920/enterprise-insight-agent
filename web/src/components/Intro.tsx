@@ -91,9 +91,11 @@ export default function Intro({ onEnter }: { onEnter: () => void }) {
           display: 'inline-block', fontSize: 14, letterSpacing: 4, color: '#60a5fa',
           border: '1px solid rgba(99,102,241,0.5)', borderRadius: 999, padding: '7px 24px', marginBottom: 26,
         }}>AI 经营分析平台</div>
-        {/* 标题渐变文字（对齐原生 intro-title：白→浅蓝→蓝，background-clip: text） */}
+        {/* 标题渐变文字（对齐原生 intro-title：白→浅蓝→蓝，background-clip: text）
+            lineHeight 1.25 而非 1.1：bg-clip:text 的渐变只画在盒内，行高 1.1 时 g 下伸尾巴距盒底仅 1px，
+            字体/缩放差异一抖就被"截断"——实测像素 y=319/盒底 320 只剩 1px 余量 */}
         <div className="intro-title" style={{
-          fontSize: 72, fontWeight: 700, letterSpacing: 2, lineHeight: 1.1,
+          fontSize: 72, fontWeight: 700, letterSpacing: 2, lineHeight: 1.25,
           background: 'linear-gradient(135deg,#fff 0%,#93c5fd 50%,#3b82f6 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         }}>
