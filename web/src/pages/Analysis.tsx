@@ -166,7 +166,8 @@ function FeedbackModal({ open, rating, recordId, onClose, onDone }: {
     if (!recordId) { onDone(false); return; }
     setSubmitting(true); setError('');
     try {
-      await client.post('/feedback/submit', { analysis_history_id: recordId, rating, reason: reason.trim() || null });
+      // 注意：reason 留空发 "" 而非 null —— 后端 reason 为非空 str，null 会触发 422（FastAPI 校验）
+      await client.post('/feedback/submit', { analysis_history_id: recordId, rating, reason: reason.trim() });
       onDone(true);
     } catch (e) {
       setError(errMsg(e, '提交失败，请重试'));

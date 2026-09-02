@@ -3,8 +3,15 @@
 /* 从 catch 的 unknown 错误中提取可展示文案（后端 FastAPI detail 优先） */
 export function errMsg(e: unknown, fallback: string): string {
   if (typeof e === 'object' && e !== null) {
-    const detail = (e as { response?: { data?: { detail?: string } } }).response?.data?.detail;
-    if (detail) return detail;
+    const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      // FastAPI 422：detail 为错误对象数组 [{type, loc, msg, input}]，取 msg 拼成可读文本（否则数组会当 React child 渲染崩溃）
+      const parts = detail
+        .map((d) => (typeof d === 'object' && d !== null && typeof (d as { msg?: unknown }).msg === 'string' ? (d as { msg: string }).msg : ''))
+        .filter(Boolean);
+      if (parts.length) return parts.join('；');
+    }
     const msg = (e as { message?: string }).message;
     if (msg) return msg;
     const name = (e as { name?: string }).name;
