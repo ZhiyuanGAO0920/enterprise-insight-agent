@@ -3,7 +3,7 @@
 
 收官包方案 §8 Phase 3 要求：先用现有 eval 数据做「4 维度 × 满意度」相关性分析。
 本脚本：
-  1. 扫描 tests/*.json 中 5 个 eval 结果文件（共 48 条样本，覆盖 16 条 canary × 3 次实验 + 2 次 12 条 baseline）
+  1. 扫描 tests/archive/ 中 5 个历史 eval 结果文件（5 × 12 条 = 60 条样本，均为 Q01–Q12 子集：3 次 V4.6 对照实验 + 1 对 P0 baseline/changed）
   2. 诚实判定「是否有独立 4 维度分 / 是否有满意度 ground truth / 是否有 issues 明细」
   3. 输出可量化的「次优替代证据」（现有数据能给的所有信号）
   4. 拍板新契约 4 项权重 + 阈值，并给出依据
@@ -14,7 +14,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EVAL_DIR = ROOT / "tests"
+# 5 个结果快照已归档至 tests/archive/（2026-09-02 清理），见 archive/README.md
+EVAL_DIR = ROOT / "tests" / "archive"
 
 EVAL_FILES = [
     "eval_baseline_p0.json",
