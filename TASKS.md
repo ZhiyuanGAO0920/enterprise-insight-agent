@@ -212,7 +212,7 @@
 
 * **背景**：n8n 2.23 对 CLI 导入工作流的 cron 注册异常（Deregistered 无 Registered，6 次定时触发验证失败）；UI 创建的异常检测工作流 4 次定时成功证明机制正常、问题特定于 CLI 导入工作流
 
-* **实现**：`app/scheduler.py`——`canary_scheduler_loop`（每日 canary\_hour:minute，默认 09:30，asyncio 循环）+ `today_canary_ran`（幂等判据：当天 UTC 日期是否有 canary 记录）+ `run_canary_now`（子进程 `run_eval --canary --save-db --parallel 8`，30 分钟超时 kill，失败只记日志不重试）。main.py startup 注册 + shutdown 取消；config 加 canary\_hour/canary\_minute
+* **实现**：`app/scheduler.py`——`canary_scheduler_loop`（每日 canary\_hour:minute，默认 13:05，asyncio 循环）+ `today_canary_ran`（幂等判据：当天 UTC 日期是否有 canary 记录）+ `run_canary_now`（子进程 `run_eval --canary --save-db --parallel 8`，30 分钟超时 kill，失败只记日志不重试）。main.py startup 注册 + shutdown 取消；config 加 canary\_hour/canary\_minute
 
 * **踩坑**：REPO\_ROOT 用 parents\[2] 数深一层 → 子进程找不到 run\_eval.py（exit 2）→ 修正 parents\[1]
 
@@ -220,7 +220,7 @@
 
   * `tests/test_canary_scheduler.py` 3 条全过（无记录→False/插记录→True/昨日不误判）
 
-  * 启动日志确认："金丝雀定时任务已注册（每日 09:30，幂等）" + "金丝雀定时任务启动"
+  * 启动日志确认："金丝雀定时任务已注册（每日 13:05，幂等）" + "金丝雀定时任务启动"
 
   * 手动 `run_canary_now()` 完整跑通并落库（见 T-12 收尾 commit）
 
