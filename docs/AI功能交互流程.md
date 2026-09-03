@@ -1,4 +1,4 @@
-# Enterprise Insight Agent V4 — AI 功能交互流程
+# Enterprise Insight Agent V5 — AI 功能交互流程
 
 > 涵盖正常流程、异常处理、边界情况。适用于开发自测、QA 测试、Demo 演示参考。
 
@@ -28,7 +28,7 @@
   │
   ├─ [localStorage 无 token] → 展示欢迎页
   │   ├─ 网格背景动画 + 脉冲光晕 + 浮动粒子
-  │   ├─ 渐变标题 "Enterprise Insight Agent" + 统计数字（10 Agent / 5 业务域 / SQL 全链路追溯 / 60s 报告）
+  │   ├─ 渐变标题 "Enterprise Insight Agent" + 统计数字（11 Agent / 5 业务域 / SQL 全链路追溯 / 60s 报告）
   │   └─ 用户点击「进入系统」
   │       ├─ 登录弹窗出现（z-index 低于欢迎页，先出现在背后再淡出欢迎页）
   │       └─ 用户输入用户名 + 密码 → POST /api/v1/auth/login
@@ -562,4 +562,4 @@ Level 5: DB 不可用
 
 ---
 
-*最后更新：2026-08-06 | V4.6.7*
+*最后更新：2026-09-03 | 适用平台 V5.0.0（特性标注沿用各 V4.6.x 版本号）*

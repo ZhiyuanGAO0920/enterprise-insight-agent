@@ -71,7 +71,7 @@ hr{border:none;border-top:1px solid #e5e7eb;margin:40px 0}
 <blockquote>
 <p>Enterprise Insight Agent V5（收官版） — 面向连锁零售的 Multi-Agent 经营分析平台</p>
 <p>角色：独立产品负责人（产品设计 / 架构决策 / 评估体系）</p>
-<p>周期：2025.06 - 2026.06 | 版本：V1 → V2 → V3 → V4 四版迭代</p>
+<p>周期：2025.06 - 2026.08 | 版本：V1 → V5 五版迭代</p>
 <p>代码开源：<a href="https://github.com/ZhiyuanGAO0920/enterprise-insight-agent">github.com/ZhiyuanGAO0920/enterprise-insight-agent</a></p>
 </blockquote>
 <hr>
@@ -140,7 +140,7 @@ V4 方式：  用中文提问 → AI 自动分析 → 报告输出（60 秒）
 <p><strong>5 个业务域 Agent</strong>：销售 / 会员 / 财务 / 库存 / 供应链</p>
 <hr>
 <h2>4. 关键产品决策</h2>
-<h3>为什么用 10 个 Agent 而不是 1 个？</h3>
+<h3>为什么拆成多领域 Agent 而不是 1 个大 Agent？</h3>
 <p>三个具体原因，实测验证：</p>
 <ol>
 <li><strong>上下文竞争</strong>：5 个领域数据库表结构超 3000 token，长上下文后半段注意力衰减。通过三个对照实验验证——审计 SQL → 隔离上下文 → 位置效应测试</li>
@@ -360,7 +360,7 @@ V4 方式：  用中文提问 → AI 自动分析 → 报告输出（60 秒）
 </tr>
 <tr>
 <td>Bug 修复</td>
-<td>15 条（含 6 个行级安全漏洞）</td>
+<td>两轮安全收口 19 项修复（对抗式审查 16 + 收官行级 3）</td>
 </tr>
 </tbody>
 </table>
@@ -403,7 +403,7 @@ V4 方式：  用中文提问 → AI 自动分析 → 报告输出（60 秒）
 <hr>
 <h2>10. 方法论沉淀</h2>
 <ul>
-<li><strong>13 条关键产品决策记录</strong>：每条含"为什么选这个方案""如果重来会怎么选"</li>
+<li><strong>18 条关键产品决策记录</strong>：每条含"为什么选这个方案""如果重来会怎么选"</li>
 <li><strong>7 条 AI 产品设计原则</strong>：够好就行、灰度开关、输出自适应、数据诚实、防御性设计、BadCase 驱动、边界告知</li>
 <li><strong>4 次 BadCase 闭环复盘</strong>：LLM 截断、RLS 注入错列、追问不相关、空权限越权放行——每条含现象→诊断→修复→验证→教训</li>
 <li><strong>2026 RAG 技术甄别框架</strong>：Agentic RAG / GraphRAG / Context Engineering 的概念与"何时不升级"判断（详见核心知识手册 2.8 节）；EIA 定位 = 结构化数据的 Agentic 检索</li>
