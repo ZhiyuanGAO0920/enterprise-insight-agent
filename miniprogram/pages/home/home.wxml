@@ -33,6 +33,7 @@
       <view class="alert-section" wx:if="{{alertItems.length > 0}}">
         <view
           class="alert-card alert-{{item.level}}"
+          hover-class="alert-hover"
           wx:for="{{alertItems}}"
           wx:key="id"
           data-query="{{item.query}}"
@@ -63,13 +64,11 @@
       <view class="metric-row">
         <view class="metric-card half">
           <view class="metric-label">营业门店</view>
-          <view class="metric-value small">{{fmt.comma(activeStores)}}</view>
-          <view class="metric-unit">家</view>
+          <view class="metric-value small">{{fmt.comma(activeStores)}}<text class="metric-unit">家</text></view>
         </view>
         <view class="metric-card half">
           <view class="metric-label">会员总量（累计）</view>
-          <view class="metric-value small">{{fmt.comma(membersTotal)}}</view>
-          <view class="metric-unit">人</view>
+          <view class="metric-value small">{{fmt.comma(membersTotal)}}<text class="metric-unit">人</text></view>
         </view>
       </view>
 
@@ -87,11 +86,11 @@
           <view class="trend-labels">
             <text wx:for="{{trendDates}}" wx:key="index">{{item}}</text>
           </view>
-          <view class="trend-peak" wx:if="{{peakLabel}}">📈 峰值 {{peakLabel}} · ¥{{fmt.money(peakValue)}}</view>
+          <view class="trend-peak" wx:if="{{peakLabel}}"><view class="icon icon-trend icon-sm"></view> 峰值 {{peakLabel}} · ¥{{fmt.money(peakValue)}}</view>
         </view>
       </view>
 
-      <view class="top-stores-card">
+      <view class="top-stores-card" wx:if="{{topStores.length > 0}}">
         <view class="card-title">销售额 Top5 门店</view>
         <view class="store-list">
           <view
@@ -102,7 +101,7 @@
             data-query="{{item}}为什么销售额这么高"
             bindtap="goChat"
           >
-            <view class="store-rank">{{index + 1}}</view>
+            <view class="store-rank {{index === 0 ? 'top1' : ''}}">{{index + 1}}</view>
             <view class="store-name">{{item}}</view>
             <view class="store-value">¥{{fmt.money(topStoreValues[index])}}</view>
             <view class="item-arrow">›</view>
@@ -110,7 +109,7 @@
         </view>
       </view>
       <view class="ask-entry" bindtap="goChat" data-query="今日经营概况分析">
-        <text class="ask-icon">💬</text>
+        <view class="ask-icon icon icon-chat"></view>
         <text class="ask-text">有疑问？问 AI 助手</text>
         <text class="ask-arrow">→</text>
       </view>

@@ -7,9 +7,9 @@ Page({
     userInfo: null,
     statReports: 0,
     menuItems: [
-      { id: 'history', icon: '📋', title: '历史报告', desc: '查看过往分析记录' },
-      { id: 'feedback', icon: '💭', title: '意见反馈', desc: '帮助我们变得更好' },
-      { id: 'about', icon: 'ℹ️', title: '关于应用', desc: 'V1.0 Demo' },
+      { id: 'history', icon: 'icon-doc', title: '历史报告', desc: '查看过往分析记录' },
+      { id: 'feedback', icon: 'icon-bulb', title: '意见反馈', desc: '帮助我们变得更好' },
+      { id: 'about', icon: 'icon-info', title: '关于应用', desc: 'V1.0 Demo' },
     ],
   },
 

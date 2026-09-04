@@ -5,25 +5,34 @@
 
     <view class="form-group">
       <view class="form-label">账号</view>
-      <input
-        class="form-input"
-        placeholder="请输入账号"
-        value="{{username}}"
-        data-field="username"
-        bindinput="onInput"
-      />
+      <view class="form-field {{focusField === 'username' ? 'focused' : ''}}">
+        <input
+          class="form-field-input"
+          placeholder="请输入账号"
+          value="{{username}}"
+          data-field="username"
+          bindinput="onInput"
+          bindfocus="onFocus"
+          bindblur="onBlur"
+        />
+      </view>
     </view>
 
     <view class="form-group">
       <view class="form-label">密码</view>
-      <input
-        class="form-input"
-        placeholder="请输入密码"
-        password="{{true}}"
-        value="{{password}}"
-        data-field="password"
-        bindinput="onInput"
-      />
+      <view class="pwd-field {{focusField === 'password' ? 'focused' : ''}}">
+        <input
+          class="pwd-input"
+          placeholder="请输入密码"
+          password="{{!showPassword}}"
+          value="{{password}}"
+          data-field="password"
+          bindinput="onInput"
+          bindfocus="onFocus"
+          bindblur="onBlur"
+        />
+        <view class="pwd-toggle" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</view>
+      </view>
     </view>
 
     <view class="error-msg" wx:if="{{errorMsg}}">{{errorMsg}}</view>

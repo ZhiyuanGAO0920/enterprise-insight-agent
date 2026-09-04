@@ -1,6 +1,7 @@
 <view class="report-container">
-  <!-- 报告内容 -->
-  <scroll-view class="report-scroll" scroll-y scroll-top="{{scrollTop}}">
+  <!-- 报告内容（页面级滚动：canvas 2d 在 scroll-view 内滚动不同步会"贴纸式"错位，
+       改 page 滚动后 canvas 与文字同层跟随，开发者工具/真机均稳定） -->
+  <view class="report-scroll">
     <view class="report-header-section">
       <view class="rpt-title">{{reportTitle}}</view>
     </view>
@@ -38,7 +39,7 @@
 
     <!-- 数据图表（自绘 canvas 组件） -->
     <view class="chart-section" wx:if="{{reportCharts.length > 0}}">
-      <view class="rpt-h2">📊 数据图表</view>
+      <view class="rpt-h2"><view class="icon icon-chart icon-sm" style="margin-right:10rpx;"></view>数据图表</view>
       <view
         class="chart-item"
         wx:for="{{reportCharts}}"
@@ -53,20 +54,20 @@
       <view class="footer-divider"></view>
       <view class="footer-text">本报告由 AI 经营分析助手生成</view>
     </view>
-  </scroll-view>
+  </view>
 
   <!-- 操作栏 -->
   <view class="action-bar">
     <view class="action-btn" bindtap="handleCopy">
-      <text class="action-icon">📋</text>
+      <view class="action-icon icon icon-doc"></view>
       <text>复制</text>
     </view>
     <view class="action-btn" bindtap="handleShare">
-      <text class="action-icon">📤</text>
+      <view class="action-icon icon icon-share"></view>
       <text>分享</text>
     </view>
     <view class="action-btn" bindtap="openFeedback">
-      <text class="action-icon">⭐</text>
+      <view class="action-icon icon icon-bulb"></view>
       <text>评价</text>
     </view>
   </view>

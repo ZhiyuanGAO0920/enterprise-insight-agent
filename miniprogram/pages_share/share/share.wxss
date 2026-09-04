@@ -1,6 +1,7 @@
 .share-container {
   padding: 32rpx;
   min-height: 100vh;
+  background: var(--color-surface-subtle);
 }
 
 /* 加载态 */
@@ -14,11 +15,11 @@
 .loading-spinner {
   width: 80rpx;
   height: 80rpx;
-  border: 6rpx solid #E5E5EA;
-  border-top-color: #1A73E8;
+  border: 6rpx solid var(--color-border);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 32rpx;
+  margin-bottom: var(--space-4);
 }
 
 @keyframes spin {
@@ -26,8 +27,8 @@
 }
 
 .loading-text {
-  font-size: 28rpx;
-  color: #86868B;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
 }
 
 /* 失效/错误页 */
@@ -42,59 +43,59 @@
 
 .expired-icon,
 .error-icon {
-  font-size: 100rpx;
-  margin-bottom: 32rpx;
+  margin-bottom: var(--space-4);
 }
 
 .expired-title,
 .error-title {
-  font-size: 36rpx;
+  font-size: var(--font-size-xl);
   font-weight: 600;
-  color: #1D1D1F;
+  color: var(--color-text);
   margin-bottom: 16rpx;
 }
 
 .expired-desc {
-  font-size: 28rpx;
-  color: #86868B;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
   margin-bottom: 48rpx;
 }
 
 .expired-action {
-  background: #1A73E8;
-  color: #FFFFFF;
-  padding: 28rpx 56rpx;
-  border-radius: 16rpx;
-  font-size: 30rpx;
+  background: var(--color-primary);
+  color: var(--color-surface);
+  height: 96rpx;
+  line-height: 96rpx;
+  padding: 0 56rpx;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-lg);
   font-weight: 500;
 }
 
 /* 分享卡片 */
 .share-card {
-  background: linear-gradient(135deg, #1A73E8 0%, #4A9AF5 100%);
-  border-radius: 24rpx;
+  background: var(--gradient-primary);
+  border-radius: var(--radius-lg);
   padding: 48rpx 40rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(26, 115, 232, 0.2);
+  margin-bottom: var(--space-3);
+  box-shadow: var(--shadow-primary);
 }
 
 .share-badge {
   display: inline-block;
   background: rgba(255, 255, 255, 0.2);
-  color: #FFFFFF;
-  font-size: 22rpx;
+  color: var(--color-surface);
+  font-size: var(--font-size-xs);
   padding: 8rpx 20rpx;
-  border-radius: 20rpx;
-  margin-bottom: 24rpx;
+  border-radius: var(--radius-pill);
+  margin-bottom: var(--space-3);
 }
 
 .share-conclusion {
-  font-size: 36rpx;
+  font-size: var(--font-size-xl);
   font-weight: 600;
-  color: #FFFFFF;
+  color: var(--color-surface);
   line-height: 1.5;
   margin-bottom: 20rpx;
-  /* 默认折叠：最多 4 行，展开时取消限制 */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
@@ -109,26 +110,37 @@
 
 .share-expand {
   display: inline-block;
-  font-size: 26rpx;
+  font-size: var(--font-size-sm);
   color: rgba(255, 255, 255, 0.85);
   font-weight: 500;
   margin-bottom: 20rpx;
   padding: 8rpx 20rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-pill);
   border: 1rpx solid rgba(255, 255, 255, 0.4);
 }
 
 .share-time {
-  font-size: 24rpx;
+  font-size: var(--font-size-sm);
   color: rgba(255, 255, 255, 0.7);
 }
 
+.share-quality {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  margin-top: 12rpx;
+}
+
+.share-quality.pass { color: rgba(255, 255, 255, 0.9); }
+.share-quality.fail { color: #FFE08A; }
+
 /* 发现区 */
 .finding-section {
-  background: #FFFFFF;
-  border-radius: 20rpx;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
   padding: 40rpx 32rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .section-header {
@@ -138,25 +150,25 @@
 }
 
 .section-icon {
-  font-size: 36rpx;
+  font-size: var(--font-size-lg);
   margin-right: 16rpx;
 }
 
 .section-title {
-  font-size: 32rpx;
+  font-size: var(--font-size-lg);
   font-weight: 600;
-  color: #1D1D1F;
+  color: var(--color-text);
 }
 
 .finding-list {
-  margin-bottom: 32rpx;
+  margin-bottom: var(--space-4);
 }
 
 .finding-item {
   display: flex;
   align-items: flex-start;
   padding: 20rpx 0;
-  border-bottom: 1rpx solid #F5F5F7;
+  border-bottom: 1rpx solid var(--color-surface-subtle);
 }
 
 .finding-item:last-child {
@@ -166,45 +178,48 @@
 .finding-index {
   width: 44rpx;
   height: 44rpx;
-  background: #E8F0FE;
-  color: #1A73E8;
+  background: rgba(26, 115, 232, 0.1);
+  color: var(--color-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24rpx;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   margin-right: 20rpx;
   flex-shrink: 0;
 }
 
 .finding-index.rec {
-  background: #FFF9E6;
+  background: rgba(255, 149, 0, 0.1);
+  color: var(--color-warning);
 }
 
 .finding-text {
   flex: 1;
-  font-size: 28rpx;
-  color: #1D1D1F;
+  font-size: var(--font-size-md);
+  color: var(--color-text);
   line-height: 1.6;
 }
 
 .empty-finding {
   text-align: center;
   padding: 40rpx;
-  font-size: 26rpx;
-  color: #86868B;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 .cta-btn {
   text-align: center;
-  background: #1A73E8;
-  color: #FFFFFF;
-  padding: 28rpx;
-  border-radius: 16rpx;
-  font-size: 30rpx;
+  background: var(--color-primary);
+  color: var(--color-surface);
+  height: 96rpx;
+  line-height: 96rpx;
+  padding: 0;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-lg);
   font-weight: 500;
-  margin-top: 24rpx;
+  margin-top: var(--space-3);
 }
 
 /* 登录提示 */
@@ -212,23 +227,23 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #FFFFFF;
-  border-radius: 16rpx;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
   padding: 28rpx 32rpx;
-  margin-top: 32rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  margin-top: var(--space-4);
+  box-shadow: var(--shadow-card);
 }
 
 .prompt-text {
-  font-size: 28rpx;
-  color: #1D1D1F;
+  font-size: var(--font-size-md);
+  color: var(--color-text);
 }
 
 .prompt-btn {
-  background: #1A73E8;
-  color: #FFFFFF;
+  background: var(--color-primary);
+  color: var(--color-surface);
   padding: 16rpx 36rpx;
-  border-radius: 12rpx;
-  font-size: 28rpx;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-md);
   font-weight: 500;
 }

@@ -1,8 +1,12 @@
 <view class="login-container">
   <view class="login-header">
-    <view class="logo">🏢</view>
+    <view class="logo">
+      <!-- EIA 品牌字标：白字 900 粗体 + 右下白色上升折线（增长洞察），无字体依赖 -->
+      <text class="logo-text">EIA</text>
+      <view class="logo-trend"></view>
+    </view>
     <view class="app-title">企业经营助手</view>
-    <view class="app-subtitle">AI 驱动的经营分析平台</view>
+    <view class="app-subtitle">ENTERPRISE INSIGHT AGENT</view>
   </view>
 
   <view class="login-form">

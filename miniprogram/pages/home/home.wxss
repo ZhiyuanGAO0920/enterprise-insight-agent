@@ -100,6 +100,15 @@
   color: var(--color-danger);
 }
 
+/* 告警卡按压反馈（hover-class）：同色系加深一档，避免 hover 灰色遮色 */
+.alert-hover {
+  background: rgba(255, 149, 0, 0.16);
+}
+
+.alert-card.alert-high.alert-hover {
+  background: rgba(255, 59, 48, 0.12);
+}
+
 /* 指标卡片 */
 .metric-card {
   background: var(--color-surface);
@@ -142,8 +151,9 @@
 
 .metric-unit {
   font-size: var(--font-size-sm);
+  font-weight: 400;
   color: var(--color-text-secondary);
-  margin-left: 4rpx;
+  margin-left: 8rpx;
 }
 
 .metric-change {
@@ -253,7 +263,7 @@
 .updated-at {
   text-align: center;
   font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
   padding: 8rpx 0 24rpx;
 }
 
@@ -277,8 +287,8 @@
 .store-rank {
   width: 44rpx;
   height: 44rpx;
-  background: var(--gradient-primary);
-  color: var(--color-surface);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -287,6 +297,12 @@
   font-weight: 700;
   margin-right: 16rpx;
   flex-shrink: 0;
+}
+
+/* 冠军门店高亮：只有 Top1 用品牌渐变，2-5 名退为中性灰，排名一眼可辨 */
+.store-rank.top1 {
+  background: var(--gradient-primary);
+  color: var(--color-surface);
 }
 
 .store-name {

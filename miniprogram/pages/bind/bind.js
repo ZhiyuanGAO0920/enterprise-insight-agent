@@ -7,11 +7,27 @@ Page({
     password: '',
     loading: false,
     errorMsg: '',
+    showPassword: false,
+    focusField: '',
   },
 
   onInput(e) {
     const field = e.currentTarget.dataset.field;
     this.setData({ [field]: e.detail.value, errorMsg: '' });
+  },
+
+  // 密码可见性切换（密码属性动态切换时 iOS 键盘可能短暂重开，可接受）
+  togglePassword() {
+    this.setData({ showPassword: !this.data.showPassword });
+  },
+
+  // 输入聚焦态：高亮当前输入框边框，用户始终知道焦点在哪
+  onFocus(e) {
+    this.setData({ focusField: e.currentTarget.dataset.field || '' });
+  },
+
+  onBlur() {
+    this.setData({ focusField: '' });
   },
 
   async handleBind() {

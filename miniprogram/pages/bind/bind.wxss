@@ -3,63 +3,122 @@
 }
 
 .form-section {
-  background: #FFFFFF;
-  border-radius: 24rpx;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
   padding: 48rpx 40rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .section-title {
-  font-size: 36rpx;
+  font-size: var(--font-size-xl);
   font-weight: 600;
-  color: #1D1D1F;
+  color: var(--color-text);
   margin-bottom: 12rpx;
 }
 
 .section-desc {
-  font-size: 26rpx;
-  color: #86868B;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   margin-bottom: 48rpx;
 }
 
 .form-group {
-  margin-bottom: 32rpx;
+  margin-bottom: var(--space-4);
 }
 
 .form-label {
-  font-size: 28rpx;
-  color: #1D1D1F;
+  font-size: var(--font-size-base);
+  color: var(--color-text);
   margin-bottom: 12rpx;
   font-weight: 500;
 }
 
-.form-input {
-  background: #F5F5F7;
-  border-radius: 12rpx;
+/* 账号输入：与密码行（.pwd-field）同构的 flex 容器——密码行同宽正常证明此模式在
+   小程序必生效；input 直挂 width:100% 在部分基础库上不可靠，不再使用 */
+.form-field {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-sm);
+  border: 2rpx solid transparent; /* 占位不跳版，聚焦时替换为品牌色 */
+  box-sizing: border-box;
+}
+
+/* 聚焦态：白底 + 品牌色边框，焦点位置一目了然 */
+.form-field.focused {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+.form-field-input {
+  flex: 1;
+  min-width: 0;
   padding: 24rpx 28rpx;
-  font-size: 30rpx;
-  color: #1D1D1F;
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+  background: transparent;
+}
+
+/* 密码行：输入框 + 显隐切换同容器 */
+.pwd-field {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-sm);
+  border: 2rpx solid transparent;
+  box-sizing: border-box;
+  padding-left: 28rpx;
+}
+
+.pwd-field.focused {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+.pwd-input {
+  flex: 1;
+  min-width: 0;
+  padding: 24rpx 0;
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+  background: transparent;
+}
+
+.pwd-toggle {
+  flex-shrink: 0;
+  margin: 8rpx 12rpx 8rpx 16rpx;
+  padding: 12rpx 24rpx;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-primary);
+  background: rgba(26, 115, 232, 0.1);
+  border-radius: var(--radius-pill);
 }
 
 .error-msg {
-  color: #FF3B30;
-  font-size: 26rpx;
-  margin: 24rpx 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  margin: var(--space-3) 0;
   padding: 16rpx 24rpx;
   background: rgba(255, 59, 48, 0.1);
-  border-radius: 12rpx;
+  border-radius: var(--radius-sm);
 }
 
 .submit-btn {
-  background: #1A73E8;
-  color: #FFFFFF;
-  border-radius: 16rpx;
+  /* button 文字垂直居中：flex 接管（去掉 line-height 依赖——部分基础库
+     字体基线偏下导致文字下沉，flex 对齐可绕开该渲染偏差） */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: var(--color-surface);
+  border-radius: var(--radius-md);
   height: 96rpx;
-  line-height: 96rpx;
-  font-size: 32rpx;
+  font-size: var(--font-size-lg);
   font-weight: 500;
   margin-top: 48rpx;
   border: none;
+  box-sizing: border-box;
 }
 
 .submit-btn::after {

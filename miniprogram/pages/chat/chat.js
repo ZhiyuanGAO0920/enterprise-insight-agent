@@ -6,11 +6,11 @@ const { cleanReport, parseCharts } = require('../../utils/report.js');
 
 // 面向用户的业务语义进度（5 步），不暴露内部 Agent 架构
 const AGENT_STEPS = [
-  { key: 'understand', label: '理解问题', icon: '🎯' },
-  { key: 'query', label: '查询数据', icon: '📊' },
-  { key: 'chart', label: '生成图表', icon: '📈' },
-  { key: 'write', label: '撰写报告', icon: '✍️' },
-  { key: 'quality', label: '质量检查', icon: '✅' },
+  { key: 'understand', label: '理解问题', icon: 'icon-bulb' },
+  { key: 'query', label: '查询数据', icon: 'icon-chart' },
+  { key: 'chart', label: '生成图表', icon: 'icon-trend' },
+  { key: 'write', label: '撰写报告', icon: 'icon-doc' },
+  { key: 'quality', label: '质量检查', icon: 'icon-info' },
 ];
 
 // 后端节点名 → 业务步骤映射
