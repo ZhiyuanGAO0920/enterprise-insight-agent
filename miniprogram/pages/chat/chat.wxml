@@ -161,8 +161,8 @@
         <text>停止</text>
       </view>
       <view class="history-btn" bindtap="toggleHistory"><text class="btn-label">历史</text></view>
-      <!-- 停止生成统一收敛到进度卡 abort-btn：流式可中断、同步模式不支持中断；
-           此处不再放 stop（原条件 loading 时同步模式也会显示但点击无效） -->
+      <!-- 停止入口已统一在输入栏（上方 loading 时红色"停止"钮）：同步 abort 等待 / 流式 abort SSE
+           进度卡内 abort-btn（loading && streamEnabled）为流式模式附加入口，勿再于输入栏重复放 stop -->
       <view class="full-btn" wx:if="{{reportContent.length > 0 && !loading}}" bindtap="viewReport"><text class="btn-label">报告</text></view>
     </view>
   </view>

@@ -48,7 +48,7 @@ Page({
     showHistory: false,
     prefillQuestion: '',
     abortController: null,
-    streamEnabled: config.streamEnabled, // 同步模式隐藏"停止生成"按钮（同步请求不支持中断）
+    streamEnabled: config.streamEnabled, // 流式标志：进度卡 abort-btn 仅流式显示；同步/流式均可用输入栏"停止"钮中断
     waitSeconds: 0, // 同步模式等待计时（无进度事件时的存活反馈）
   },
 
