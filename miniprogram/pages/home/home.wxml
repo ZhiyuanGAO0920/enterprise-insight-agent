@@ -38,7 +38,8 @@
           data-query="{{item.query}}"
           bindtap="goChat"
         >
-          <view class="alert-icon">⚠️</view>
+          <view class="alert-icon icon icon-warning" wx:if="{{item.level !== 'high'}}"></view>
+          <view class="alert-icon icon icon-warning-danger" wx:else></view>
           <view class="alert-content">
             <view class="alert-title">{{item.title}}</view>
             <view class="alert-action">点击分析 →</view>
@@ -53,8 +54,7 @@
           <text class="money-value">{{fmt.money(todaySales)}}</text>
         </view>
         <view class="metric-change {{salesChangeDir === 'up' ? 'text-green' : 'text-red'}}" wx:if="{{salesChange !== 0}}">
-          <text wx:if="{{salesChangeDir === 'up'}}">↑</text>
-          <text wx:else>↓</text>
+          <view class="icon {{salesChangeDir === 'up' ? 'icon-arrow-up' : 'icon-arrow-down'}}"></view>
           <text>{{salesChange}}% 较昨日</text>
         </view>
         <view class="metric-change text-gray" wx:else>持平</view>

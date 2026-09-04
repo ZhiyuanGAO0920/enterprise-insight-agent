@@ -33,21 +33,23 @@
     "list": [
       {
         "pagePath": "pages/home/home",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "assets/tabbar/home.png",
+        "selectedIconPath": "assets/tabbar/home_active.png"
       },
       {
         "pagePath": "pages/chat/chat",
-        "text": "AI 助手"
+        "text": "AI 助手",
+        "iconPath": "assets/tabbar/chat.png",
+        "selectedIconPath": "assets/tabbar/chat_active.png"
       },
       {
         "pagePath": "pages/mine/mine",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "assets/tabbar/mine.png",
+        "selectedIconPath": "assets/tabbar/mine_active.png"
       }
     ]
-  },
-  "usingComponents": {
-    "t-icon": "/miniprogram_npm/tdesign-miniprogram/icon/index",
-    "t-tag": "/miniprogram_npm/tdesign-miniprogram/tag/index"
   },
   "permission": {
     "scope.userLocation": {

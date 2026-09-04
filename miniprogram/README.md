@@ -53,7 +53,7 @@ miniprogram/
 
 1. 开发者工具右上角 → 详情 → 本地设置
 2. ✅ 勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」
-3. 确保 `utils/config.js` 中 `baseUrl` 指向正确的后端地址（默认 `http://localhost:8002/api/v1`）
+3. `utils/config.js` 已支持环境自动切换：开发版/真机预览走 `dev`（HTTP 局域网，当前 `http://172.20.10.4:8002/api/v1`），体验版/正式版走 `prod`（HTTPS 合法域名）。真机预览时把 `dev.baseUrl` 改成你电脑的局域网 IP 即可（ipconfig 查），无需改动业务代码；上传为体验版/正式版前在 `prod.baseUrl` 填入已配置到微信后台的 HTTPS 域名。
 
 ### 4. 启动后端
 
