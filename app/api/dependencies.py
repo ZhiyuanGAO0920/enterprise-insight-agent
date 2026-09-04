@@ -14,6 +14,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.auth.jwt import decode_access_token
 from app.auth.rbac import get_user_permissions
 from app.database.redis import check_rate_limit, is_token_blacklisted
+from app.config import get_settings
+
+settings = get_settings()
 
 security = HTTPBearer()
 
@@ -132,21 +135,18 @@ async def rate_limit(
 
 async def rate_limit_ip(
     request: Request,
-    max_requests: int = 10,
-    window_seconds: int = 60,
+    max_requests: int | None = None,
+    window_seconds: int | None = None,
 ) -> None:
     """按客户端 IP 进行请求速率限制（用于未认证端点）。
 
-    使用客户端的 IP 地址作为速率限制的键。
-    Redis 不可用时优雅降级，不阻断请求。
-
-    如果 IP 超出限制，抛出 429 错误。
-
-    用法：
-        @router.post("/login")
-        async def login(..., _: None = Depends(rate_limit_ip)):
-            ...
+    阈值取配置（RATE_LIMIT_MAX_REQUESTS，默认 30），参数保留仅供显式覆盖。
     """
+
+    if max_requests is None:
+        max_requests = settings.rate_limit_max_requests
+    if window_seconds is None:
+        window_seconds = settings.rate_limit_window_seconds
     try:
         # 对抗审查 M9：部署在反代后时 request.client.host 恒为反代 IP，
         # 所有用户共享一个限速窗口（10 次/分钟全局锁，可被刷成对所有人的 DoS）。

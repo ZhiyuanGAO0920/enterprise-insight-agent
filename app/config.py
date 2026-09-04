@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 480
 
+    # --- Rate limit（未认证端点：登录/绑定/微信登录）---
+    # 10 次/分钟对调试期反复试错过紧（模拟器与 curl 同 IP 共享窗口易误伤），
+    # 默认放宽到 30；生产如需收紧经 .env 覆盖 RATE_LIMIT_MAX_REQUESTS 即可
+    rate_limit_max_requests: int = 30
+    rate_limit_window_seconds: int = 60
+
     # --- System user for scheduled tasks (n8n webhook, cron) ---
     system_user_id: int = 0  # 系统用户 ID，用于周报生成等定时任务
 
