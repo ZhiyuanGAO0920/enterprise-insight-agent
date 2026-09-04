@@ -10,6 +10,8 @@ const config = require('./config.js');
  * @param {Object} [options.data] - 请求数据
  * @param {boolean} [options.auth=true] - 是否需要鉴权
  * @param {Object} [options.header] - 额外请求头
+ * @param {Object} [options.taskRef] - 调用方传入的空对象 {}，wx.request 的 RequestTask 会回填到
+ *                                     taskRef.task，供调用方主动 abort（如"停止生成"）
  */
 function request(options) {
   return new Promise((resolve, reject) => {
@@ -26,7 +28,7 @@ function request(options) {
     const label = `${options.method || 'GET'} ${options.url}`;
     console.log(`[req] 发送 → ${label}`);
 
-    wx.request({
+    const task = wx.request({
       url: config.baseUrl + options.url,
       method: options.method || 'GET',
       data: options.data,
@@ -59,7 +61,14 @@ function request(options) {
         }
       },
       fail(err) {
-        console.warn(`[req] 失败 ← ${label}`, err && err.errMsg);
+        const errMsg = (err && err.errMsg) || '';
+        if (errMsg.indexOf('abort') >= 0) {
+          // 主动取消（用户点"停止"）：静默失败，不弹"网络连接失败"
+          console.warn(`[req] 已取消 ← ${label}`);
+          reject({ code: 'aborted', message: '请求已取消' });
+          return;
+        }
+        console.warn(`[req] 失败 ← ${label}`, errMsg);
         wx.showToast({
           title: '网络连接失败',
           icon: 'none',
@@ -67,6 +76,7 @@ function request(options) {
         reject(err);
       },
     });
+    if (options.taskRef) options.taskRef.task = task; // 暴露 RequestTask 供 abort
   });
 }
 
@@ -74,8 +84,8 @@ function get(url, data, auth) {
   return request({ url, method: 'GET', data, auth });
 }
 
-function post(url, data, auth, timeoutMs) {
-  return request({ url, method: 'POST', data, auth, timeoutMs });
+function post(url, data, auth, timeoutMs, taskRef) {
+  return request({ url, method: 'POST', data, auth, timeoutMs, taskRef });
 }
 
 module.exports = { request, get, post };

@@ -434,8 +434,17 @@
   padding: 8rpx 8rpx 8rpx 24rpx;
 }
 
+.input-grow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
 .question-input {
   flex: 1;
+  /* width:100% 兜底：真机上原生 input 最小宽度异常时可确保撑满 wrapper */
+  width: 100%;
   background: transparent;
   font-size: 30rpx;
   color: var(--color-text);
@@ -470,17 +479,52 @@
   opacity: 0.5;
 }
 
-.history-btn,
-.full-btn {
+/* 停止生成：loading 时替换发送键（同步模式也可中断等待） */
+.stop-btn {
+  background: #ff3b30;
+  color: #ffffff;
+  border-radius: 50%;
   width: 88rpx;
   height: 88rpx;
-  background: var(--color-surface-subtle);
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32rpx;
+  font-size: 26rpx;
+  font-weight: 600;
   flex-shrink: 0;
+  box-shadow: 0 8rpx 20rpx rgba(255, 59, 48, 0.3);
+}
+
+.stop-btn:active {
+  transform: scale(0.95);
+}
+
+.history-btn,
+.full-btn {
+  height: 72rpx;
+  padding: 0 24rpx;
+  background: var(--color-surface);
+  border: 1rpx solid var(--color-border);
+  border-radius: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  transition: all 0.15s ease;
+}
+
+.btn-label {
+  font-size: 26rpx;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.history-btn:active,
+.full-btn:active {
+  transform: scale(0.94);
+  background: var(--color-surface-subtle);
 }
 
 /* 历史抽屉 */

@@ -140,22 +140,30 @@
   <!-- 输入栏 -->
   <view class="input-bar">
     <view class="input-wrap">
-      <input
-        class="question-input"
-        placeholder="问我任何经营问题..."
-        value="{{question}}"
-        bindinput="onInputQuestion"
-        confirm-type="send"
-        bindconfirm="handleAsk"
-        disabled="{{loading}}"
-      />
-      <view class="send-btn {{question ? 'active' : ''}}" bindtap="handleAsk">
+      <!-- input 外包一层：真机上原生 input 直接做 flex 子项会横向盖住右侧兄弟按钮
+           （history/full 钮曾整块不可见），wrapper 把 input 渲染层限制在独立盒子内 -->
+      <view class="input-grow">
+        <input
+          class="question-input"
+          placeholder="问我任何经营问题..."
+          value="{{question}}"
+          bindinput="onInputQuestion"
+          confirm-type="send"
+          bindconfirm="handleAsk"
+          disabled="{{loading}}"
+        />
+      </view>
+      <!-- 发送 ↔ 停止切换：生成中（同步/流式）红色"停止"可中断等待 -->
+      <view wx:if="{{!loading}}" class="send-btn {{question ? 'active' : ''}}" bindtap="handleAsk">
         <text>发送</text>
       </view>
-      <view class="history-btn icon icon-clock" bindtap="toggleHistory"></view>
+      <view wx:else class="stop-btn" bindtap="stopGeneration">
+        <text>停止</text>
+      </view>
+      <view class="history-btn" bindtap="toggleHistory"><text class="btn-label">历史</text></view>
       <!-- 停止生成统一收敛到进度卡 abort-btn：流式可中断、同步模式不支持中断；
            此处不再放 stop（原条件 loading 时同步模式也会显示但点击无效） -->
-      <view class="full-btn icon icon-doc" wx:if="{{reportContent.length > 0 && !loading}}" bindtap="viewReport"></view>
+      <view class="full-btn" wx:if="{{reportContent.length > 0 && !loading}}" bindtap="viewReport"><text class="btn-label">报告</text></view>
     </view>
   </view>
 </view>

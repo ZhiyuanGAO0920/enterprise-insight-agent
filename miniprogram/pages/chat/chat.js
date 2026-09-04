@@ -274,11 +274,18 @@ Page({
   async _analyzeSync(question, sessionId) {
     // 同步模式无进度事件：启动计时器给用户"还在运行"的反馈
     this._startWaitTimer();
+    // 记录 RequestTask，供"停止"按钮 abort——同步模式可放弃等待（后端可能继续完成）
+    const taskRef = {};
+    this._syncTaskRef = taskRef;
     try {
-      const resp = await post(config.endpoints.analyze, {
-        question: question,
-        session_id: sessionId || undefined,
-      });
+      const resp = await post(
+        config.endpoints.analyze,
+        { question: question, session_id: sessionId || undefined },
+        true,
+        undefined,
+        taskRef
+      );
+      this._syncTaskRef = null;
       if (resp && resp.report) {
         this._renderReport(resp, question);
         return;
@@ -291,6 +298,8 @@ Page({
     } catch (e) {
       console.warn('同步分析失败', e);
       this._stopWaitTimer();
+      this._syncTaskRef = null;
+      if (e && e.code === 'aborted') return; // 用户点"停止"主动取消，UI 已由 stopGeneration 复位
       this.setData({ loading: false, showProgress: false });
       wx.showToast({ title: (e && e.message) || '网络连接失败', icon: 'none', duration: 3000 });
     }
@@ -355,13 +364,26 @@ Page({
   },
 
   stopGeneration() {
+    let stopped = false;
     if (this.data.abortController) {
+      // 流式：中断 SSE 连接
       this.data.abortController.abort();
-      this.setData({
-        loading: false,
-        showProgress: false,
-        abortController: null,
-      });
+      this.setData({ abortController: null });
+      stopped = true;
+    }
+    if (this._syncTaskRef && this._syncTaskRef.task) {
+      // 同步：中断等待中的 wx.request（后端任务可能继续完成，报告可在历史记录中查看）
+      try {
+        this._syncTaskRef.task.abort();
+      } catch (err) {
+        console.warn('同步请求中断失败', err);
+      }
+      this._syncTaskRef = null;
+      stopped = true;
+    }
+    if (stopped) {
+      this._stopWaitTimer();
+      this.setData({ loading: false, showProgress: false });
       wx.showToast({ title: '已停止生成', icon: 'none' });
     }
   },
