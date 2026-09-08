@@ -57,7 +57,7 @@
 | **P3** | AGENT | Agent 生态扩展 | ✅ 部分完成 | 库存 Agent + 供应链 Agent + 4 张新表（product/supplier/inventory/purchase_order） |
 | **P3** | DATASRC | 多数据源支持 | ⬜ 规划中 | MySQL/MongoDB/CSV 抽象层 |
 
-> **完成度：11/12 ✅** | **Agent 数量：5 个（销售/CRM/财务/库存/供应链）** | **详见 [V2 vs V3 对比](V2-vs-V3-对比.md)**
+> **完成度：11/12 ✅** | **Agent 数量：5 个（销售/CRM/财务/库存/供应链）** | **详见 [V2 vs V3 对比（已归档）](archive/V2-vs-V3-对比.md) / [四版对比迁移附录](V1-V2-V3-V4-四版对比.md)**
 
 ---
 
