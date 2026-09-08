@@ -67,7 +67,8 @@ async def run_canary_now() -> bool:
 
         proc = await asyncio.create_subprocess_exec(
             sys.executable, "tests/run_eval.py", "--canary", "--save-db",
-            "--parallel", "8", "--port", str(port), "--output", str(out_file),
+            # T-13: 并发 8→4 —— 与 eval.py 触发路径同一折中（8 路并行争抢致临界题超时假漂移）
+            "--parallel", "4", "--port", str(port), "--output", str(out_file),
             cwd=str(REPO_ROOT),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,

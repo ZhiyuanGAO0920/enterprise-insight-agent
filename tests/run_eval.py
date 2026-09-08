@@ -5,7 +5,7 @@
     python tests/run_eval.py --type lookup         # 只跑查询型
     python tests/run_eval.py --type analysis       # 只跑分析型
     python tests/run_eval.py --id Q01              # 只跑单条
-    python tests/run_eval.py --parallel 5          # 并发 5 条（默认串行）
+    python tests/run_eval.py --parallel 4          # 并发 4 条（默认串行；金丝雀调度用 4）
     python tests/run_eval.py --judge               # 分析型追加 LLM-as-Judge 深度评分
     python tests/run_eval.py --judge-all           # 全部类型追加 LLM-as-Judge 评分
     python tests/run_eval.py --skip-reflection     # 对照实验：跳过质检与重试（量化质检价值）
@@ -127,6 +127,28 @@ async def judge_report(question: str, report: str, llm) -> dict | None:
     return None
 
 
+# 单条评估客户端超时（秒）。复杂题基线实测 60-120s、高方差可到 3-5 分钟，
+# 120s 会随机误杀临界题并把延迟劣化误判成模型漂移（T-13，2026-09-08 假漂移事件）。
+# 服务端 graph 有 420s 兜底（analysis.py），240s 客户端上限在其内安全。
+EVAL_HTTP_TIMEOUT = 240
+
+
+def _classify_transport_error(msg: str) -> tuple[str, bool]:
+    """把客户端传输错误分类为 (kind, is_infra)。
+
+    is_infra=True 表示错误来自请求通道/超时而非模型输出质量（T-14 infra 分离：
+    这类失败在漂移判定中不计入"模型质量退化"）。
+    """
+    low = (msg or "").lower()
+    if "timed out" in low or "timeout" in low:
+        return "timeout", True
+    if "http error" in low:
+        return "http", True
+    if "connection" in low or "refused" in low or "resolve" in low:
+        return "connection", True
+    return "other", True
+
+
 # ---------------------------------------------------------------------------
 # 异步并发执行
 # ---------------------------------------------------------------------------
@@ -172,21 +194,52 @@ async def run_single_eval(
 
         t_start = time.monotonic()
         try:
-            resp = urllib.request.urlopen(req, timeout=120)
+            resp = urllib.request.urlopen(req, timeout=EVAL_HTTP_TIMEOUT)
             data = json.loads(resp.read().decode("utf-8"))
         except Exception as e:
+            kind, is_infra = _classify_transport_error(str(e))
             return {
                 "id": question["id"],
                 "type": question.get("type"),
                 "question": question["question"][:60],
                 "error": str(e),
+                "error_kind": kind,
+                "infra": is_infra,  # T-14: infra 失败（超时/通道）与模型质量失败分离
                 "latency_ms": int((time.monotonic() - t_start) * 1000),
             }
 
         elapsed_ms = int((time.monotonic() - t_start) * 1000)
-        report = data.get("report") or ""
-        errors = data.get("agent_errors", [])
+        report_raw = data.get("report")
+        errors = data.get("agent_errors") or []
         sources = data.get("data_sources", [])
+
+        def _failed(kind: str, infra: bool, detail: str) -> dict:
+            """失败条目（不携带质量指标——error 条目在 compute_metrics 中不计质量分母/维度分）。"""
+            return {
+                "id": question["id"],
+                "type": question.get("type"),
+                "question": question["question"][:60],
+                "error": detail,
+                "error_kind": kind,
+                "infra": infra,
+                "latency_ms": elapsed_ms,
+            }
+
+        # T-15: 服务端 420s 图超时（analysis.py 超时路径返回 200 + report=None + agent_errors）
+        # 此前被当"完成"计入 passed（report_len=0 假通过）。归 infra——图未执行完，非质量信号。
+        if report_raw is None:
+            _m = (errors[0].get("error") if errors else "") or "服务端未返回报告"
+            return _failed("server_timeout", True, f"服务端无报告：{str(_m)[:80]}")
+
+        report = str(report_raw)
+        # T-15: 图跑完但产出空报告（report 节点异常被 graph 捕获进 agent_errors，如 Q51 2026-09-08）。
+        # 这是真实"未完成质量交付"→ 计入质量分母失败（infra=False），不再是假通过。
+        if not report.strip():
+            _detail = "；".join(
+                f"{e.get('agent', '?' )}: {str(e.get('error', e.get('user_message', '')))[:60]}"
+                for e in errors[:3]
+            ) or "空报告（无 agent 错误）"
+            return _failed("empty_report", False, f"空报告：{_detail[:120]}")
 
         sqls = [s.get("sql", "") for s in sources if s.get("sql")]
 
@@ -242,8 +295,12 @@ async def run_single_eval(
 async def save_run_to_db(metrics: dict, model_version: str, canary: bool, results_file: str | None = None) -> dict:
     """将本次评估结果落库 eval_runs，并对比上一次同模型、同类型的运行计算漂移信号。
 
-    - 漂移判定阈值与 print_report 的 --compare 一致：通过率 -5%、维度覆盖率 -10%、延迟 +5s，
-      另加 Reflection 严格通过率 -8%（金丝雀重点盯质检质量）。
+    - 漂移判定阈值：质量通过率 -5%、维度覆盖率 -10%、延迟 +5s、Reflection 严格通过率 -8%。
+    - T-14 infra 分离（2026-09-08）：判定用 quality_pass_rate（剔除 timeout/http/connection
+      失败后的完成样本通过率），infra 失败只进备注不进门槛——9-08 假漂移即 120s 超时批量
+      误杀导致 pass_rate 37.5%，质量并无退化；延迟门槛在任一测 infra 污染时也只降级为备注。
+    - 兼容旧基线：上一条 metrics_json 缺 quality_pass_rate（T-14 前落库）时回退用原始
+      pass_rate（旧口径含 infra，属一次性基线过渡，备注注明）。
     - 模型版本变更时不比较（基线切换本身需要人关注，另行提示）。
     """
     from sqlalchemy import select
@@ -265,26 +322,66 @@ async def save_run_to_db(metrics: dict, model_version: str, canary: bool, result
         summary = ""
         if prev is not None:
             if prev.model_version == model_version:
-                parts = []
-                pass_diff = metrics["pass_rate"] - prev.pass_rate
-                if pass_diff < -5:
-                    drift = True
-                    parts.append(f"通过率 {prev.pass_rate:.1f}% -> {metrics['pass_rate']:.1f}% ({pass_diff:+.1f}%)")
+                drift_parts: list[str] = []   # 触发 drift 的信号
+                notes: list[str] = []          # 上下文备注（含 infra 解释，不触发 drift）
+
+                # ---- T-14: infra 上下文 ----
+                infra_failed = metrics.get("infra_failed", 0)
+                prev_metrics = prev.metrics_json if isinstance(prev.metrics_json, dict) else {}
+                prev_infra = prev_metrics.get("infra_failed", 0)
+                if infra_failed > 0:
+                    kinds = "、".join(f"{k}×{v}" for k, v in
+                                      (metrics.get("infra_error_kinds") or {}).items()) or "unknown"
+                    notes.append(f"infra 失败 {infra_failed} 条（{kinds}，客户端超时/通道层，非质量信号）")
+
+                # ---- 通过率门槛：质量口径（剔除 infra 后） ----
+                cur_quality = metrics.get("quality_pass_rate")
+                prev_quality = prev_metrics.get("quality_pass_rate")
+                legacy_prev = False
+                if prev_quality is None:
+                    # 过渡基线：T-14 前旧行只有原始口径（含 infra）
+                    legacy_prev = True
+                    prev_quality = prev.pass_rate if prev.total else 0.0
+                if cur_quality is None:
+                    # 全部 infra 失败 → 无质量样本，跳过质量门槛，避免假漂移
+                    notes.append("完成样本为 0（全部 infra 失败），本次无法判定模型质量")
+                else:
+                    if legacy_prev:
+                        notes.append("基线为 T-14 前旧口径（含 infra 失败），本次对比为过渡口径")
+                    q_diff = cur_quality - prev_quality
+                    if q_diff < -5:
+                        drift = True
+                        drift_parts.append(
+                            f"质量通过率 {prev_quality:.1f}% -> {cur_quality:.1f}% ({q_diff:+.1f}%)"
+                        )
+
+                # ---- 维度覆盖率门槛（只统计完成样本，双方一致） ----
                 dim_diff = (metrics["avg_dimension_coverage"] - prev.dimension_coverage) * 100
                 if dim_diff < -10:
                     drift = True
-                    parts.append(f"维度覆盖率下降 {dim_diff:+.1f}%")
+                    drift_parts.append(f"维度覆盖率下降 {dim_diff:+.1f}%")
+
+                # ---- 延迟门槛：infra 污染时降级为备注（超时等待会虚增平均延迟） ----
                 lat_diff = metrics["avg_latency_ms"] - prev.avg_latency_ms
                 if lat_diff > 5000:
-                    drift = True
-                    parts.append(f"平均延迟 +{lat_diff / 1000:.0f}s")
+                    if infra_failed > 0 or prev_infra > 0:
+                        notes.append(
+                            f"平均延迟 +{lat_diff / 1000:.0f}s（含 infra 超时等待，不计漂移）"
+                        )
+                    else:
+                        drift = True
+                        drift_parts.append(f"平均延迟 +{lat_diff / 1000:.0f}s")
+
+                # ---- Reflection 严格通过率门槛（与完成样本同口径，不受 infra 影响） ----
                 cur_sr = metrics.get("reflection_strict_pass_rate")
                 if prev.reflection_strict_pass_rate is not None and cur_sr is not None:
                     r_diff = cur_sr - prev.reflection_strict_pass_rate
                     if r_diff < -8:
                         drift = True
-                        parts.append(f"Reflection 严格通过率 {r_diff:+.1f}%")
-                summary = "；".join(parts) if parts else "无显著退化"
+                        drift_parts.append(f"Reflection 严格通过率 {r_diff:+.1f}%")
+
+                all_parts = drift_parts + notes
+                summary = "；".join(all_parts) if all_parts else "无显著退化"
             else:
                 summary = f"模型变更 {prev.model_version} -> {model_version}，基线切换，本次不比较"
         else:

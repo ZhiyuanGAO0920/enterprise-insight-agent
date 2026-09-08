@@ -20,6 +20,78 @@ from app.tools.stream_utils import safe_get_stream_writer as get_stream_writer
 from app.workflow.state import AnalysisState
 
 
+# ---- T-15 上下文止损（2026-09-08 金丝雀 Q89 类失控排查） ----
+# 失控路径：sql_runner 防保守把 LIMIT 提升到 max_sql_rows=1000 → 1000 行宽表文本
+# （10-30 万字符）整段注入 ToolMessage → 单 agent 上下文 10-20 万 token（Q89 实测
+# 200-330k input，¥0.29-0.43/次）→ 首 token 延迟高 + 长序列慢 → 客户端 120s 超时。
+# 反思/报告节点的重试上限本就存在（graph after_reflection: retries<2 = 最多 1 次），
+# 失控唯一源头在工具循环。止损：SQL 结果按行/字符双上限截断并如实告知 LLM 行数；
+# sales 的"补全排名行"强制逻辑只在完整行可传递时（≤ 截断行数）才允许，否则跳过
+# （LLM 未见到的行无法补全，强补只会胡编）。
+MAX_SQL_RESULT_ROWS = 200      # 最多保留的数据行数（约 30KB ≈ 8k token/条查询）
+MAX_SQL_RESULT_CHARS = 40000   # 单行 TEXT 超长的字符兜底
+# 工具历史压缩：保留最近 N 条 ToolMessage 完整，更早的压缩为摘要
+# （Q89 型开放题实测 29 次 LLM 调用、312k input tokens——成本大头是多轮对全量
+#   历史的重放，而非单条结果。压缩后上下文从 O(轮²) 收敛为 O(轮)）
+MAX_FULL_TOOL_MESSAGES = 2
+COMPACT_TOOL_MIN_CHARS = 800  # 小于此长度的小结果无需压缩（聚合结果常见 <800）
+_COMPACT_MARKER = "（早期工具结果已压缩"
+
+
+def cap_sql_result(text: str) -> str:
+    """按字符预算截断 SQL 结果文本（行边界对齐），并如实告知 LLM 总行数与截断事实。
+
+    - 预算内（≤ 40000 字符 ≈ 8-10k token）：原样通过——窄表千行（每行 20B）可完整
+      传递，不误伤；只有宽表大结果（orders 全列 1000 行 ≈ 15 万字符）才被截断。
+    - 截断只作用于注入 LLM 上下文的 ToolMessage；data_sources 的 raw_data[:3000]
+      与 row_count 统计仍基于截断前完整文本（审计溯源口径不变）。
+    - 按行边界截断保证表格行完整可解析；表头/分隔线无条件保留。
+    """
+    if len(text) <= MAX_SQL_RESULT_CHARS:
+        return text  # 常规结果（聚合/限额查询）原样通过
+    lines = text.splitlines()
+    budget = MAX_SQL_RESULT_CHARS
+    kept: list[str] = []
+    used = 0
+    for ln in lines:
+        if used + len(ln) + 1 > budget:
+            break
+        kept.append(ln)
+        used += len(ln) + 1
+    # 至少保住表头 + 分隔线（前 2 行）
+    if len(kept) < 2 and len(lines) >= 2:
+        kept = lines[:2]
+    total_rows = len(lines) - 2
+    kept_rows = len(kept) - 2
+    return "\n".join(kept) + (
+        f"\n...（查询共返回 {total_rows} 行，此处仅展示前 {max(kept_rows, 0)} 行"
+        "以控制上下文；如需完整明细，请缩小时间/门店范围或分批查询）"
+    )
+
+
+def compact_old_tool_results(messages: list) -> None:
+    """把 messages 中过旧且较大的 ToolMessage 压缩为摘要（就地修改）。
+
+    保留最近 MAX_FULL_TOOL_MESSAGES 条完整 + 全部小于 COMPACT_TOOL_MIN_CHARS 的
+    小结果；更早的大结果替换为「表头 + 前 3 行 + 压缩说明」——LLM 仍能看到查过什么、
+    规模多大，需要时可用工具重新查询（轮次上限内）。data_sources 审计不受影响
+    （它在压缩前已基于完整文本登记）。
+    """
+    tool_msgs = [m for m in messages if isinstance(m, ToolMessage)]
+    # 只压缩"非最近 N 条完整位"中超过阈值的（从最旧开始，跳过已被压缩的）
+    for m in tool_msgs[:-MAX_FULL_TOOL_MESSAGES]:
+        content = m.content if isinstance(m.content, str) else ""
+        if len(content) < COMPACT_TOOL_MIN_CHARS or _COMPACT_MARKER in content:
+            continue
+        lines = content.splitlines()
+        head = "\n".join(lines[:4])  # 表头(1) + 分隔线(1) + 前 2 数据行
+        total_rows = max(0, len(lines) - 2)
+        m.content = head + (
+            f"\n...（早期工具结果已压缩：该查询共 {total_rows} 行 / 原 {len(content)} 字符，"
+            "避免长上下文重放；如需完整数据请重新查询）"
+        )
+
+
 def create_agent_node(
     agent_name: str,
     result_field: str,
@@ -100,6 +172,7 @@ def create_agent_node(
         settings = get_settings()
         data_sources: list[dict] = []
         sql_row_count = 0
+        sql_tool_capped = False  # T-15: 最近一次 SQL 结果是否超预算截断（决定补全逻辑是否可用）
 
         try:
             question_text = state["question"]
@@ -124,8 +197,9 @@ def create_agent_node(
                     t0 = time.monotonic()
                     result = await tool_fn.ainvoke(tc["args"])
                     elapsed_ms = int((time.monotonic() - t0) * 1000)
+                    raw_result = str(result)
                     if tc["name"] == "run_sql" and settings.feature_data_trace:
-                        sql_lines = str(result).split("\n")
+                        sql_lines = raw_result.split("\n")
                         row_count = sum(
                             1 for l in sql_lines if " | " in l and not l.startswith("-")
                         )
@@ -139,11 +213,19 @@ def create_agent_node(
                             "sql": tc["args"].get("query", ""),
                             "execution_time_ms": elapsed_ms,
                             "row_count": row_count,
-                            "raw_data": str(result)[:3000],
+                            "raw_data": raw_result[:3000],
                         })
+                    # T-15: 大结果截断入上下文（row_count/raw_data 仍用完整文本，审计口径不变）
+                    if len(raw_result) > MAX_SQL_RESULT_CHARS:
+                        sql_tool_capped = True
+                        node_logger.info(
+                            "SQL 结果超预算截断: %d 字符 -> ToolMessage", len(raw_result)
+                        )
                     messages.append(
-                        ToolMessage(content=str(result), tool_call_id=tc["id"])
+                        ToolMessage(content=cap_sql_result(raw_result), tool_call_id=tc["id"])
                     )
+                    # T-15: 旧大结果压缩（保最近 2 条完整），阻断多轮全量重放的成本放大
+                    compact_old_tool_results(messages)
 
             # 工具循环耗尽后强制生成最终回答
             if response.tool_calls:
@@ -158,21 +240,29 @@ def create_agent_node(
 
             # V4: 排名截断检测（仅 sales Agent 启用，防止 LLM 省略数据行）
             if detect_truncation and sql_row_count > 10:
-                md_rows = sum(
-                    1 for l in final.split("\n")
-                    if l.strip().startswith("|") and "---" not in l
-                )
-                data_rows = max(0, md_rows - 1)
-                if data_rows < sql_row_count * 0.9:
-                    force_msg = (
-                        f"你只输出了 {data_rows} 行数据，但 SQL 返回了 {sql_row_count} 行。"
-                        f"请立即补充剩余的全部 {sql_row_count - data_rows} 行。"
-                        f"不要省略任何一行。用相同的表格格式继续输出，从第 {data_rows + 1} 行开始。"
+                # T-15: SQL 结果超预算被截断时，LLM 未见完整行 → 强补只会胡编/死循环，
+                # 跳过（ToolMessage 截断注已如实告知行数，LLM 基于前 200 行分析即可）
+                if sql_tool_capped:
+                    node_logger.info(
+                        "排名补全跳过: SQL 返回 %d 行超上下文预算，基于截断头部分析",
+                        sql_row_count,
                     )
-                    messages.append(HumanMessage(content=force_msg))
-                    retry = await bound_llm.ainvoke(messages)
-                    if retry.content:
-                        final = final + "\n" + retry.content
+                else:
+                    md_rows = sum(
+                        1 for l in final.split("\n")
+                        if l.strip().startswith("|") and "---" not in l
+                    )
+                    data_rows = max(0, md_rows - 1)
+                    if data_rows < sql_row_count * 0.9:
+                        force_msg = (
+                            f"你只输出了 {data_rows} 行数据，但 SQL 返回了 {sql_row_count} 行。"
+                            f"请立即补充剩余的全部 {sql_row_count - data_rows} 行。"
+                            f"不要省略任何一行。用相同的表格格式继续输出，从第 {data_rows + 1} 行开始。"
+                        )
+                        messages.append(HumanMessage(content=force_msg))
+                        retry = await bound_llm.ainvoke(messages)
+                        if retry.content:
+                            final = final + "\n" + retry.content
 
             elapsed = time.monotonic() - t_start
             node_logger.info(

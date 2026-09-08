@@ -260,10 +260,29 @@ def compute_evidence_coverage(report: str, sources: list[dict]) -> dict:
 
 
 def compute_metrics(results: list[dict]) -> dict:
-    """从结果列表中汇总核心指标。"""
+    """从结果列表中汇总核心指标。
+
+    T-14 infra 分离：error 条目可带 infra=True + error_kind（timeout/http/connection/other），
+    表示失败源于请求通道而非模型质量。新增 infra_failed / infra_error_kinds /
+    quality_pass_rate 三个键，旧键（pass_rate 等）原样保留 → 老指标口径不漂移。
+    quality_pass_rate = 完成样本（非 infra 失败）内的通过率；全部 infra 失败时为 None
+    （无质量信号，漂移判定据此跳过质量门槛）。
+    """
     total = len(results)
     failed = sum(1 for r in results if r.get("error"))
     passed = total - failed
+
+    # ---- T-14: 基础设施失败分离（超时/连接/HTTP 通道错误，与模型质量失败区分） ----
+    infra_failed = sum(1 for r in results if r.get("infra") is True)
+    error_kinds: dict = {}
+    for r in results:
+        kind = r.get("error_kind")
+        if kind:
+            error_kinds[kind] = error_kinds.get(kind, 0) + 1
+    quality_total = total - infra_failed  # 完成样本数（可判质量的条目）
+    quality_pass_rate = (
+        round(passed / quality_total * 100, 1) if quality_total > 0 else None
+    )
 
     dim_scores = [r["dimension_coverage"] for r in results if "dimension_coverage" in r]
     rows_ok = sum(1 for r in results if r.get("rows_in_range"))
@@ -407,6 +426,10 @@ def compute_metrics(results: list[dict]) -> dict:
         "passed": passed,
         "failed": failed,
         "pass_rate": round(passed / max(total, 1) * 100, 1),
+        # T-14 infra 分离：通过率口径不变，新增质量口径供漂移判定使用
+        "infra_failed": infra_failed,
+        "infra_error_kinds": error_kinds,
+        "quality_pass_rate": quality_pass_rate,
         "avg_dimension_coverage": round(sum(dim_scores) / max(len(dim_scores), 1), 3),
         "rows_in_range_rate": round(rows_ok / max(total, 1) * 100, 1),
         "no_hallucination_rate": round(no_hall / max(total, 1) * 100, 1),

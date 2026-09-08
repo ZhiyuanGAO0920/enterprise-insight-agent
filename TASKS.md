@@ -106,6 +106,12 @@
 
 ### T-10 ✅ 已完成并决策（2026-08-31）→ 详见历史归档「T-10 data_sources 落库 + RAG 止损」
 
+### T-13 ✅ 已完成并归档（2026-09-08）→ 详见历史归档「T-13 金丝雀评估延迟鲁棒性」
+
+### T-14 ✅ 已完成并归档（2026-09-08）→ 详见历史归档「T-14 漂移口径 infra 分离」
+
+### T-15 ⚠️ 部分完成并归档（2026-09-08，根因反转 + 止损落地，Q89 重尾待 9-15 轮实测）→ 详见历史归档「T-15 空报告与失控上下文」
+
 ***
 
 ## 暂缓区（已确认暂缓，不做）
@@ -119,6 +125,30 @@
 ***
 
 ## 历史归档
+
+### T-13 ✅ 金丝雀评估延迟鲁棒性（2026-09-08 完成）
+
+* **目标**：消除"延迟波动 → 客户端超时 → 误判模型漂移"链路
+* **决策**：Q93 用符号输入题 "？？？" 补位而非剔除——保住 16 条 canary 数（UI/文档"16 条固定子集"文案零漂移）；空串根因 = `AnalysisRequest.question` Field(min_length=1)（Q93 设计时用空串测"空输入边界"违背了契约，是永久 422）
+* **修改范围**：`tests/run_eval.py`、`app/scheduler.py`、`app/api/routes/eval.py`（--parallel 4）、`tests/eval_set.json`
+* **验证数据**：Q01 复测 76.4s/dim 100%（今晨 107s 超时）；canary/sql/grounding/reflection 子集 59 条全绿；Q93 422 根因确认并替换
+* **Commit**：见 git log（本次改动集）
+
+### T-14 ✅ 漂移口径 infra 分离（2026-09-08 完成）
+
+* **目标**：infra 失败（超时/HTTP 错误/服务端无产出）不参与"模型质量漂移"判定，只进 summary 备注
+* **决策**：quality_pass_rate = 完成样本通过率（分母剔除 infra）；全 infra → None 跳过质量门槛（不假报）；延迟门槛在任一测 infra 污染时降级备注（超时等待虚增均值）；旧基线无 quality_pass_rate → 回退旧 pass_rate 并注"过渡口径"；eval_runs 表零结构变更（metrics_json JSON 承载）
+* **修改范围**：`tests/run_eval.py`（save_run_to_db 判定重写）、`app/services/eval_metrics.py`（compute_metrics 新增 3 键，旧键零漂移）
+* **验证数据**：合成 16 条精确复现今日假漂移（旧 37.5% vs 新 100%）；单元断言 3 场景全过
+* **Commit**：见 git log
+
+### T-15 ⚠️ 空报告与失控上下文（2026-09-08 部分完成）
+
+* **目标**：① 空报告假通过暴露；② Q89 >200k input 失控止损
+* **决策（关键）**：① 服务端 420s 图超时（200+report=None）→ 客户端归 infra `server_timeout`；图完成但空产出 → 质量失败 `empty_report`（进质量分母，不再假 pass）② 失控根因**不是**无界重试（graph `retries<2` 上限实测存在）——是①工具循环每轮全量重放 ToolMessage（O(轮²)）+ ②输出物理时长（Q89 单题 48k output ÷ 232tok/s ≈ 210s）。止损：单条 SQL 结果 cap 40KB（防宽表 SELECT * 1000 行爆炸，614KB→40KB 实测）+ 历史压缩保最近 2 条（33KB→300 字符）+ sales 补全守卫（截断后不强制补全）。report 节点不加内部重试（llm max_retries=2 已覆盖，再加=成本翻倍）
+* **未决（backlog）**：Q89 重尾（245s~420s+ 波动）需轮次级策略——supervisor 对开放式问题激活全 agent 的收敛引导 / agent 探索轮次自适应，产品行为改动另行排期；9-15 金丝雀轮实测压缩后全套总时长与 drift 行为
+* **验证数据**：cap/compact 单测 6 断言全过；Q89 复测 312k/¥0.41/ref=True（压缩前）vs 复测 26 调用 420s+（压缩后，反射重试路径）；Q01/Q51 形态实证（Q51 report_len=0 + errors=1 原判 pass → 现空报告质量失败）
+* **Commit**：见 git log
 
 ### T-01 ✅ 会员 PII 越权：Member 表补租户/门店维度（2026-08-31 完成，Phase 1）
 

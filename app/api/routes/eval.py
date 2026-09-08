@@ -3,10 +3,11 @@
 金丝雀设计（V4.7）：
   外部 LLM 模型漂移是"无通知、渐进式"的 —— 供应商推新版本后，Prompt 输出风格可能悄悄变差。
   eval_runs 表把每次评估结果（含 model_version）落库；每周跑固定子集（eval_set.json 中
-  canary=true 的 16 条，每日 09:30 兜底检查、7 天幂等窗口）与上一次同模型基线对比，
-  超阈值即 drift=true，推送告警。
+  canary=true 的 16 条，触发时间/幂等窗口由 config canary_hour/canary_minute/
+  canary_interval_days 决定，默认每日 13:05 兜底检查、7 天幂等窗口=每周一次）与上一次
+  同模型基线对比，超阈值即 drift=true，推送告警。
   本端点通过子进程调用 tests/run_eval.py --canary --save-db（复用同一套评估引擎与指标口径），
-  请求为阻塞式：耗时约 3-8 分钟，n8n 模板中 httpRequest 超时需放宽到 10 分钟。
+  请求为阻塞式：耗时约 5-20 分钟，n8n 模板中 httpRequest 超时需放宽到 10 分钟以上。
 """
 import asyncio
 import hmac
@@ -67,10 +68,11 @@ async def run_canary(
     authorization: str | None = Header(None, description="Bearer <n8n_webhook_secret>"),
     settings=Depends(get_settings),
 ):
-    """子进程跑 `tests/run_eval.py --canary --save-db --parallel 8`，落库后返回漂移信号。
+    """子进程跑 `tests/run_eval.py --canary --save-db --parallel 4`，落库后返回漂移信号。
 
-    响应中的 drift=true 表示与上一次同模型基线相比有显著退化（通过率 -5% / 维度覆盖率 -10%
-    / 延迟 +5s / Reflection 严格通过率 -8%），n8n 据此推送告警。
+    响应中的 drift=true 表示与上一次同模型基线相比有显著退化（质量通过率 -5% / 维度覆盖率
+    -10% / 延迟 +5s / Reflection 严格通过率 -8%，T-14 起 infra 失败不入质量门槛），
+    n8n 据此推送告警。
 
     认证与 /alerts/check、/weekly/generate 一致：n8n_webhook_secret（n8n 定时触发的
     服务端到端认证，不依赖会过期的 JWT）。
@@ -112,7 +114,9 @@ async def run_canary(
         port = request.base_url.port or 8002
         proc = await asyncio.create_subprocess_exec(
             sys.executable, "tests/run_eval.py", "--canary", "--save-db",
-            "--parallel", "8", "--port", str(port), "--output", str(out_file),
+            # T-13: 并发 8→4 —— 8 路 × 多 Agent 图互相争 CPU/LLM 配额，临界题延迟虚增
+            # 3-5 倍随机超时（9-08 假漂移根因之一），4 路在总时长与稳定性间折中
+            "--parallel", "4", "--port", str(port), "--output", str(out_file),
             cwd=str(REPO_ROOT),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
