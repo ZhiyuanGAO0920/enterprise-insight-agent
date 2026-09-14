@@ -71,6 +71,12 @@ class Settings(BaseSettings):
     canary_minute: int = 5
     canary_interval_days: int = 7  # 幂等窗口：最近 N 天已有金丝雀记录则跳过（默认 7 = 每周一次，省 DeepSeek 配额）
 
+    # --- 应用内告警兜底（T-16）—— n8n 告警工作流 9/2 起停摆 13 天无人发现；每日定点检查
+    # audit_log 有无当日的 /alerts/check 调用记录，无则由应用自跑检测+推送并按需提示 n8n 停摆 ---
+    alert_check_hour: int = 9
+    alert_check_minute: int = 30
+    alert_check_stale_hours: int = 20  # 幂等窗口：最近 N 小时内已有检测调用则跳过（n8n 正常时不重复跑）
+
     # --- pgvector ---
     embedding_dimension: int = 1024  # BGE-M3 维度
 

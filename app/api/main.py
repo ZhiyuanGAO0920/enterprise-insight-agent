@@ -24,6 +24,7 @@ settings = get_settings()
 logger = get_logger("eia.api")
 
 _scheduler_task: asyncio.Task | None = None  # T-12: 金丝雀定时任务引用（防 GC）
+_alert_scheduler_task: asyncio.Task | None = None  # T-16: 告警兜底定时任务引用（防 GC）
 
 from app.api.routes.admin import router as admin_router
 from app.api.routes.alerts import router as alerts_router
@@ -278,16 +279,35 @@ async def startup_event():
     except Exception as e:
         logger.error("金丝雀定时任务注册失败：%s", e)
 
+    # T-16: 应用内告警兜底 —— n8n 告警工作流停摆时的自动接管（2026-09-14，
+    # 9/2-9/14 停摆 13 天无人发现的直接修复）
+    try:
+        from app.scheduler import alert_scheduler_loop
+        global _alert_scheduler_task
+        _alert_scheduler_task = asyncio.create_task(alert_scheduler_loop())
+        logger.info("告警兜底定时任务已注册（每日 %02d:%02d，幂等）",
+                    settings.alert_check_hour, settings.alert_check_minute)
+    except Exception as e:
+        logger.error("告警兜底定时任务注册失败：%s", e)
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """服务关闭时清理资源（httpx 连接池、金丝雀定时任务等）。"""
+    """服务关闭时清理资源（httpx 连接池、金丝雀/告警定时任务等）。"""
     try:
         global _scheduler_task
         if _scheduler_task is not None:
             _scheduler_task.cancel()
             _scheduler_task = None
             logger.info("金丝雀定时任务已取消")
+    except Exception:
+        pass
+    try:
+        global _alert_scheduler_task
+        if _alert_scheduler_task is not None:
+            _alert_scheduler_task.cancel()
+            _alert_scheduler_task = None
+            logger.info("告警兜底定时任务已取消")
     except Exception:
         pass
     try:

@@ -221,3 +221,25 @@ async def send_notification(title: str, content: str) -> dict[str, bool]:
         results[platform] = await ch.send(title, content)
 
     return results
+
+
+async def send_alert_notification(alerts: list[dict]) -> dict[str, bool]:
+    """推送经营预警（alert_routes 端点与 T-16 定时兜底共用，保证标题/文案单一事实源）。
+
+    Args:
+        alerts: run_alert_checks() 返回的触发预警列表（非空）。
+
+    Returns:
+        各通道发送结果 {"feishu": True/False, ...}。
+    """
+    from app.tools.anomaly_detector import METRIC_NAMES  # 延迟导入：避免模块级循环依赖
+
+    alert_lines = "\n".join(
+        f"- **{METRIC_NAMES.get(a['metric'], a['metric'])}**: {a['actual_value']:.2f} "
+        f"({'超过' if a['direction'] == 'above' else '低于'}阈值 {a['threshold']})"
+        for a in alerts
+    )
+    return await send_notification(
+        title=f"经营预警 — {len(alerts)} 项指标异常",
+        content=f"## 预警详情\n{alert_lines}",
+    )

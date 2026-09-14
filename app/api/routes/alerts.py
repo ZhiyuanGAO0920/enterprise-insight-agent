@@ -12,8 +12,8 @@ from app.api.dependencies import require_permission
 from app.config import get_settings
 from app.database.connection import get_session
 from app.database.models import AlertRule
-from app.services.notification import send_notification
-from app.tools.anomaly_detector import METRIC_NAMES, run_alert_checks
+from app.services.notification import send_alert_notification
+from app.tools.anomaly_detector import run_alert_checks
 
 router = APIRouter(prefix="/alerts", tags=["预警管理"])
 
@@ -52,17 +52,9 @@ async def check_alerts(
 
     alerts = await run_alert_checks()
 
-    # V4.1: 向已配置的 webhook 发送预警通知
+    # V4.1: 向已配置的 webhook 发送预警通知（T-16 起与定时兜底共用同一函数，防文案双源）
     if alerts:
-        alert_lines = "\n".join(
-            f"- **{METRIC_NAMES.get(a['metric'], a['metric'])}**: {a['actual_value']:.2f} "
-            f"({'超过' if a['direction'] == 'above' else '低于'}阈值 {a['threshold']})"
-            for a in alerts
-        )
-        await send_notification(
-            title=f"经营预警 — {len(alerts)} 项指标异常",
-            content=f"## 预警详情\n{alert_lines}",
-        )
+        await send_alert_notification(alerts)
 
     return {
         "status": "ok",
