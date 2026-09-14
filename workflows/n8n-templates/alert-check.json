@@ -6,14 +6,14 @@
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 8,
+              "triggerAtHour": 12,
               "triggerAtMinute": 30
             }
           ]
         }
       },
       "id": "schedule-trigger",
-      "name": "每天 08:30 检测一次",
+      "name": "每天 12:30 检测一次",
       "type": "n8n-nodes-base.scheduleTrigger",
       "position": [250, 300]
     },
@@ -86,5 +86,5 @@
   "settings": {
     "timezone": "Asia/Shanghai"
   },
-  "description": "每天 08:30 自动检测经营指标异常。检测到异常后通过配置的 webhook（飞书/钉钉/企微）推送通知。需要先在 .env 中配置 N8N_WEBHOOK_SECRET 和对应的 WEBHOOK_URL。\n\n触发器格式说明（2026-09-14 T-16 踩坑）：triggerAtHour/triggerAtMinute 必须写在 interval 数组项**内部**；此前写成 \"interval\":[{\"field\":\"hours\",...}], \"triggerAtMinute\":0（项外）被 n8n 忽略，表现为重启后跑几次即静默（9/2 起停摆 13 天无人发现）。此格式对齐金丝雀工作流（实测长期稳定）。08:30 与应用内兜底 09:30 错开：兜底看到本次调用的审计记录即幂等跳过。"
+  "description": "每天 12:30 自动检测经营指标异常。检测到异常后通过配置的 webhook（飞书/钉钉/企微）推送通知。需要先在 .env 中配置 N8N_WEBHOOK_SECRET 和对应的 WEBHOOK_URL。\n\n触发器格式说明（2026-09-14 T-16 踩坑）：triggerAtHour/triggerAtMinute 必须写在 interval 数组项**内部**；此前写成 \"interval\":[{\"field\":\"hours\",...}], \"triggerAtMinute\":0（项外）被 n8n 忽略，表现为重启后跑几次即静默（9/2 起停摆 13 天无人发现）。此格式对齐金丝雀工作流（实测长期稳定）。12:30 与应用内兜底 12:45 错开：兜底看到本次调用的审计记录即幂等跳过。改本时间时必须同步 app/config.py 的 alert_check_hour/minute——兜底时刻必须晚于本工作流，否则会误判 n8n 停摆并推假警报。"
 }

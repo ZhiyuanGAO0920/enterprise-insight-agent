@@ -73,8 +73,11 @@ class Settings(BaseSettings):
 
     # --- 应用内告警兜底（T-16）—— n8n 告警工作流 9/2 起停摆 13 天无人发现；每日定点检查
     # audit_log 有无当日的 /alerts/check 调用记录，无则由应用自跑检测+推送并按需提示 n8n 停摆 ---
-    alert_check_hour: int = 9
-    alert_check_minute: int = 30
+    # 12:45 = n8n 工作流触发时刻（12:30）之后 15 分钟：n8n 正常时它刚留下审计记录，本兜底即幂等跳过；
+    # 若兜底时间早于 n8n（如最初的 09:30），n8n 前一日 12:30 的调用已满 21 小时、掉出 20 小时幂等窗口，
+    # 会被误判成"n8n 停摆"并推送假警报——两者时间必须保持"n8n 先、兜底后"的顺序
+    alert_check_hour: int = 12
+    alert_check_minute: int = 45
     alert_check_stale_hours: int = 20  # 幂等窗口：最近 N 小时内已有检测调用则跳过（n8n 正常时不重复跑）
 
     # --- pgvector ---

@@ -66,7 +66,7 @@ app/
 ├── database/        # 17 ORM 模型，13 版 Alembic 迁移
 ├── middleware/       # 🆕 audit.py（审计日志） + tenant.py（多租户）
 ├── services/        # notification.py + pdf_exporter.py + masker.py（PII 脱敏）
-├── scheduler.py     # 🆕 金丝雀定时兜底（每日 13:05 检查，7 天幂等窗口 = 每周一次，不依赖 n8n）
+├── scheduler.py     # 🆕 金丝雀定时兜底（每日 13:05，7 天幂等窗口）+ 告警兜底（每日 12:45，20h 幂等窗口，T-16）
 ├── tools/           # sql_runner.py（RLS 注入），prompt_loader.py（3 级 fallback）
 └── workflow/        # graph.py（StateGraph 编排），state.py（AnalysisState TypedDict）
 prompts/
@@ -140,6 +140,7 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 ## 运维须知
 
 - 三版本同时运行：V2(8000) / V3(8001) / V4(8002)
+- **告警链路时刻约束（T-16 踩坑，改时间必看）**：n8n 工作流「V4 异常检测与预警」每日 **12:30** 触发 `/api/v1/alerts/check`；应用内兜底每日 **12:45** 复核（20h 幂等窗口）。兜底时刻**必须晚于 n8n**（两者都要改：n8n 节点 + `app/config.py` 的 `alert_check_hour/minute`），否则兜底会把"n8n 刚跑过"误判成停摆、推假警报并重复检测。另：n8n Schedule Trigger 的 `triggerAtHour/triggerAtMinute` 必须写在 `interval` 数组项**内部**（写项外会被静默忽略 → 触发几次后停摆，9/2 那次 13 天无人发现就是这个）
 - PostgreSQL: `localhost:15432`，admin / admin123（Docker）
 - Redis: `localhost:6381`（Docker）
 - n8n: `http://localhost:5680`（Docker）

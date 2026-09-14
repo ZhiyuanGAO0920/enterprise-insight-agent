@@ -150,15 +150,16 @@
   * **E2E 周期实测**：`before=False`（n8n 停摆）→ 第 1 轮 `fallback`（飞书推送实际发出，日志 "Webhook sent platform=feishu"）→ `after=True`（审计记录写入）→ 第 2 轮 `skipped`（无重复推送）
   * **飞书通道实测**：测试消息返回 `{'feishu': True, 'dingtalk': False, 'wecom': False}`
 * **修正产物（线上已修，用户授权后执行）**：
-  * 模板：`workflows/n8n-templates/alert-check.json` 触发器改为金丝雀同款「每天定点」格式（**08:30**，避开 10:00 投喂；与应用内兜底 09:30 错开——兜底看到本次调用的审计记录即幂等跳过），description 内写明该踩坑
+  * 模板：`workflows/n8n-templates/alert-check.json` 触发器改为金丝雀同款「每天定点」格式（**12:30**，与应用内兜底 12:45 错开——兜底看到本次调用的审计记录即幂等跳过），description 内写明该踩坑与"两者时刻必须 n8n 先、兜底后"的约束
+  * **时刻选择踩坑（同日修正）**：初版把 n8n 定在 08:30、兜底沿用 09:30，会**误报 n8n 停摆**——兜底 09:30 回看的 20 小时窗口始于前一日 13:30，而 n8n 前一日 08:30 的调用已满 25 小时、掉出窗口 → 判定"没人跑过" → 推送假警报 + 自己重复检测。改为「n8n 12:30 + 兜底 12:45」后窗口内必有 n8n 调用。**约束沉淀**：兜底时刻必须晚于 n8n，且间隔 < 幂等窗口（20h）
   * 线上：**不走模板导入**（模板 auth 配置与线上不同，会把硬编码 Bearer 换成不存在的凭证）——改为 `export:workflow` 导出线上原样 JSON → 只改触发器字段 → `import:workflow` 导回 → `update:workflow --active=true` 重新激活 → `docker restart eia-n8n-v4-prod`。改动前后 Authorization 哈希一致（`b6ab751f`），工作流数量仍为 3（未产生副本）
   * 两条 CLI 行为差异（易踩）：`publish:workflow` **空转**（回显成功但不落库）；`update:workflow` **落库但已废弃**（打印 deprecation 后转调 publish 逻辑，实际写入了 active/activeVersionId）
   * 另一处：`import:workflow --activeState=fromJson` 仅 queue/multi-main 模式支持，regular 模式默认把导入的工作流置为**未激活**，必须补一步重新激活
 * **未决（backlog）**：
-  * **闭环验证点 2026-09-15 08:30**（三个证据齐备才算真修好）：① n8n `execution_entity` 出现新执行行；② 后端 `audit_log` 出现 `user_agent='n8n'` 的 `/api/v1/alerts/check` 记录；③ 09:30 应用内兜底读到该记录并走「跳过（幂等）」。任一缺失即触发器未真正生效，回退到 UI 手工改 Schedule Trigger 节点
+  * **闭环验证点 2026-09-15 12:30**（三个证据齐备才算真修好）：① n8n `execution_entity` 出现新执行行；② 后端 `audit_log` 出现 `user_agent='n8n'` 的 `/api/v1/alerts/check` 记录；③ 12:45 应用内兜底读到该记录并走「跳过（幂等）」。任一缺失即触发器未真正生效，回退到 UI 手工改 Schedule Trigger 节点
   * 周报工作流（8743d53f）同一错法 + 从未成功，另行排期
   * n8n 容器 `/tmp` 存有 6 个早期会话遗留的工作流导出文件（`canary-backup-20260824.json`、`verify-after-*.json`、`wf_export.json` 等，均含真实 webhook 密钥）——非本次创建，未擅自删除，待用户决定
-  * n8n 若再次停摆，应用内兜底每日 09:30 已接管，**告警本身不断**（这是本次改动的核心保证）
+  * n8n 若再次停摆，应用内兜底每日 12:45 已接管，**告警本身不断**（这是本次改动的核心保证）
 * **顺带修复（部署状态，影响 9-15 跑分解读）**：排查中发现线上 V4 服务（PID 16788）启动于 2026-09-08 12:46:27，而 T-13/14/15 提交于同日 12:56:48、且启动命令无 `--reload`——即 9/8 12:46 起线上跑的是改动前代码，**T-13/14/15 自提交后从未生效**。2026-09-14 15:54 重启（PID 55680，`/health/ready` 就绪），两个定时任务均注册；启动首轮兜底周期走「最近 20 小时已有检测记录，跳过（幂等）」，未产生重复推送。→ **9-15 金丝雀是首次跑在 T-13/14/15 代码上的实测**
 * **Commit**：见 git log（本次改动集）
 
