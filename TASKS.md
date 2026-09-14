@@ -137,19 +137,23 @@
   * **告警文案抽公共函数** `send_alert_notification()`——端点与兜底共用，防两条路径文案漂移成双源
   * **停摆提示只发一次**——首次发现 n8n 停摆推一条，n8n 恢复后状态重置；避免"n8n 挂了"变成本身刷屏的告警
   * **loop 先检查后等待**——服务启动晚于定点时刻也能当天覆盖，幂等判据保证频繁重启不重复检测
-* **n8n 侧排查结论（根因未 100% 坐实，证据链如下）**：
-  * 硬证据：`execution_entity` 中 alert-check 最后执行 2026-09-01 06:48（success），9/2–9/14 零执行；同期金丝雀工作流执行正常（9/14 05:05 仍在跑）→ **n8n 进程健康，是单工作流级停摆**，非服务级故障
-  * 关键差异：n8n 2.34.6 的 CLI 已把 `update:workflow --active` 标注 **DEPRECATED**，改用 `publish:workflow` / `unpublish:workflow`；`workflow_published_version` 表中**仅金丝雀工作流有发布记录**（2026-08-12），alert-check 与周报均无——三个工作流在 `workflow_entity` 里都是 `active=1`，但只有"已发布"的金丝雀持续触发
-  * 旁证：8/18 升级 2.34.6 时执行了新迁移 `AddRecurringCronScheduleKind...`（定时注册机制变更）；三者触发器格式也不同（金丝雀「每天定点」格式 vs 停摆的两个「interval」格式）
-  * **反证（未排除）**：alert-check 在 8/18–9/1 期间无发布记录却仍在跑，故发布机制不是唯一解释；根因保留不确定性，不宣称已坐实
-  * 附带发现：周报工作流**从未成功调用过后端**（`/weekly` 审计记录为 0，9/1 那次 execution 状态 error）——独立问题，未在本次处理
+* **n8n 侧排查结论（根因坐实：触发器参数错位）**：
+  * 硬证据 1（现象）：`execution_entity` 中 alert-check 最后执行 2026-09-01 06:48（success），9/2–9/14 零执行；同期金丝雀执行正常（9/14 05:05 仍在跑）→ **n8n 进程健康，是单工作流级停摆**
+  * 硬证据 2（格式）：DB 内三个工作流的触发器参数——金丝雀 `{"interval":[{"triggerAtHour":13,"triggerAtMinute":5}]}`（正常）；alert-check `{"interval":[{"field":"hours","hoursInterval":8}],"triggerAtMinute":0}`、周报 `{"interval":[{"field":"weeks","weeksInterval":1}],"triggerAtHour":9,...}`——**`triggerAtHour/Minute/Day` 都写在了 interval 数组项之外**，而 n8n ScheduleTrigger 只读项内字段，项外一律忽略
+  * 硬证据 3（时间分布）：告警工作流的历次执行**全部紧跟 n8n 重启**（8/18、8/24、8/28 三次重启后各有 1–3 次），之后长期静默——「重启重新注册触发器 → 跑几次 → 定时器不再重排」的典型症状
+  * **一条被证伪的线索（勿再尝试）**：曾怀疑 n8n 2.34.6 的 publish 机制（`workflow_published_version` 仅金丝雀有记录、`update:workflow --active` 已废弃），但用户授权后执行 `docker exec eia-n8n-v4-prod n8n publish:workflow --id=89981733-...` **实测空转**——CLI 回显 "Publishing..." 但 `workflow_publish_history` 零新增、`workflow_published_version` 无新行（容器仅一个 sqlite 库，排除读错库）；且 alert-check 在无发布记录期间确实跑过。**该路径无效，不要再试**
+  * 附带发现：周报工作流同一错法且**从未成功调用过后端**（`/weekly` 审计记录 0 条，9/1 那次 execution 为 error）——独立问题，未在本次处理
 * **修改范围**：`app/scheduler.py`（+告警兜底循环，T-16 段落）、`app/config.py`（+3 配置项）、`app/api/main.py`（注册/取消 + 防 GC 引用）、`app/services/notification.py`（抽公共告警推送函数）、`app/api/routes/alerts.py`（改用公共函数）、`tests/test_alert_scheduler.py`（新增 5 条）。**禁止动**（已遵守）：`app/tools/anomaly_detector.py` 检测逻辑（只读复用）、金丝雀 scheduler 既有分支
 * **验证数据**：
   * **全量回归**：`243 passed / 4 failed in 98.13s`——基线 238/4 + 新增 5 条全过，4 失败与基线同根因（LLM 连接 ×2 + test_config .env 污染 ×2），**零回归**；耗时对照 9/8 的 9 次超时轮，本轮无超时
   * **单测 5/5**：幂等判据 False/True（mock）、真库集成（插入 audit_log → True，自包含创建即删）、n8n 正常 → `skipped` 且重置停摆提示状态、n8n 停摆 → `fallback` 首次推送停摆提示且后续周期不重复（notify=1/check=2）
   * **E2E 周期实测**：`before=False`（n8n 停摆）→ 第 1 轮 `fallback`（飞书推送实际发出，日志 "Webhook sent platform=feishu"）→ `after=True`（审计记录写入）→ 第 2 轮 `skipped`（无重复推送）
   * **飞书通道实测**：测试消息返回 `{'feishu': True, 'dingtalk': False, 'wecom': False}`
-* **未决（backlog）**：n8n 侧修复动作 `docker exec eia-n8n-v4-prod n8n publish:workflow --id=89981733-...` **未执行**——被权限层拦截（生产容器写入需用户点名授权），已向用户说明并等待决策；n8n 若持续停摆，应用内兜底每日 09:30 已接管，告警本身不断
+* **修正产物**：`workflows/n8n-templates/alert-check.json` 触发器改为金丝雀同款「每天定点」格式（**08:30**，避开 10:00 投喂；与应用内兜底 09:30 错开——兜底看到本次调用的审计记录即幂等跳过），description 内写明该踩坑。**线上工作流尚未改动**
+* **未决（backlog）**：
+  * 线上告警工作流仍是错位触发器（n8n DB 里的 `abdd3a79` 版本），CLI 派不上用场——需在 UI（`http://localhost:5680`）打开「V4 异常检测与预警」→ Schedule Trigger 节点改回「Days / 08:30」并保存（UI 保存会按正确结构重写参数字段），或导入修正后的模板
+  * 周报工作流（8743d53f）同一错法 + 从未成功，另行排期
+  * n8n 若持续停摆，应用内兜底每日 09:30 已接管，**告警本身不断**（这是本次改动的核心保证）
 * **顺带修复（部署状态，影响 9-15 跑分解读）**：排查中发现线上 V4 服务（PID 16788）启动于 2026-09-08 12:46:27，而 T-13/14/15 提交于同日 12:56:48、且启动命令无 `--reload`——即 9/8 12:46 起线上跑的是改动前代码，**T-13/14/15 自提交后从未生效**。2026-09-14 15:54 重启（PID 55680，`/health/ready` 就绪），两个定时任务均注册；启动首轮兜底周期走「最近 20 小时已有检测记录，跳过（幂等）」，未产生重复推送。→ **9-15 金丝雀是首次跑在 T-13/14/15 代码上的实测**
 * **Commit**：见 git log（本次改动集）
 
