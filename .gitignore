@@ -56,9 +56,13 @@ demo_scripts/
 demo_output/
 web/node_modules/
 
+# TypeScript 增量编译缓存
+*.tsbuildinfo
+
 # Personal info — do not sync
 docs/个人简历-*.md
 docs/作品集-*.md
+docs/作品集-*.html
 docs/*面试*.md
 docs/*模拟对答*.md
 
