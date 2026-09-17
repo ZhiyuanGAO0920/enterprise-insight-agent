@@ -3,7 +3,7 @@
   <scroll-view class="message-area" scroll-y scroll-into-view="{{scrollTarget}}">
     <!-- 空状态 -->
     <view class="empty-state" wx:if="{{messages.length === 0 && !loading}}">
-      <view class="empty-icon"><view class="icon icon-chat icon-xl"></view></view>
+      <view class="empty-icon"><image class="eia-logo" src="/assets/brand/eia-white.png" mode="aspectFit"/></view>
       <view class="empty-title">问我任何经营问题</view>
       <view class="empty-desc">点击下方问题快速开始</view>
       <view class="suggestion-list">

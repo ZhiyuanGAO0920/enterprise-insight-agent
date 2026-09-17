@@ -1,9 +1,9 @@
 <view class="login-container">
   <view class="login-header">
     <view class="logo">
-      <!-- EIA 品牌字标：白字 900 粗体 + 右下白色上升折线（增长洞察），无字体依赖 -->
-      <text class="logo-text">EIA</text>
-      <view class="logo-trend"></view>
+      <!-- EIA 品牌标识（assets/brand/eia-white.png）：粗体字标 + 上升折线，
+           与 AI 助手空状态共用同一资产；PNG 渲染避免安卓无 900 字重导致的跨端差异 -->
+      <image class="logo-img" src="/assets/brand/eia-white.png" mode="aspectFit"/>
     </view>
     <view class="app-title">企业经营助手</view>
     <view class="app-subtitle">ENTERPRISE INSIGHT AGENT</view>

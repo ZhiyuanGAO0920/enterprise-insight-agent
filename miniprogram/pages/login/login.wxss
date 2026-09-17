@@ -23,34 +23,19 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto 36rpx;
-  /* 弥散光晕：大半径主色投影 = 视觉冲击点 */
+  /* 顶部内高光 + 双层弥散光晕：与 AI 助手空状态同款品牌底盘 */
   box-shadow:
+    inset 0 2rpx 6rpx rgba(255, 255, 255, 0.28),
     0 24rpx 56rpx rgba(26, 115, 232, 0.35),
     0 6rpx 16rpx rgba(26, 115, 232, 0.22);
 }
 
-/* EIA 字标：系统字体 900 粗体即可，真机渲染最锐利 */
-.logo-text {
-  font-size: 64rpx;
-  font-weight: 900;
-  letter-spacing: 6rpx;
-  padding-left: 6rpx; /* 抵消尾字母间距，视觉居中 */
-  color: var(--color-surface);
-  line-height: 1;
-}
-
-/* 右下角白色增长折线：与首页 icon-trend 同形状的白色烤色版 */
-.logo-trend {
-  position: absolute;
-  right: 10rpx;
-  bottom: 10rpx;
-  width: 48rpx;
-  height: 48rpx;
-  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAC10lEQVR4nO2XvWsUURTFzzjxA0FJNIKCIKiNYCGIiIIEAtpYWFn4L5hGLMXWUmzFIoWInY1go4ikEcVKKxsbRRQUYywkH7v5yY33Jddhsh/Jzu4Kc2DYt2/mzTvnvvPevSPVqFGjRo0aNQaHrJ+TAXmYk/C70s6yLPUNp4B2ALakZqdi+iIAsHnsuippr6QlSW8kNSR99Ws5y7K5bt+d9Ym8YYekj5LGC480Jf0yAZLeed9DSdN/XZXZ/cHbAjhMOZZL+i7Fsa3Q9oEeYlTSC0nPJX2SNCvpt7sgbeSm2+oG8FjSrsIqDgeAncAocAiYAGY88s2wIkvAwaERYCTMEkVbAAeAOSduV8OFzPj9li4ZUZ/gxyIhopYTbOM+kLTb7WN9BiP9PQ0dlj3wz7xZlpnXz0maLJBP5//boRTg0TePb5d02wmXkbTVaYueCHBv5x1uNou+kbsi6aQTXc3Aof069FWHkk2Zd7CRx4Evvlmb4QQibOLJdu/b1Ao4GcuUdnIcA85Yv2XOtCIlw3KP/pSk/SH6KfKWG3Jvf0hTbZRjO/Ipw94BFj16L4Hz4blVId62cUeAn+HMb/jYR8AYcBq4CFjp0Xs4iUTqXigHkgUMT0uEbPP2/WAVfNwCcLQSwh2QXwzZM3q6TMiEE0/kG/57y++PtLBfZeQJVmgUsmnCMxMCPA/EU+b9AexJe6rnxDskX0QUUnY/Rn/K35sPgnyK8ixw2e8vriMkFmpp3Ptgm2xQ5M0Cp8KY48C0b8yiEEKlabjgY/KBkwe2RiLrCDHi895O1WZl5LMuyK9WtcVTJAhJxA2fgRMxn/RaQKpt7nZDvuwd4b9l62vAdWBfCpQqIJ9sc9PJzhdOjbbkWwmJ/aoCoeCyz71XTnphI+SLhP3EGan8E5E1/48FEd82Sn4gYK1Ys4/vJ8DZ/4Z8QnGpK/PtJpB1IWKl9t/MZDVq1KhRo4Z6jD8DfuY4DianoQAAAABJRU5ErkJggg==);
-  background-repeat: no-repeat;
-  background-size: contain;
-  background-position: center;
-  opacity: 0.96;
+/* EIA 品牌标识（assets/brand/eia-white.png，180x80，由 scripts/gen_icons.py 生成）：
+   与 AI 助手空状态共用同一资产，PNG 渲染跨端一致（不依赖系统 900 字重）；
+   比例 180:80 = 2.25:1，显示 112x50rpx（= 112/2.25）与 chat 页空状态一致 */
+.logo-img {
+  width: 112rpx;
+  height: 50rpx;
 }
 
 .app-title {

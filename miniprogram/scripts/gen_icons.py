@@ -8,25 +8,37 @@ import base64
 import io
 import os
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 S = 4                      # 超采样倍数（抗锯齿）
-SIZE = 48                  # 内联图标输出尺寸(px)
-TAB = 81                   # tabBar 图标尺寸(px)
+LOGICAL = 100              # 逻辑坐标空间：所有绘制函数按 0..100 取坐标
+SIZE = 48                  # 内联图标输出尺寸(px)；由 png_b64 缩放到此尺寸
+TAB = 81                   # tabBar 图标尺寸(px)；由 png_b64 缩放到此尺寸
 WHITE = (255, 255, 255, 255)
 TRANS = (0, 0, 0, 0)
 
 ASSET_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "tabbar")
+BRAND_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "brand")
 STYLE_DIR = os.path.join(os.path.dirname(__file__), "..", "styles")
+
+# EIA 品牌字标（Arial Bold 渲染，跨端一致；回退 Segoe UI Bold）
+EIA_FONT_CANDIDATES = [
+    "C:/Windows/Fonts/arialbd.ttf",
+    "C:/Windows/Fonts/segoeuib.ttf",
+]
 
 
 # ---------- 基础绘制助手（逻辑坐标 0..100） ----------
+# 画布按 LOGICAL 建，不按输出尺寸 SIZE/TAB 建：绘制函数用的是 0..100 逻辑坐标，
+# 乘 S 后需要 LOGICAL*S 的画布才装得下；最终尺寸由 png_b64 的 out_size 统一缩放。
+# 曾经误用 SIZE*S（192px）建画布，导致坐标超出的部分被静默裁掉——图标只剩左上角。
 def canvas():
-    return Image.new("RGBA", (SIZE * S, SIZE * S), TRANS)
+    return Image.new("RGBA", (LOGICAL * S, LOGICAL * S), TRANS)
 
 
 def tcanvas():
-    return Image.new("RGBA", (TAB * S, TAB * S), TRANS)
+    # tabBar 图标同样按逻辑 0..100 绘制，输出尺寸在 png_b64(img, TAB) 指定
+    return Image.new("RGBA", (LOGICAL * S, LOGICAL * S), TRANS)
 
 
 def L(d, a, b, w, c):
@@ -251,7 +263,6 @@ INLINE = [
     ("hourglass", ic_hourglass, "white"),
     ("chevron-down", ic_chevron_down, "gray"),
     ("share", ic_share, "gray"),
-    ("building", ic_building, "white"),
     ("close", ic_close, "danger"),
     ("info", ic_info, "gray"),
 ]
@@ -308,4 +319,70 @@ for name, fn in tabs:
         with open(os.path.join(ASSET_DIR, "%s%s.png" % (name, suffix)), "wb") as f:
             f.write(raw)
 print("tabbar png written: home/chat/mine x2")
+
+# ---------- 生成 EIA 品牌字标 ----------
+# 用于 AI 助手空状态等品牌露出位：跨端渲染一致（不依赖系统字体字重），
+# 白色版配深色/渐变底盘，蓝色版配白底。
+BLUE_RGBA = (26, 115, 232, 255)  # #1A73E8 = --color-primary
+
+
+def _load_eia_font(size):
+    for path in EIA_FONT_CANDIDATES:
+        if os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+
+def _eia_letters(color, size, tracking):
+    """EIA 字母本体：逐字母排版 + 正字距，裁剪到内容边界。"""
+    font = _load_eia_font(size)
+    text = "EIA"
+    probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    widths = []
+    for ch in text:
+        box = probe.textbbox((0, 0), ch, font=font)
+        widths.append(box[2] - box[0])
+    total = sum(widths) + tracking * (len(text) - 1)
+    pad = 12
+    img = Image.new("RGBA", (total + pad * 2, size * 2 + pad * 2), TRANS)
+    d = ImageDraw.Draw(img)
+    x = pad
+    for ch, w in zip(text, widths):
+        d.text((x, pad), ch, font=font, fill=color)
+        x += w + tracking
+    bbox = img.getbbox()
+    return img.crop(bbox) if bbox else img
+
+
+def make_eia_logo(color, size=96, tracking=5):
+    """EIA 完整品牌标识 = 粗体字标 + 右下角上升折线（增长洞察，复用 ic_trend）。
+    size=96 → 输出约 118x86 @3x，显示约 39x29px；配 160rpx 底盘时字标饱满且不压迫。
+    跨端一致：不依赖系统字体的 900 字重（安卓无 900 会退化成 700）。"""
+    letters = _eia_letters(color, size, tracking)
+
+    # 折线符号：复用图标库 ic_trend，按字标比例缩放
+    trend = Image.open(io.BytesIO(base64.b64decode(ic_trend(color))))
+    tw = int(size * 0.46)
+    trend = trend.resize((tw, tw), Image.LANCZOS)
+
+    # 构图：字标居左上，折线压在右下角（与字标尾部轻微重叠，形成整体感）
+    ox = int(tw * 0.52)
+    oy = int(tw * 0.52)
+    W = letters.width + ox
+    H = letters.height + oy
+    canvas_img = Image.new("RGBA", (W, H), TRANS)
+    canvas_img.paste(letters, (0, 0), letters)
+    canvas_img.paste(trend, (W - tw, H - tw), trend)
+
+    bbox = canvas_img.getbbox()
+    return canvas_img.crop(bbox) if bbox else canvas_img
+
+
+os.makedirs(BRAND_DIR, exist_ok=True)
+make_eia_logo(WHITE).save(os.path.join(BRAND_DIR, "eia-white.png"))
+make_eia_logo(BLUE_RGBA).save(os.path.join(BRAND_DIR, "eia-blue.png"))
+print("brand png written: eia-white / eia-blue")
 print("DONE")
