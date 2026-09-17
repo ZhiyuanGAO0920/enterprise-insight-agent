@@ -279,7 +279,7 @@ enterprise-insight-agent/
 
 ---
 
-## 数据库模型（25 张表）
+## 数据库模型（26 张表）
 
 | 类别 | 表名 | 说明 |
 |------|------|------|
@@ -287,10 +287,12 @@ enterprise-insight-agent/
 | | `product` / `supplier` / `inventory` / `purchase_order` | 商品/供应商/库存/采购 |
 | **权限** | `users` / `roles` / `permissions` | RBAC 三元组 |
 | | `user_roles` / `role_permissions` / `user_store_access` | 角色-权限-门店关联 |
+| | `user_wechat_bindings` | 小程序微信账号绑定 |
 | **多租户** 🆕 | `tenants` | 租户信息 + 套餐/容量限制 |
 | **审计** 🆕 | `audit_log` | 全量 API 操作审计（180 天保留） |
 | **分析** | `analysis_history`（含 pgvector 嵌入） | 分析记录 + 向量语义搜索 |
 | | `conversation_sessions` / `agent_trace_events` | 多轮对话 / APM 追踪 |
+| | `eval_runs` | 金丝雀评估跑分记录（带 model_version） |
 | **运营** | `alert_rules` / `alerts` / `weekly_reports` | 预警规则 / 预警记录 / 周报 |
 | | `user_feedback` / `prompt_versions` | 反馈 / Prompt 版本管理 |
 
@@ -345,6 +347,7 @@ pytest tests/ -v
 
 | 文档 | 说明 |
 |------|------|
+| **[📖 项目总览](docs/EIA项目总览.md)** | **全项目唯一入口**：定位/演进/架构/决策/安全/评估闭环/成本/现状/全量文档地图 |
 | **[启动指南](docs/启动指南.md)** | Docker/手动部署 + 首次引导 + FAQ |
 | **[部署方案](docs/启动指南.md)** | 一键部署 + 离线部署 + 备份策略 |
 | **[升级指南](UPGRADE.md)** | V4 版本升级与回滚 |

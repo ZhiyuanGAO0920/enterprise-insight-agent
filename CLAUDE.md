@@ -1,6 +1,7 @@
 # Enterprise Insight Agent V5 — 项目全貌
 
 > Claude 新窗口自动加载此文件即可了解项目。
+> **给人看的全项目唯一入口**：[docs/EIA项目总览.md](docs/EIA项目总览.md)（本文偏工程视角，那份是全景 + 全量文档地图）。
 
 ---
 
@@ -57,13 +58,13 @@ Save Memory（pgvector 1024 维，BGE-M3 本地 Embedding）
 ```
 app/
 ├── agents/          # 11 个 Agent 节点（含 supervisor, 5 领域, aggregator, chart, report, reflection, memory）
-├── api/routes/      # 10 个路由组，50 个端点
+├── api/routes/      # 11 个路由模块，49 个端点（2026-09-17 实测）
 │   ├── analysis.py  # /analyze + /analyze-stream（SSE）
 │   ├── dashboard.py # /today-summary + /overview
 │   ├── alerts.py    # /check（n8n 定时触发 + 飞书/钉钉/企微通知）
 │   └── weekly.py    # /generate + /export（PDF）
 ├── auth/            # JWT + RBAC + RLS（行级安全）
-├── database/        # 17 ORM 模型，13 版 Alembic 迁移
+├── database/        # 18 ORM 模型（另有 8 张由迁移建表，共 26 张业务表），16 版 Alembic 迁移（至 016）
 ├── middleware/       # 🆕 audit.py（审计日志） + tenant.py（多租户）
 ├── services/        # notification.py + pdf_exporter.py + masker.py（PII 脱敏）
 ├── scheduler.py     # 🆕 金丝雀定时兜底（每日 13:05，7 天幂等窗口）+ 告警兜底（每日 12:45，20h 幂等窗口，T-16）
@@ -148,4 +149,4 @@ Feature Flag：`FEATURE_PROMPT_YAML=true`（当前启用）
 - **改 `app/api/static/` 前端文件后必须 bump 版本号**（`index.html` 里 `views.js?v=4.56` 等 `?v=` 参数，否则浏览器命中旧缓存，改动"看起来没生效"）——T-11 排查踩坑沉淀
 - 热重载 Prompt：`POST /api/v1/prompts/reload`
 - 测试：`pytest tests/ -v`（242 条）
-- 数据库迁移：`alembic upgrade head`（当前 13 个版本）
+- 数据库迁移：`alembic upgrade head`（16 个版本，至 016）
